@@ -1,0 +1,990 @@
+[
+    {
+        "question": "Which serological test for syphilis remains positive even after successful treatment?",
+        "options": [
+            "VDRL",
+            "RPR",
+            "TPHA",
+            "FTA-ABS Quantitative"
+        ],
+        "correct_option": "TPHA",
+        "explanation": "TPHA (Treponema Pallidum Hemagglutination Assay) is a specific treponemal test that typically remains positive for life after infection, even after successful treatment. This is in contrast to non-treponemal tests like VDRL and RPR which usually become negative after successful treatment.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "How does Treponema pallidum evade host immune response during early infection?",
+        "options": [
+            "By producing endotoxins",
+            "Through antigenic variation",
+            "By having few surface proteins",
+            "By forming biofilms"
+        ],
+        "correct_option": "By having few surface proteins",
+        "explanation": "T. pallidum evades host immune response primarily due to its unique outer membrane which contains very few proteins (poor antigenicity). This molecular mimicry and limited surface protein expression makes it difficult for the immune system to recognize and mount an effective response.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 28-year-old man presents with a non-tender ulcer on his penis for 2 weeks. Dark field microscopy is positive, but VDRL is negative. What is the most likely diagnosis?",
+        "options": [
+            "Secondary syphilis with healing chancre",
+            "Primary syphilis in early stage",
+            "Chancroid with false positive dark field",
+            "Latent syphilis"
+        ],
+        "correct_option": "Primary syphilis in early stage",
+        "explanation": "This is a classic presentation of primary syphilis in its early stage. The presence of T. pallidum on dark field microscopy with a negative VDRL is characteristic of very early primary syphilis (first 1-2 weeks) when serological tests haven't yet become positive. The non-tender ulcer (chancre) is typical.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which cellular finding in urethral discharge is diagnostic of gonorrhea?",
+        "options": [
+            "Intracellular gram-negative diplococci",
+            "Extracellular gram-negative cocci",
+            "Intracellular gram-positive diplococci",
+            "Gram-variable coccobacilli"
+        ],
+        "correct_option": "Intracellular gram-negative diplococci",
+        "explanation": "The presence of intracellular gram-negative diplococci in urethral discharge is diagnostic of gonorrhea. This is a defining characteristic of Neisseria gonorrhoeae infection and is considered sufficient for presumptive diagnosis and treatment initiation.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the mechanism of antibiotic resistance in Neisseria gonorrhoeae?",
+        "options": [
+            "Plasmid-mediated beta-lactamase production",
+            "Ribosomal protection proteins",
+            "Efflux pumps only",
+            "Altered cell wall permeability only"
+        ],
+        "correct_option": "Plasmid-mediated beta-lactamase production",
+        "explanation": "The primary mechanism of antibiotic resistance in N. gonorrhoeae is through plasmid-mediated beta-lactamase production. This mechanism is particularly important as it can be transferred between strains and contributes to the increasing prevalence of antibiotic-resistant gonorrhea.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which microorganism causes chancroid?",
+        "options": [
+            "Haemophilus ducreyi",
+            "Klebsiella granulomatis",
+            "Calymmatobacterium granulomatis",
+            "Chlamydia trachomatis"
+        ],
+        "correct_option": "Haemophilus ducreyi",
+        "explanation": "Chancroid is caused by Haemophilus ducreyi, a gram-negative facultative anaerobic coccobacillus. This organism requires specific culture media containing X and V factors for growth, making laboratory diagnosis challenging.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "How does Haemophilus ducreyi establish infection in the epidermis?",
+        "options": [
+            "Through production of cytotoxin",
+            "By forming biofilms",
+            "Through capsular attachment",
+            "By spore formation"
+        ],
+        "correct_option": "Through production of cytotoxin",
+        "explanation": "H. ducreyi produces a cytotoxin that causes death of keratinocytes and facilitates bacterial invasion. This cytotoxin is key to the formation of the characteristic painful ulcers of chancroid.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 25-year-old man presents with multiple painful genital ulcers with undermined edges and suppurative lymphadenopathy. Gram stain shows 'school of fish' arrangement. What is the most appropriate initial treatment?",
+        "options": [
+            "Azithromycin 1g single dose",
+            "Ceftriaxone 250mg IM single dose",
+            "Doxycycline 100mg BD for 7 days",
+            "Erythromycin 500mg QID for 7 days"
+        ],
+        "correct_option": "Azithromycin 1g single dose",
+        "explanation": "This is a classic presentation of chancroid with characteristic painful ulcers and suppurative lymphadenopathy. The 'school of fish' arrangement on Gram stain is typical of H. ducreyi. Single-dose azithromycin is the preferred treatment due to its convenience and high efficacy.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which organism is the most common cause of non-gonococcal urethritis?",
+        "options": [
+            "Chlamydia trachomatis",
+            "Mycoplasma genitalium",
+            "Ureaplasma urealyticum",
+            "Trichomonas vaginalis"
+        ],
+        "correct_option": "Chlamydia trachomatis",
+        "explanation": "Chlamydia trachomatis is responsible for approximately 30-50% of non-gonococcal urethritis cases, making it the most common causative organism. It's followed by Mycoplasma genitalium as the second most common cause.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the mechanism by which Chlamydia trachomatis causes cellular damage in urethritis?",
+        "options": [
+            "Through elementary body replication",
+            "By inducing host cell apoptosis during reticulate body stage",
+            "Through direct cytolysis",
+            "By toxin production"
+        ],
+        "correct_option": "By inducing host cell apoptosis during reticulate body stage",
+        "explanation": "Chlamydia has a unique biphasic life cycle. During the reticulate body stage inside host cells, it induces cellular damage primarily through triggering host cell apoptosis as the reticulate bodies transform back into infectious elementary bodies.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which serological test for syphilis remains positive even after successful treatment?",
+        "options": [
+            "VDRL",
+            "RPR",
+            "TPHA",
+            "FTA-ABS Quantitative"
+        ],
+        "correct_option": "TPHA",
+        "explanation": "TPHA (Treponema Pallidum Hemagglutination Assay) is a specific treponemal test that typically remains positive for life after infection, even after successful treatment. This is in contrast to non-treponemal tests like VDRL and RPR which usually become negative after successful treatment.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "How does Treponema pallidum evade host immune response during early infection?",
+        "options": [
+            "By producing endotoxins",
+            "Through antigenic variation",
+            "By having few surface proteins",
+            "By forming biofilms"
+        ],
+        "correct_option": "By having few surface proteins",
+        "explanation": "T. pallidum evades host immune response primarily due to its unique outer membrane which contains very few proteins (poor antigenicity). This molecular mimicry and limited surface protein expression makes it difficult for the immune system to recognize and mount an effective response.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 28-year-old man presents with a non-tender ulcer on his penis for 2 weeks. Dark field microscopy is positive, but VDRL is negative. What is the most likely diagnosis?",
+        "options": [
+            "Secondary syphilis with healing chancre",
+            "Primary syphilis in early stage",
+            "Chancroid with false positive dark field",
+            "Latent syphilis"
+        ],
+        "correct_option": "Primary syphilis in early stage",
+        "explanation": "This is a classic presentation of primary syphilis in its early stage. The presence of T. pallidum on dark field microscopy with a negative VDRL is characteristic of very early primary syphilis (first 1-2 weeks) when serological tests haven't yet become positive. The non-tender ulcer (chancre) is typical.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which cellular finding in urethral discharge is diagnostic of gonorrhea?",
+        "options": [
+            "Intracellular gram-negative diplococci",
+            "Extracellular gram-negative cocci",
+            "Intracellular gram-positive diplococci",
+            "Gram-variable coccobacilli"
+        ],
+        "correct_option": "Intracellular gram-negative diplococci",
+        "explanation": "The presence of intracellular gram-negative diplococci in urethral discharge is diagnostic of gonorrhea. This is a defining characteristic of Neisseria gonorrhoeae infection and is considered sufficient for presumptive diagnosis and treatment initiation.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the mechanism of antibiotic resistance in Neisseria gonorrhoeae?",
+        "options": [
+            "Plasmid-mediated beta-lactamase production",
+            "Ribosomal protection proteins",
+            "Efflux pumps only",
+            "Altered cell wall permeability only"
+        ],
+        "correct_option": "Plasmid-mediated beta-lactamase production",
+        "explanation": "The primary mechanism of antibiotic resistance in N. gonorrhoeae is through plasmid-mediated beta-lactamase production. This mechanism is particularly important as it can be transferred between strains and contributes to the increasing prevalence of antibiotic-resistant gonorrhea.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which type of HSV is most commonly associated with recurrent genital herpes?",
+        "options": [
+            "HSV-2",
+            "HSV-1",
+            "HSV-3",
+            "HSV-4"
+        ],
+        "correct_option": "HSV-2",
+        "explanation": "HSV-2 is responsible for most cases of recurrent genital herpes. While HSV-1 can cause genital herpes, it tends to recur less frequently than HSV-2 in the genital area due to better viral adaptation to the genital tract.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "How does HSV establish latency in the host?",
+        "options": [
+            "By integrating into host DNA",
+            "Through retrograde axonal transport to dorsal root ganglia",
+            "By forming spores in epithelial cells",
+            "Through persistent viremia"
+        ],
+        "correct_option": "Through retrograde axonal transport to dorsal root ganglia",
+        "explanation": "HSV establishes latency by traveling up sensory nerve axons to dorsal root ganglia where it remains dormant. This mechanism explains the dermatomal distribution of recurrences and the inability to eliminate the virus with current treatments.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 24-year-old woman presents with painful genital ulcers and lymphadenopathy. Tzanck smear shows multinucleated giant cells. What is the most appropriate initial treatment?",
+        "options": [
+            "Valacyclovir 1g BD for 7-10 days",
+            "Acyclovir 400mg TID for 7-10 days",
+            "Famciclovir 250mg TID for 7-10 days",
+            "Acyclovir 200mg 5 times daily for 7-10 days"
+        ],
+        "correct_option": "Valacyclovir 1g BD for 7-10 days",
+        "explanation": "This is a primary genital herpes infection, confirmed by Tzanck smear showing multinucleated giant cells. Valacyclovir 1g BD is preferred due to better bioavailability and convenient dosing compared to acyclovir, leading to better compliance.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following is NOT typically associated with chronic HPV infection?",
+        "options": [
+            "Integration into host genome",
+            "Expression of E6 and E7 proteins",
+            "Increased p53 activity",
+            "Cellular proliferation"
+        ],
+        "correct_option": "Increased p53 activity",
+        "explanation": "In chronic HPV infection, E6 protein actually decreases p53 activity by promoting its degradation. This is a key mechanism in HPV-mediated carcinogenesis. The other options are typical features of chronic HPV infection.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 32-year-old HIV-positive woman with CD4 count 180/µL presents with extensive genital warts resistant to conventional therapy. Recent Pap smear shows HSIL. Which management approach is most appropriate?",
+        "options": [
+            "Immediate colposcopy and surgical excision",
+            "Topical imiquimod alone",
+            "Observation and repeat Pap in 6 months",
+            "Podophyllin application weekly"
+        ],
+        "correct_option": "Immediate colposcopy and surgical excision",
+        "explanation": "This case presents multiple high-risk features: immunosuppression (CD4 <200), extensive warts, therapy resistance, and HSIL. Given the high risk of progression to cancer in immunocompromised patients, immediate colposcopy and surgical intervention is warranted rather than conservative management.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 5,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the most common cause of genital ulcers globally?",
+        "options": [
+            "Herpes simplex virus",
+            "Treponema pallidum",
+            "Haemophilus ducreyi",
+            "Chlamydia trachomatis"
+        ],
+        "correct_option": "Herpes simplex virus",
+        "explanation": "Herpes simplex virus (particularly HSV-2) is the most common cause of genital ulcers worldwide. Its prevalence has increased while other causes like syphilis and chancroid have decreased in many regions.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Why is the syndromic approach recommended for managing genital ulcers in resource-limited settings?",
+        "options": [
+            "Because it allows immediate treatment without waiting for lab results",
+            "Because it's more cost-effective than testing",
+            "Because it prevents antimicrobial resistance",
+            "Because it improves contact tracing"
+        ],
+        "correct_option": "Because it allows immediate treatment without waiting for lab results",
+        "explanation": "The syndromic approach enables immediate treatment based on clinical presentation, which is crucial in settings where laboratory testing may be unavailable or delayed. This helps prevent complications and ongoing transmission while awaiting test results.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 25-year-old woman presents with thin, gray-white vaginal discharge and mild itching. Microscopy shows clue cells and pH is 5.5. What is the most appropriate treatment?",
+        "options": [
+            "Metronidazole 500mg BD for 7 days",
+            "Fluconazole 150mg single dose",
+            "Clindamycin cream 2% for 7 days",
+            "Metronidazole gel 0.75% for 5 days"
+        ],
+        "correct_option": "Metronidazole 500mg BD for 7 days",
+        "explanation": "This is a classic presentation of bacterial vaginosis with characteristic discharge, clue cells, and elevated pH. Oral metronidazole for 7 days is first-line treatment with high cure rates. Topical options are alternatives but may have lower efficacy.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following is NOT a criterion in Amsel's criteria for diagnosing bacterial vaginosis?",
+        "options": [
+            "Presence of clue cells",
+            "Vaginal pH > 4.5",
+            "Positive culture for G. vaginalis",
+            "Positive whiff test"
+        ],
+        "correct_option": "Positive culture for G. vaginalis",
+        "explanation": "Culture for G. vaginalis is NOT part of Amsel's criteria as it can be present in healthy women. The four Amsel's criteria are: thin homogeneous discharge, clue cells >20%, pH >4.5, and positive whiff test. Three of four criteria are needed for diagnosis.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A pregnant woman at 32 weeks presents with recurrent bacterial vaginosis despite multiple treatments. She has history of preterm labor in previous pregnancy. Current symptoms include discharge and burning. Partner is untreated. Which management approach is most appropriate?",
+        "options": [
+            "Extended oral clindamycin with partner treatment and probiotics",
+            "Single dose metronidazole with observation",
+            "Topical azole cream only",
+            "Delay treatment until postpartum"
+        ],
+        "correct_option": "Extended oral clindamycin with partner treatment and probiotics",
+        "explanation": "This complex case involves multiple risk factors: pregnancy, history of preterm labor, recurrent infection, and untreated partner. Clindamycin is preferred in pregnancy, and the comprehensive approach includes partner treatment and probiotics to prevent recurrence and reduce preterm labor risk.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 5,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the most effective method for preventing sexual transmission of HIV?",
+        "options": [
+            "Consistent condom use",
+            "Regular STI screening",
+            "Abstinence during symptoms",
+            "Post-exposure prophylaxis"
+        ],
+        "correct_option": "Consistent condom use",
+        "explanation": "Consistent and correct condom use is the most effective method for preventing sexual transmission of HIV and other STIs in sexually active individuals. It provides a physical barrier that prevents contact with infectious fluids.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Why is partner notification crucial in STI control?",
+        "options": [
+            "To break the chain of transmission",
+            "To reduce treatment costs",
+            "To improve compliance",
+            "To track resistance patterns"
+        ],
+        "correct_option": "To break the chain of transmission",
+        "explanation": "Partner notification is essential because it helps identify and treat potentially infected individuals who may be asymptomatic, thereby breaking the chain of transmission. This is crucial for both individual and public health outcomes.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 23-year-old woman is diagnosed with chlamydia. Her partner refuses testing. What contact tracing approach is most appropriate?",
+        "options": [
+            "Expedited partner therapy",
+            "Provider referral only",
+            "Patient referral only",
+            "Contract referral"
+        ],
+        "correct_option": "Expedited partner therapy",
+        "explanation": "When partners are reluctant to seek testing, expedited partner therapy (providing treatment to partners without direct medical evaluation) is appropriate for chlamydia. This approach increases partner treatment rates and reduces reinfection.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following is NOT a recommended prevention strategy for vertical transmission of HIV?",
+        "options": [
+            "Elective cesarean at 40 weeks",
+            "Antiretroviral therapy during pregnancy",
+            "Avoidance of breastfeeding",
+            "Intrapartum zidovudine"
+        ],
+        "correct_option": "Elective cesarean at 40 weeks",
+        "explanation": "Elective cesarean at 40 weeks is incorrect - if indicated, it should be performed at 38 weeks before labor onset. The other options are standard recommendations for preventing mother-to-child HIV transmission.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A sexually active 16-year-old presents for STI screening with recent assault history, multiple partners, inconsistent condom use. Which comprehensive prevention strategy is most appropriate?",
+        "options": [
+            "HPV vaccination, counseling, PrEP evaluation, and regular screening",
+            "Abstinence counseling only",
+            "Condoms and annual screening",
+            "Single STI screen and treatment if needed"
+        ],
+        "correct_option": "HPV vaccination, counseling, PrEP evaluation, and regular screening",
+        "explanation": "This complex case requires a comprehensive approach due to multiple risk factors. The strategy includes primary prevention (vaccination, counseling), secondary prevention (regular screening), and targeted interventions (PrEP evaluation) based on risk assessment.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 5,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which diagnostic test is most appropriate for detecting early congenital syphilis?",
+        "options": [
+            "IgM testing",
+            "VDRL",
+            "Dark field microscopy",
+            "TPHA"
+        ],
+        "correct_option": "IgM testing",
+        "explanation": "IgM testing is most appropriate for early congenital syphilis diagnosis as it detects the infant's own antibody response, unlike IgG which can be maternally transferred. VDRL and TPHA may reflect maternal antibodies.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the principle behind the FTA-ABS test?",
+        "options": [
+            "Indirect immunofluorescence",
+            "Agglutination",
+            "Complement fixation",
+            "Enzyme immunoassay"
+        ],
+        "correct_option": "Indirect immunofluorescence",
+        "explanation": "FTA-ABS (Fluorescent Treponemal Antibody Absorption) test uses indirect immunofluorescence where patient antibodies bind to fixed T. pallidum and are detected using fluorescent-labeled anti-human antibodies.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A patient presents with suspected primary syphilis. Which sequence of tests provides the most cost-effective screening approach?",
+        "options": [
+            "Treponemal test followed by non-treponemal test if positive",
+            "Non-treponemal test followed by treponemal test if positive",
+            "Both tests simultaneously",
+            "Dark field microscopy only"
+        ],
+        "correct_option": "Non-treponemal test followed by treponemal test if positive",
+        "explanation": "The traditional algorithm of screening with a non-treponemal test (VDRL/RPR) followed by confirmatory treponemal testing is most cost-effective for diagnosing active syphilis. This approach minimizes false positives and unnecessary treatment.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following statements about nucleic acid amplification tests (NAATs) for STIs is FALSE?",
+        "options": [
+            "They can be used for pharyngeal gonorrhea screening",
+            "They are less sensitive than culture for rectal chlamydia",
+            "They can detect dead organisms after treatment",
+            "They can be used for test of cure after 3 weeks"
+        ],
+        "correct_option": "They are less sensitive than culture for rectal chlamydia",
+        "explanation": "NAATs are actually more sensitive than culture for detecting rectal chlamydia. They are the preferred method for extragenital testing including rectal and pharyngeal samples. The other statements are correct limitations or applications of NAATs.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A high-risk STI clinic sees increasing antibiotic resistance in N. gonorrhoeae isolates. Which laboratory strategy would best inform local treatment guidelines?",
+        "options": [
+            "Culture with antimicrobial susceptibility testing from all anatomical sites",
+            "Universal NAAT testing only",
+            "Selective culture of treatment failures",
+            "Periodic random sampling of cases"
+        ],
+        "correct_option": "Culture with antimicrobial susceptibility testing from all anatomical sites",
+        "explanation": "Comprehensive culture and susceptibility testing from all anatomical sites provides the most complete data on resistance patterns. This approach allows detection of site-specific resistance and emerging patterns, crucial for developing effective local treatment guidelines.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 5,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the primary objective of the National STI Control Program?",
+        "options": [
+            "Prevention and control of STI transmission",
+            "Providing free medications",
+            "Contact tracing only",
+            "Research on new treatments"
+        ],
+        "correct_option": "Prevention and control of STI transmission",
+        "explanation": "The primary objective of National STI Control Programs is to prevent and control STI transmission through comprehensive strategies including prevention, early detection, treatment, and surveillance. While other options are components, the main goal is controlling transmission.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Why is sentinel surveillance preferred over passive surveillance in STI control programs?",
+        "options": [
+            "Provides more detailed and accurate data from selected sites",
+            "Requires less resources",
+            "Covers larger population",
+            "Eliminates reporting bias"
+        ],
+        "correct_option": "Provides more detailed and accurate data from selected sites",
+        "explanation": "Sentinel surveillance involves collecting detailed data from selected representative sites. This approach provides more accurate and comprehensive information about STI trends and patterns compared to passive surveillance, though from a smaller number of sites.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A district reports increasing syphilis cases despite standard interventions. Which program response is most appropriate?",
+        "options": [
+            "Enhanced surveillance with targeted outreach and screening",
+            "Mass treatment campaign",
+            "Increasing clinic hours only",
+            "Public awareness campaign only"
+        ],
+        "correct_option": "Enhanced surveillance with targeted outreach and screening",
+        "explanation": "This situation requires a comprehensive response. Enhanced surveillance helps identify affected populations and transmission patterns, while targeted outreach and screening can reach high-risk groups more effectively than general measures alone.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following is NOT a core component of the WHO's global STI control strategy?",
+        "options": [
+            "Universal mandatory screening",
+            "Case management",
+            "Prevention services",
+            "Strategic information systems"
+        ],
+        "correct_option": "Universal mandatory screening",
+        "explanation": "Universal mandatory screening is not a WHO core strategy component. Core components include case management, prevention services, targeted screening of high-risk groups, and strategic information systems. Mandatory screening violates autonomy principles and is resource-intensive.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A resource-limited setting shows high rates of congenital syphilis despite antenatal screening programs. Lab records show stock-outs and delayed results. Which integrated approach is most cost-effective?",
+        "options": [
+            "Implementation of point-of-care testing with same-day treatment",
+            "Increased lab capacity with result tracking system",
+            "Universal prophylactic treatment",
+            "Enhanced partner notification only"
+        ],
+        "correct_option": "Implementation of point-of-care testing with same-day treatment",
+        "explanation": "This complex situation requires addressing multiple system barriers. Point-of-care testing with same-day treatment eliminates delays in diagnosis and treatment, reduces loss to follow-up, and is cost-effective in resource-limited settings. It addresses both testing access and treatment initiation barriers in one visit.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 5,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A 25-year-old male presents with purulent urethral discharge and dysuria for 3 days. Gram stain shows intracellular gram-negative diplococci. What is the most appropriate empirical treatment regimen according to current CDC guidelines?",
+        "options": [
+            "Ceftriaxone 500mg IM single dose + Azithromycin 1g oral single dose",
+            "Ceftriaxone 1g IM single dose",
+            "Doxycycline 100mg oral twice daily for 7 days",
+            "Azithromycin 2g oral single dose"
+        ],
+        "correct_option": "Ceftriaxone 1g IM single dose",
+        "explanation": "As per current CDC guidelines, the recommended first-line treatment for uncomplicated gonorrhea is Ceftriaxone 1g IM as a single dose. Due to increasing antimicrobial resistance, dual therapy with azithromycin is no longer routinely recommended unless chlamydial co-infection is suspected or confirmed.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which antimicrobial resistance mechanism is most commonly associated with extended-spectrum cephalosporin resistance in Neisseria gonorrhoeae?",
+        "options": [
+            "PenA mosaic alleles",
+            "TetM plasmid",
+            "23S rRNA methylation",
+            "mtrR promoter mutation"
+        ],
+        "correct_option": "PenA mosaic alleles",
+        "explanation": "PenA mosaic alleles are the primary mechanism of extended-spectrum cephalosporin resistance in N. gonorrhoeae. These altered penicillin-binding proteins (PBPs) reduce binding affinity for β-lactam antibiotics, including extended-spectrum cephalosporins. This mechanism is particularly concerning as it affects our last-line therapeutic options.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A patient with gonorrhea infection shows persistence of symptoms despite appropriate treatment with Ceftriaxone. Which of the following best explains this treatment failure?",
+        "options": [
+            "Reinfection from untreated partner",
+            "Development of new resistance during therapy",
+            "Initial misdiagnosis",
+            "Host immune deficiency"
+        ],
+        "correct_option": "Reinfection from untreated partner",
+        "explanation": "Treatment failure in gonorrhea is most commonly due to reinfection from an untreated sexual partner rather than true antibiotic resistance. This emphasizes the importance of partner notification and treatment. Development of new resistance during therapy is rare, and initial misdiagnosis is less likely with characteristic symptoms and positive cultures.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which of the following cytokines plays the most crucial role in mediating the inflammatory response and tissue damage in gonococcal arthritis?",
+        "options": [
+            "TNF-α",
+            "IL-1β",
+            "IL-6",
+            "IL-8"
+        ],
+        "correct_option": "TNF-α",
+        "explanation": "TNF-α is the primary mediator of inflammation in gonococcal arthritis. It stimulates synoviocytes to produce metalloproteases, leading to cartilage destruction. It also promotes neutrophil recruitment and activation, contributing to joint damage. Understanding this pathway is crucial for potential therapeutic interventions.",
+        "difficulty": 3,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A pregnant woman at 32 weeks gestation is diagnosed with gonorrhea. What is the most appropriate management approach?",
+        "options": [
+            "Defer treatment until post-partum",
+            "Ceftriaxone 1g IM single dose",
+            "Azithromycin 2g oral single dose",
+            "Amoxicillin-clavulanate for 7 days"
+        ],
+        "correct_option": "Ceftriaxone 1g IM single dose",
+        "explanation": "Pregnant women with gonorrhea should receive immediate treatment with Ceftriaxone 1g IM single dose, which is safe during pregnancy. Delaying treatment increases risk of complications including chorioamnionitis and vertical transmission. Alternative regimens are not recommended due to resistance patterns and potential adverse effects.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 3,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "In HIV-positive patients with gonorrhea, which of the following statements is TRUE regarding management?",
+        "options": [
+            "Higher doses of antibiotics are required",
+            "Treatment duration should be extended",
+            "Standard treatment protocols are followed",
+            "Prophylactic antifungals should be added"
+        ],
+        "correct_option": "Standard treatment protocols are followed",
+        "explanation": "HIV-positive patients with gonorrhea should receive the same treatment regimen as HIV-negative patients. There is no evidence supporting the need for higher doses, extended duration, or additional medications. The standard Ceftriaxone regimen achieves adequate cure rates regardless of HIV status.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "A sexually active adolescent presents with cervicitis. Which specimen collection method has the highest sensitivity for detecting N. gonorrhoeae?",
+        "options": [
+            "Self-collected vaginal swab",
+            "Clinician-collected endocervical swab",
+            "First-catch urine",
+            "Cervical gram stain"
+        ],
+        "correct_option": "Clinician-collected endocervical swab",
+        "explanation": "Clinician-collected endocervical swabs have the highest sensitivity for detecting N. gonorrhoeae in women, particularly when using nucleic acid amplification tests (NAATs). While self-collected specimens are acceptable alternatives, they may have slightly lower sensitivity. First-catch urine has lower sensitivity in women compared to genital swabs.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which component of the National STI Control Program has shown the most significant impact on reducing gonorrhea transmission?",
+        "options": [
+            "Mass screening programs",
+            "Partner notification services",
+            "Antibiotic resistance monitoring",
+            "Health education campaigns"
+        ],
+        "correct_option": "Partner notification services",
+        "explanation": "Partner notification services have demonstrated the highest impact on reducing gonorrhea transmission rates. This approach directly breaks the chain of transmission by identifying and treating infected partners who might otherwise continue spreading the infection. It's more effective than general screening or education alone.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the most cost-effective screening strategy for STIs in resource-limited settings according to WHO guidelines?",
+        "options": [
+            "Universal screening",
+            "Syndromic management",
+            "Risk-based screening",
+            "Periodic mass treatment"
+        ],
+        "correct_option": "Syndromic management",
+        "explanation": "Syndromic management is the most cost-effective approach in resource-limited settings as recommended by WHO. It allows for immediate treatment based on presenting symptoms without waiting for laboratory confirmation, reducing complications and transmission while being economically feasible.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 2,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which indicator best measures the effectiveness of an STI control program's prevention efforts?",
+        "options": [
+            "Number of cases treated",
+            "Incidence of new infections",
+            "Number of screenings performed",
+            "Treatment completion rates"
+        ],
+        "correct_option": "Incidence of new infections",
+        "explanation": "Incidence of new infections is the most reliable indicator of prevention effectiveness as it directly measures the program's success in preventing disease transmission. While other metrics are important, they don't directly reflect prevention success.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "What is the minimum percentage of partner notification required for effective STI control according to national guidelines?",
+        "options": [
+            "50%",
+            "65%",
+            "80%",
+            "95%"
+        ],
+        "correct_option": "80%",
+        "explanation": "National guidelines specify that at least 80% partner notification rate is required for effective STI control. This threshold is based on mathematical modeling showing that lower rates are insufficient to break transmission chains effectively.",
+        "difficulty": 1,
+        "subject": "Internal Medicine",
+        "blooms_level": 1,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    },
+    {
+        "question": "Which intervention has shown the highest return on investment in national STI control programs?",
+        "options": [
+            "Mobile testing units",
+            "Online partner notification",
+            "Integration with HIV services",
+            "Mass media campaigns"
+        ],
+        "correct_option": "Integration with HIV services",
+        "explanation": "Integration of STI services with HIV programs has demonstrated the highest return on investment by leveraging existing infrastructure, reducing duplicate efforts, and improving both HIV and STI outcomes while optimizing resource utilization.",
+        "difficulty": 2,
+        "subject": "Internal Medicine",
+        "blooms_level": 4,
+        "topic": "Venerology",
+        "tags": [
+            "NEET-PG",
+            "INICET"
+        ]
+    }
+]

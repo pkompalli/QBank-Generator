@@ -1,0 +1,3433 @@
+[
+  {
+  "subject": "Anatomy",
+  "topics": [
+    {
+      "name": "Upper/Lower Limb",
+      "chapters": [
+        "Bones and joints of upper limb",
+        "Muscles and movements of upper limb",
+        "Nerves and blood supply of upper limb",
+        "Clinical correlations of upper limb",
+        "Bones and joints of lower limb",
+        "Muscles and movements of lower limb",
+        "Nerves and blood supply of lower limb",
+        "Clinical correlations of lower limb",
+        "Comparison of upper and lower limb structures"
+      ]
+    },
+    {
+      "name": "Thorax/Abdomen",
+      "chapters": [
+        "Thoracic wall and diaphragm",
+        "Pleura and lungs",
+        "Mediastinum and heart",
+        "Great vessels and lymphatics",
+        "Abdominal wall and inguinal region",
+        "Peritoneum and peritoneal cavity",
+        "GI tract anatomy (esophagus to rectum)",
+        "Liver, gallbladder and biliary tree",
+        "Spleen and pancreas",
+        "Kidneys and suprarenal glands",
+        "Retroperitoneal structures"
+      ]
+    },
+    {
+      "name": "Head & Neck",
+      "chapters": [
+        "Skull and cranial cavity",
+        "Face and scalp",
+        "Orbital structures",
+        "Ear anatomy and vestibular system",
+        "Nasal cavity and paranasal sinuses",
+        "Oral cavity and pharynx",
+        "Larynx and vocal apparatus",
+        "Triangles of the neck",
+        "Deep structures of the neck",
+        "Cranial nerves and their pathways",
+        "Cervical sympathetic chain"
+      ]
+    },
+    {
+      "name": "Pelvis/Perineum",
+      "chapters": [
+        "Pelvic girdle and ligaments",
+        "Pelvic floor muscles",
+        "Male reproductive organs",
+        "Female reproductive organs",
+        "Urinary bladder and urethra",
+        "Rectum and anal canal",
+        "Perineum and ischioanal fossa",
+        "Pudendal nerve and internal pudendal vessels",
+        "Pelvic vasculature and lymphatics",
+        "Clinical correlations in pelvis/perineum"
+      ]
+    },
+    {
+      "name": "Gross Anatomy",
+      "chapters": [
+        "Anatomical terminology and positions",
+        "Fascial planes and compartments",
+        "Musculoskeletal system overview",
+        "Cardiovascular system overview",
+        "Respiratory system overview",
+        "Digestive system overview",
+        "Urinary system overview",
+        "Reproductive system overview",
+        "Integumentary system",
+        "Anatomical variations and clinical significance"
+      ]
+    },
+    {
+      "name": "Brainstem nuclei",
+      "chapters": [
+        "Medulla oblongata nuclei",
+        "Pontine nuclei",
+        "Midbrain nuclei",
+        "Cranial nerve nuclei",
+        "Reticular formation",
+        "Ascending sensory pathways in brainstem",
+        "Descending motor pathways in brainstem",
+        "Vestibular nuclei complex",
+        "Vital centers in brainstem",
+        "Brainstem lesions and clinical correlations"
+      ]
+    },
+    {
+      "name": "Corticospinal tracts",
+      "chapters": [
+        "Origin and course of lateral corticospinal tract",
+        "Origin and course of anterior corticospinal tract",
+        "Upper motor neuron anatomy",
+        "Lower motor neuron anatomy",
+        "Decussation of pyramids",
+        "Somatotopic organization",
+        "Alternative motor pathways",
+        "UMN vs LMN lesions",
+        "Spinal cord injury levels and their effects",
+        "Clinical testing of corticospinal tract function"
+      ]
+    },
+    {
+      "name": "Vascular supply (Circle of Willis)",
+      "chapters": [
+        "Internal carotid artery anatomy",
+        "Vertebrobasilar system",
+        "Anterior cerebral artery territory",
+        "Middle cerebral artery territory",
+        "Posterior cerebral artery territory",
+        "Communicating arteries",
+        "Variations in circle of Willis",
+        "Venous drainage of brain",
+        "Stroke syndromes by vascular territory",
+        "Collateral circulation"
+      ]
+    },
+    {
+      "name": "Neuroanatomy",
+      "chapters": [
+        "Cerebral cortex and lobes",
+        "Basal ganglia",
+        "Thalamus and hypothalamus",
+        "Limbic system",
+        "Cerebellum",
+        "Spinal cord organization",
+        "CSF production and circulation",
+        "Meninges and blood-brain barrier",
+        "Sensory pathways",
+        "Motor pathways",
+        "Functional neuroanatomy of vision",
+        "Functional neuroanatomy of hearing and balance"
+      ]
+    },
+    {
+      "name": "Pharyngeal arches",
+      "chapters": [
+        "First pharyngeal arch derivatives",
+        "Second pharyngeal arch derivatives",
+        "Third pharyngeal arch derivatives",
+        "Fourth and sixth pharyngeal arch derivatives",
+        "Pharyngeal pouches",
+        "Pharyngeal clefts",
+        "Pharyngeal membrane derivatives",
+        "Neural crest contribution to pharyngeal arches",
+        "Congenital anomalies of pharyngeal arch derivatives",
+        "Clinical correlations of pharyngeal development"
+      ]
+    },
+    {
+      "name": "Heart development",
+      "chapters": [
+        "Primitive heart tube formation",
+        "Cardiac looping",
+        "Atrial septation",
+        "Ventricular septation",
+        "Outflow tract septation",
+        "Valve development",
+        "Cardiac conduction system development",
+        "Coronary vasculature development",
+        "Fetal circulation",
+        "Congenital heart defects"
+      ]
+    },
+    {
+      "name": "GI development",
+      "chapters": [
+        "Primitive gut formation",
+        "Foregut development and derivatives",
+        "Midgut development and rotation",
+        "Hindgut development",
+        "Liver and biliary system development",
+        "Pancreas development",
+        "Spleen development",
+        "Abdominal wall development",
+        "Diaphragm development",
+        "Congenital anomalies of GI tract"
+      ]
+    },
+    {
+      "name": "Embryology",
+      "chapters": [
+        "Gametogenesis",
+        "Fertilization and zygote formation",
+        "Cleavage and blastocyst formation",
+        "Implantation",
+        "Bilaminar and trilaminar disc formation",
+        "Neurulation and neural tube development",
+        "Somite formation and derivatives",
+        "Placenta and fetal membranes",
+        "Limb development",
+        "Urogenital system development",
+        "Teratogens and critical periods"
+      ]
+    },
+    {
+      "name": "Epithelial/Connective tissues",
+      "chapters": [
+        "Simple epithelial tissues",
+        "Stratified epithelial tissues",
+        "Specialized epithelial junctions",
+        "Epithelial glands",
+        "Loose connective tissue",
+        "Dense connective tissue",
+        "Specialized connective tissues",
+        "Cartilage types and structure",
+        "Bone structure and types",
+        "Connective tissue cells and fibers",
+        "Extracellular matrix components"
+      ]
+    },
+    {
+      "name": "Organ-specific histology",
+      "chapters": [
+        "Cardiovascular histology",
+        "Respiratory system histology",
+        "GI tract histology",
+        "Liver and gallbladder histology",
+        "Pancreas and salivary gland histology",
+        "Urinary system histology",
+        "Male reproductive histology",
+        "Female reproductive histology",
+        "Endocrine gland histology",
+        "Skin histology",
+        "Lymphoid tissue histology",
+        "Central and peripheral nervous system histology"
+      ]
+    },
+    {
+      "name": "Histology",
+      "chapters": [
+        "Cell structure and organelles",
+        "Microscopy techniques",
+        "Tissue preparation and staining",
+        "Basic tissue types overview",
+        "Cell and tissue identification keys",
+        "Histology of blood and hematopoiesis",
+        "Aging-related histological changes",
+        "Histopathological changes in common diseases",
+        "Immunohistochemistry",
+        "Electron microscopy in histology"
+      ]
+    },
+    {
+      "name": "Cross-sectional anatomy",
+      "chapters": [
+        "Principles of cross-sectional imaging",
+        "Head and neck cross-sections",
+        "Thoracic cross-sections",
+        "Cardiac cross-sections",
+        "Upper abdominal cross-sections",
+        "Lower abdominal cross-sections",
+        "Pelvic cross-sections",
+        "Upper limb cross-sections",
+        "Lower limb cross-sections",
+        "Anatomical planes and reference lines"
+      ]
+    },
+    {
+      "name": "Radiologic landmarks",
+      "chapters": [
+        "Skeletal radiologic landmarks",
+        "Thoracic radiologic landmarks",
+        "Cardiac radiologic landmarks",
+        "Abdominal radiologic landmarks",
+        "Neurological radiologic landmarks",
+        "Pelvic radiologic landmarks",
+        "Spinal radiologic landmarks",
+        "Musculoskeletal radiologic landmarks",
+        "Vascular radiologic landmarks",
+        "Contrast-enhanced landmark identification"
+      ]
+    },
+    {
+      "name": "Imaging/Clinical",
+      "chapters": [
+        "X-ray principles and interpretation",
+        "CT scan principles and interpretation",
+        "MRI principles and interpretation",
+        "Ultrasound principles and interpretation",
+        "Nuclear medicine imaging",
+        "Angiography techniques",
+        "Contrast studies",
+        "Interventional radiology procedures",
+        "Emergency imaging protocols",
+        "Anatomical variants in imaging",
+        "Common radiologic findings in pathology"
+      ]
+    },
+    {
+      "name": "Surface anatomy",
+      "chapters": [
+        "Head and neck surface landmarks",
+        "Thoracic surface landmarks",
+        "Abdominal surface landmarks",
+        "Back surface landmarks",
+        "Upper limb surface landmarks",
+        "Lower limb surface landmarks",
+        "Surface projections of internal organs",
+        "Surface anatomy for clinical procedures",
+        "Pulse points and vascular access",
+        "Surface anatomy for nerve blocks"
+      ]
+    },
+    {
+      "name": "Fascial compartments",
+      "chapters": [
+        "Principles of fascial spaces",
+        "Head and neck fascial spaces",
+        "Thoracic fascial planes",
+        "Abdominal fascial planes",
+        "Upper limb fascial compartments",
+        "Lower limb fascial compartments",
+        "Compartment syndrome pathophysiology",
+        "Spread of infection through fascial planes",
+        "Surgical approaches to fascial compartments",
+        "Clinical correlations of fascial spaces"
+      ]
+    },
+    {
+      "name": "Dermatomes and myotomes",
+      "chapters": [
+        "Embryological basis of dermatomes",
+        "Cervical dermatomes and myotomes",
+        "Thoracic dermatomes and myotomes",
+        "Lumbar dermatomes and myotomes",
+        "Sacral dermatomes and myotomes",
+        "Sensory testing of dermatomes",
+        "Motor testing of myotomes",
+        "Dermatome overlap and clinical implications",
+        "Segmental innervation patterns",
+        "Radiculopathy patterns by level"
+      ]
+    },
+    {
+      "name": "Autonomic nervous system anatomy",
+      "chapters": [
+        "Sympathetic trunk anatomy",
+        "Sympathetic ganglia and rami",
+        "Parasympathetic cranial outflow",
+        "Parasympathetic sacral outflow",
+        "Autonomic plexuses",
+        "Visceral afferent pathways",
+        "Autonomic innervation of the head and neck",
+        "Autonomic innervation of thoracic organs",
+        "Autonomic innervation of abdominal organs",
+        "Autonomic innervation of pelvic organs",
+        "Autonomic dysfunction syndromes"
+      ]
+    },
+    {
+      "name": "Lymphatic drainage pathways",
+      "chapters": [
+        "Principles of lymphatic circulation",
+        "Head and neck lymphatics",
+        "Upper limb lymphatic drainage",
+        "Breast lymphatic drainage",
+        "Thoracic lymphatic drainage",
+        "Abdominal lymphatic drainage",
+        "Pelvic lymphatic drainage",
+        "Lower limb lymphatic drainage",
+        "Thoracic duct and right lymphatic duct",
+        "Lymph node groups and clinical significance",
+        "Lymphedema pathophysiology"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Behavioral Science",
+  "topics": [
+    {
+      "name": "Informed consent",
+      "chapters": [
+        "Elements of informed consent",
+        "Capacity to consent",
+        "Exceptions to informed consent",
+        "Special populations (minors, mentally ill)",
+        "Documentation requirements",
+        "Surrogate decision-making",
+        "Advance directives",
+        "Withdrawal of consent",
+        "Cultural factors in consent",
+        "Ethical dilemmas in obtaining consent"
+      ]
+    },
+    {
+      "name": "Study designs",
+      "chapters": [
+        "Observational studies vs experiments",
+        "Cross-sectional studies",
+        "Case-control studies",
+        "Cohort studies",
+        "Randomized controlled trials",
+        "Meta-analyses and systematic reviews",
+        "Qualitative research methods",
+        "Survey design",
+        "Sampling methods",
+        "Blinding and controls",
+        "Bias identification and mitigation",
+        "Confounding variables"
+      ]
+    },
+    {
+      "name": "Sensitivity/Specificity",
+      "chapters": [
+        "Test characteristics fundamentals",
+        "Sensitivity calculation and interpretation",
+        "Specificity calculation and interpretation",
+        "Positive predictive value",
+        "Negative predictive value",
+        "Prevalence effects on predictive values",
+        "ROC curves",
+        "Likelihood ratios",
+        "Bayes theorem application",
+        "Screening test selection criteria",
+        "Diagnostic thresholds",
+        "Serial vs parallel testing"
+      ]
+    },
+    {
+      "name": "Ethics/Biostatistics",
+      "chapters": [
+        "Principles of medical ethics",
+        "Descriptive statistics (central tendency, dispersion)",
+        "Inferential statistics",
+        "Hypothesis testing",
+        "P-values and confidence intervals",
+        "Type I and Type II errors",
+        "Effect size and clinical significance",
+        "Research ethics principles",
+        "IRB and regulatory oversight",
+        "Privacy and confidentiality",
+        "Vulnerable populations in research",
+        "Conflict of interest management",
+        "Publication ethics"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Biochemistry",
+  "topics": [
+    {
+      "name": "Glycolysis",
+      "chapters": [
+        "Overview and regulation of glycolysis",
+        "Preparatory phase reactions",
+        "Pay-off phase reactions",
+        "Rate-limiting enzymes and control points",
+        "Energy yield and ATP production",
+        "Fates of pyruvate",
+        "Substrate-level phosphorylation",
+        "Feeder pathways to glycolysis",
+        "Glycolysis in different tissues",
+        "Disorders of glycolytic enzymes",
+        "Alternative glycolytic pathways"
+      ]
+    },
+    {
+      "name": "Lipid metabolism",
+      "chapters": [
+        "Fatty acid oxidation (beta-oxidation)",
+        "Fatty acid synthesis",
+        "Ketone body metabolism",
+        "Cholesterol synthesis and regulation",
+        "Lipoprotein metabolism",
+        "Phospholipid metabolism",
+        "Eicosanoid synthesis and function",
+        "Steroid hormone synthesis",
+        "Adipose tissue metabolism",
+        "Brown vs. white adipose tissue",
+        "Disorders of lipid metabolism",
+        "Integration with carbohydrate metabolism"
+      ]
+    },
+    {
+      "name": "Urea cycle",
+      "chapters": [
+        "Overview and purpose of urea cycle",
+        "Urea cycle reactions and enzymes",
+        "Nitrogen sources and transport forms",
+        "Compartmentalization between mitochondria and cytosol",
+        "Energy requirements of urea cycle",
+        "Regulation of urea cycle",
+        "Integration with TCA cycle",
+        "Hyperammonemia causes and effects",
+        "Urea cycle disorders",
+        "Alternative nitrogen excretion pathways",
+        "Diagnostic markers of urea cycle function"
+      ]
+    },
+    {
+      "name": "Metabolism",
+      "chapters": [
+        "TCA cycle reactions and regulation",
+        "Electron transport chain and oxidative phosphorylation",
+        "Pentose phosphate pathway",
+        "Gluconeogenesis",
+        "Glycogen metabolism",
+        "Amino acid metabolism",
+        "Integration of metabolic pathways",
+        "Fed state vs. fasting state metabolism",
+        "Exercise metabolism",
+        "Alcohol metabolism",
+        "Metabolic adaptations in starvation",
+        "Metabolic disorders overview"
+      ]
+    },
+    {
+      "name": "DNA repair",
+      "chapters": [
+        "Types of DNA damage",
+        "Base excision repair",
+        "Nucleotide excision repair",
+        "Mismatch repair",
+        "Double-strand break repair",
+        "Homologous recombination",
+        "Non-homologous end joining",
+        "Direct repair mechanisms",
+        "DNA damage response signaling",
+        "DNA repair deficiency syndromes",
+        "Cancer susceptibility and DNA repair",
+        "Aging and DNA repair"
+      ]
+    },
+    {
+      "name": "Transcription/translation",
+      "chapters": [
+        "RNA polymerase structure and function",
+        "Promoters and transcription factors",
+        "Initiation of transcription",
+        "Elongation and termination of transcription",
+        "Post-transcriptional modifications",
+        "RNA splicing and alternative splicing",
+        "Translation initiation",
+        "Elongation and termination of translation",
+        "Post-translational modifications",
+        "Protein folding and chaperones",
+        "Regulation of gene expression",
+        "Epigenetic mechanisms",
+        "RNA interference and microRNAs"
+      ]
+    },
+    {
+      "name": "Molecular Genetics",
+      "chapters": [
+        "DNA structure and organization",
+        "Chromosomal structure",
+        "DNA replication",
+        "Cell cycle and mitosis",
+        "Meiosis and genetic recombination",
+        "Mutation types and consequences",
+        "Mendelian inheritance patterns",
+        "Non-Mendelian inheritance",
+        "Genetic linkage and mapping",
+        "Population genetics principles",
+        "Genetic polymorphisms",
+        "Gene therapy approaches"
+      ]
+    },
+    {
+      "name": "Amino acid metabolism and disorders",
+      "chapters": [
+        "Essential vs. non-essential amino acids",
+        "Amino acid degradation pathways",
+        "Glucogenic and ketogenic amino acids",
+        "Aromatic amino acid metabolism",
+        "Branched-chain amino acid metabolism",
+        "Sulfur-containing amino acid metabolism",
+        "One-carbon metabolism",
+        "Amino acid transport disorders",
+        "Disorders of aromatic amino acids (PKU, alkaptonuria)",
+        "Disorders of branched-chain amino acids (MSUD)",
+        "Urea cycle disorders",
+        "Homocystinuria and methionine metabolism disorders"
+      ]
+    },
+    {
+      "name": "Vitamin/mineral functions and deficiencies",
+      "chapters": [
+        "Fat-soluble vitamins (A, D, E, K)",
+        "Water-soluble vitamins - B complex",
+        "Vitamin C (ascorbic acid)",
+        "Macrominerals (Na, K, Ca, Mg, P, Cl)",
+        "Trace minerals (Fe, Zn, Cu, Se, I)",
+        "Vitamin cofactor functions in metabolism",
+        "Deficiency syndromes of fat-soluble vitamins",
+        "Deficiency syndromes of water-soluble vitamins",
+        "Mineral deficiency disorders",
+        "Vitamin toxicity syndromes",
+        "Dietary sources and requirements",
+        "Assessment of vitamin/mineral status"
+      ]
+    },
+    {
+      "name": "Glycogen storage diseases",
+      "chapters": [
+        "Glycogen structure and metabolism overview",
+        "GSD type I (von Gierke disease)",
+        "GSD type II (Pompe disease)",
+        "GSD type III (Cori disease)",
+        "GSD type IV (Andersen disease)",
+        "GSD type V (McArdle disease)",
+        "GSD type VI (Hers disease)",
+        "GSD type VII (Tarui disease)",
+        "Clinical manifestations by tissue involvement",
+        "Diagnostic approaches to GSDs",
+        "Management strategies for GSDs",
+        "Genetics and inheritance of GSDs"
+      ]
+    },
+    {
+      "name": "Lysosomal storage diseases",
+      "chapters": [
+        "Lysosome structure and function",
+        "Sphingolipidoses (Tay-Sachs, Gaucher, Niemann-Pick)",
+        "Mucopolysaccharidoses",
+        "Oligosaccharidoses",
+        "Glycoproteinoses",
+        "Lipid storage diseases",
+        "Lysosomal enzyme deficiencies",
+        "Lysosomal membrane protein disorders",
+        "Activator protein deficiencies",
+        "Clinical presentation patterns",
+        "Diagnostic approaches",
+        "Treatment options (ERT, substrate reduction, chaperones)",
+        "Genetic counseling for lysosomal diseases"
+      ]
+    },
+    {
+      "name": "Signal transduction pathways",
+      "chapters": [
+        "G-protein coupled receptors",
+        "Tyrosine kinase receptors",
+        "Second messenger systems (cAMP, cGMP, Ca2+)",
+        "MAP kinase pathways",
+        "JAK-STAT pathway",
+        "PI3K-Akt pathway",
+        "Nuclear receptor signaling",
+        "WNT signaling pathway",
+        "Notch signaling pathway",
+        "Hedgehog signaling pathway",
+        "TGF-β/SMAD signaling",
+        "NF-κB signaling",
+        "Dysregulation in disease states",
+        "Pharmacological targeting of signaling pathways"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Biostatistics",
+  "topics": [
+    {
+      "name": "RCTs",
+      "chapters": [
+        "Principles and design of RCTs",
+        "Randomization methods",
+        "Allocation concealment",
+        "Blinding techniques and levels",
+        "Sample size determination",
+        "Inclusion and exclusion criteria",
+        "Primary vs secondary outcomes",
+        "Interim analyses",
+        "Intention-to-treat analysis",
+        "Per-protocol analysis",
+        "Crossover designs",
+        "Factorial designs",
+        "Cluster randomization",
+        "Pragmatic vs explanatory trials"
+      ]
+    },
+    {
+      "name": "Cohort studies",
+      "chapters": [
+        "Prospective cohort design",
+        "Retrospective cohort design",
+        "Exposure assessment",
+        "Follow-up methods",
+        "Loss to follow-up handling",
+        "Time-to-event analysis",
+        "Survival curves",
+        "Cox proportional hazards model",
+        "Competing risks",
+        "Nested case-control studies",
+        "Case-cohort studies",
+        "Historical cohorts",
+        "Strengths and limitations of cohort studies"
+      ]
+    },
+    {
+      "name": "Sensitivity/Specificity",
+      "chapters": [
+        "Definitions and calculations",
+        "2x2 contingency tables",
+        "Relationship with false positive/negative rates",
+        "Positive predictive value (PPV)",
+        "Negative predictive value (NPV)",
+        "Effect of disease prevalence on predictive values",
+        "Likelihood ratios",
+        "ROC curve analysis",
+        "Area under the curve (AUC) interpretation",
+        "Optimizing cut-off values",
+        "Trade-offs between sensitivity and specificity",
+        "Multi-test algorithms",
+        "Application to screening programs"
+      ]
+    },
+    {
+      "name": "Study Design",
+      "chapters": [
+        "Research question formulation",
+        "Case-control studies",
+        "Cross-sectional studies",
+        "Ecological studies",
+        "Quasi-experimental designs",
+        "Natural experiments",
+        "N-of-1 trials",
+        "Mixed methods research",
+        "Qualitative study designs",
+        "Sampling techniques",
+        "Matching methods",
+        "Longitudinal vs cross-sectional approaches",
+        "Multi-center studies",
+        "Pilot and feasibility studies"
+      ]
+    },
+    {
+      "name": "Odds ratio vs. relative risk",
+      "chapters": [
+        "Definition and calculation of odds ratio",
+        "Definition and calculation of relative risk",
+        "Interpretation differences",
+        "When odds ratio approximates relative risk",
+        "Common misinterpretations",
+        "Application in different study designs",
+        "Adjusted odds ratios",
+        "Confidence intervals for OR and RR",
+        "Reporting in medical literature",
+        "Absolute risk vs relative measures",
+        "Number needed to treat relation",
+        "Meta-analysis of odds ratios and relative risks"
+      ]
+    },
+    {
+      "name": "Number needed to treat/harm",
+      "chapters": [
+        "Definition of NNT/NNH",
+        "Calculation from absolute risk reduction",
+        "Interpretation and clinical application",
+        "Confidence intervals for NNT/NNH",
+        "Relationship with relative risk reduction",
+        "Time-dependent NNT",
+        "NNT in prevention vs treatment",
+        "NNT in screening programs",
+        "Cost-effectiveness and NNT",
+        "Limitations and common misinterpretations",
+        "Reporting in clinical guidelines",
+        "Comparing interventions using NNT"
+      ]
+    },
+    {
+      "name": "Power and sample size",
+      "chapters": [
+        "Statistical power definition",
+        "Type I and Type II errors",
+        "Factors affecting power",
+        "Sample size calculation for different study designs",
+        "Effect size estimation",
+        "Minimally important difference",
+        "Sample size for non-inferiority trials",
+        "Sample size for equivalence trials",
+        "Power calculations for subgroup analyses",
+        "Post-hoc power analysis limitations",
+        "Adaptive sample size methods",
+        "Power for repeated measures designs",
+        "Group sequential designs"
+      ]
+    },
+    {
+      "name": "P-values and confidence intervals",
+      "chapters": [
+        "Definition and interpretation of p-values",
+        "Common misinterpretations of p-values",
+        "Confidence interval construction",
+        "Relationship between CIs and hypothesis testing",
+        "Multiple comparison problem",
+        "Correction methods (Bonferroni, FDR)",
+        "One-sided vs two-sided tests",
+        "Clinical vs statistical significance",
+        "Effect sizes and confidence intervals",
+        "Bayesian alternatives to p-values",
+        "Reporting standards in medical journals",
+        "P-value controversy and alternatives",
+        "Confidence intervals for non-parametric tests"
+      ]
+    }
+  ]
+},
+{
+  "subject": "CCS Cases",
+  "topics": [
+    {
+      "name": "Ordering tests",
+      "chapters": [
+        "Initial diagnostic workup approach",
+        "History-directed testing",
+        "Physical exam-directed testing",
+        "Laboratory test selection principles",
+        "Imaging study selection principles",
+        "Specialized diagnostic procedures",
+        "Screening vs diagnostic testing",
+        "Cost-effective test ordering",
+        "Pre-test probability assessment",
+        "Diagnostic algorithms by presentation",
+        "Appropriate test sequencing",
+        "Managing incidental findings",
+        "Avoiding unnecessary testing"
+      ]
+    },
+    {
+      "name": "Prioritizing interventions",
+      "chapters": [
+        "Acute vs chronic management",
+        "Life-threatening conditions recognition",
+        "Airway, Breathing, Circulation priorities",
+        "Critical care interventions",
+        "Decision-making in limited resource settings",
+        "Triage principles",
+        "Medication prioritization",
+        "Surgical vs non-surgical management",
+        "Risk-benefit analysis of interventions",
+        "Patient-centered decision making",
+        "Ethical considerations in intervention selection",
+        "Quality of life considerations",
+        "Balancing disease-specific vs comorbidity management"
+      ]
+    },
+    {
+      "name": "Follow-up",
+      "chapters": [
+        "Discharge planning principles",
+        "Appropriate follow-up intervals",
+        "Medication monitoring protocols",
+        "Lab monitoring guidelines",
+        "Chronic disease management models",
+        "Patient education essentials",
+        "Post-procedure follow-up",
+        "Communication with primary care",
+        "Specialty consultation timing",
+        "Warning signs review with patients",
+        "Preventive care integration",
+        "Medication adherence strategies",
+        "Documentation requirements"
+      ]
+    },
+    {
+      "name": "Time Management",
+      "chapters": [
+        "CCS case time constraints overview",
+        "Rapid assessment techniques",
+        "Critical decision points recognition",
+        "Efficient order entry strategies",
+        "Time advancement decision making",
+        "Managing multiple patient issues simultaneously",
+        "Acuity-based time allocation",
+        "Making the most of available information",
+        "Avoiding unnecessary delays",
+        "Balancing thoroughness with efficiency",
+        "Simulation practice techniques",
+        "Case closure timing",
+        "Review and reflection strategies"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Diagnosis",
+  "topics": [
+    {
+      "name": "Differential diagnosis",
+      "chapters": [
+        "Symptom-based differential diagnosis approach",
+        "System-based differential construction",
+        "Probability ranking in differentials",
+        "Common vs rare disease considerations",
+        "Age and demographic considerations",
+        "Pattern recognition in diagnosis",
+        "Anatomical approach to differential diagnosis",
+        "Syndrome recognition",
+        "Refinement of differential with testing",
+        "Interpreting diagnostic ambiguity",
+        "Ruling in vs ruling out strategies",
+        "Cognitive biases in differential construction",
+        "Integration of diagnostic information"
+      ]
+    },
+    {
+      "name": "Red flags",
+      "chapters": [
+        "Red flags in neurological complaints",
+        "Red flags in chest pain",
+        "Red flags in abdominal pain",
+        "Red flags in pediatric presentations",
+        "Red flags in geriatric patients",
+        "Red flags in mental health assessment",
+        "Red flags in musculoskeletal complaints",
+        "Red flags in headache",
+        "Red flags in fever",
+        "Red flags in dyspnea",
+        "Red flags in skin conditions",
+        "Red flags in pregnancy",
+        "Urgent vs emergent conditions recognition"
+      ]
+    },
+    {
+      "name": "Screening guidelines",
+      "chapters": [
+        "Principles of screening",
+        "Cancer screening recommendations (by cancer type)",
+        "Cardiovascular disease screening",
+        "Infectious disease screening",
+        "Mental health screening",
+        "Developmental screening in pediatrics",
+        "Geriatric screening protocols",
+        "Prenatal screening",
+        "Evidence basis for screening recommendations",
+        "Risk-stratified screening approaches",
+        "Special population screening considerations",
+        "Screening interval determination",
+        "Limitations and controversies in screening"
+      ]
+    },
+    {
+      "name": "Clinical Reasoning",
+      "chapters": [
+        "Analytical vs non-analytical reasoning",
+        "Hypothetico-deductive reasoning",
+        "Pattern recognition in clinical reasoning",
+        "Probabilistic reasoning",
+        "Bayesian approach to diagnosis",
+        "Decision making under uncertainty",
+        "Cognitive biases in clinical reasoning",
+        "Metacognition and diagnostic calibration",
+        "Clinical decision rules",
+        "Diagnostic parsimony (Occam's razor)",
+        "Diagnostic thoroughness (Hickam's dictum)",
+        "Diagnostic error analysis",
+        "Integrating evidence-based medicine into reasoning"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Internal Medicine",
+  "topics": [
+    {
+      "name": "ACS",
+      "chapters": [
+        "ACS pathophysiology and classification",
+        "STEMI diagnosis and management",
+        "NSTEMI diagnosis and management",
+        "Unstable angina",
+        "Cardiac biomarkers",
+        "ECG interpretation in ACS",
+        "Reperfusion strategies",
+        "Antiplatelet therapy",
+        "Anticoagulation in ACS",
+        "Complications of MI",
+        "Secondary prevention",
+        "Special populations (elderly, renal dysfunction)",
+        "Risk stratification in ACS"
+      ]
+    },
+    {
+      "name": "Heart failure",
+      "chapters": [
+        "Classification of heart failure (HFrEF vs HFpEF)",
+        "Heart failure pathophysiology",
+        "Acute decompensated heart failure",
+        "Chronic heart failure management",
+        "Guideline-directed medical therapy",
+        "Device therapy for heart failure",
+        "Cardiomyopathies",
+        "Valvular heart disease and heart failure",
+        "Right heart failure",
+        "Pulmonary hypertension",
+        "Cardio-renal syndrome",
+        "Advanced heart failure and transplantation",
+        "Quality measures in heart failure"
+      ]
+    },
+    {
+      "name": "Arrhythmias",
+      "chapters": [
+        "Basic electrophysiology",
+        "ECG interpretation fundamentals",
+        "Supraventricular tachycardias",
+        "Atrial fibrillation and flutter",
+        "Ventricular arrhythmias",
+        "Bradyarrhythmias and conduction disorders",
+        "Sudden cardiac death",
+        "Antiarrhythmic medications",
+        "Cardioversion and defibrillation",
+        "Pacemakers and ICDs",
+        "Catheter ablation procedures",
+        "Secondary arrhythmias (electrolyte, drug-induced)",
+        "Inherited arrhythmia syndromes"
+      ]
+    },
+    {
+      "name": "Cardiology",
+      "chapters": [
+        "Hypertension diagnosis and management",
+        "Stable coronary artery disease",
+        "Peripheral arterial disease",
+        "Aortic diseases",
+        "Valvular heart disease",
+        "Pericardial diseases",
+        "Adult congenital heart disease",
+        "Cardiac tumors",
+        "Cardiac manifestations of systemic diseases",
+        "Pre-operative cardiac risk assessment",
+        "Cardiac imaging modalities",
+        "Preventive cardiology",
+        "Cardiac rehabilitation"
+      ]
+    },
+    {
+      "name": "Liver disease",
+      "chapters": [
+        "Viral hepatitis (A, B, C, D, E)",
+        "Alcoholic liver disease",
+        "Non-alcoholic fatty liver disease",
+        "Drug-induced liver injury",
+        "Autoimmune hepatitis",
+        "Cirrhosis management",
+        "Portal hypertension complications",
+        "Ascites diagnosis and management",
+        "Hepatic encephalopathy",
+        "Spontaneous bacterial peritonitis",
+        "Hepatorenal syndrome",
+        "Hepatocellular carcinoma",
+        "Liver transplantation"
+      ]
+    },
+    {
+      "name": "IBD",
+      "chapters": [
+        "Crohn's disease pathophysiology",
+        "Ulcerative colitis pathophysiology",
+        "Diagnostic approach to IBD",
+        "Extraintestinal manifestations",
+        "Medical management of Crohn's disease",
+        "Medical management of ulcerative colitis",
+        "Biologic therapies for IBD",
+        "Surgical management in IBD",
+        "Nutritional considerations in IBD",
+        "IBD in pregnancy",
+        "Cancer risk and surveillance in IBD",
+        "IBD-related complications",
+        "IBD in special populations"
+      ]
+    },
+    {
+      "name": "Pancreatitis",
+      "chapters": [
+        "Acute pancreatitis etiology",
+        "Acute pancreatitis diagnosis",
+        "Severity assessment in acute pancreatitis",
+        "Management of acute pancreatitis",
+        "Local complications of acute pancreatitis",
+        "Systemic complications of acute pancreatitis",
+        "Chronic pancreatitis pathophysiology",
+        "Diagnosis of chronic pancreatitis",
+        "Pain management in chronic pancreatitis",
+        "Exocrine pancreatic insufficiency",
+        "Endocrine complications in pancreatitis",
+        "Autoimmune pancreatitis",
+        "Pancreatic cancer risk in chronic pancreatitis"
+      ]
+    },
+    {
+      "name": "Gastroenterology",
+      "chapters": [
+        "GERD and esophageal disorders",
+        "Peptic ulcer disease",
+        "Helicobacter pylori infection",
+        "Celiac disease",
+        "Irritable bowel syndrome",
+        "Diverticular disease",
+        "GI bleeding (upper and lower)",
+        "Small intestinal bacterial overgrowth",
+        "Malabsorption syndromes",
+        "Colorectal cancer screening",
+        "Functional GI disorders",
+        "Anorectal disorders",
+        "GI motility disorders"
+      ]
+    },
+    {
+      "name": "Pulmonology (COPD, asthma, interstitial lung disease)",
+      "chapters": [
+        "COPD pathophysiology and diagnosis",
+        "COPD management and exacerbations",
+        "Asthma pathophysiology and diagnosis",
+        "Asthma management and exacerbations",
+        "Interstitial lung disease classification",
+        "Idiopathic pulmonary fibrosis",
+        "Hypersensitivity pneumonitis",
+        "Sarcoidosis",
+        "Pulmonary function testing interpretation",
+        "Bronchiectasis",
+        "Cystic fibrosis in adults",
+        "Sleep-disordered breathing",
+        "Pulmonary rehabilitation"
+      ]
+    },
+    {
+      "name": "Endocrinology (diabetes, thyroid disorders)",
+      "chapters": [
+        "Type 1 diabetes mellitus",
+        "Type 2 diabetes mellitus",
+        "Diabetic ketoacidosis",
+        "Hyperosmolar hyperglycemic state",
+        "Diabetes complications and screening",
+        "Insulin and oral antidiabetic agents",
+        "Thyroid function testing",
+        "Hypothyroidism",
+        "Hyperthyroidism and thyroiditis",
+        "Thyroid nodules and cancer",
+        "Adrenal disorders",
+        "Pituitary disorders",
+        "Metabolic bone disease"
+      ]
+    },
+    {
+      "name": "Nephrology (CKD, glomerular diseases)",
+      "chapters": [
+        "CKD classification and staging",
+        "CKD etiology and pathophysiology",
+        "CKD complications management",
+        "Diabetic nephropathy",
+        "Hypertensive nephrosclerosis",
+        "Glomerulonephritis classification",
+        "Primary glomerular diseases",
+        "Secondary glomerular diseases",
+        "Nephrotic syndrome",
+        "Nephritic syndrome",
+        "Acute kidney injury",
+        "Renal replacement therapy",
+        "Kidney transplantation"
+      ]
+    },
+    {
+      "name": "Hematology (anemias, clotting disorders)",
+      "chapters": [
+        "Iron deficiency anemia",
+        "Megaloblastic anemias",
+        "Hemolytic anemias",
+        "Anemia of chronic disease",
+        "Sickle cell disease",
+        "Thalassemias",
+        "Platelet disorders",
+        "Coagulation factor disorders",
+        "Venous thromboembolism",
+        "Hypercoagulable states",
+        "Anticoagulation management",
+        "Transfusion medicine",
+        "Hematologic malignancies overview"
+      ]
+    },
+    {
+      "name": "Rheumatology (autoimmune diseases, arthritis)",
+      "chapters": [
+        "Rheumatoid arthritis",
+        "Seronegative spondyloarthropathies",
+        "Systemic lupus erythematosus",
+        "Systemic sclerosis (scleroderma)",
+        "Inflammatory myopathies",
+        "Sjögren's syndrome",
+        "Vasculitides classification",
+        "Large vessel vasculitis",
+        "Medium vessel vasculitis",
+        "Small vessel vasculitis",
+        "Crystal arthropathies (gout, pseudogout)",
+        "Osteoarthritis",
+        "DMARDs and biologic therapies"
+      ]
+    },
+    {
+      "name": "Infectious diseases (sepsis, endocarditis)",
+      "chapters": [
+        "Sepsis and septic shock",
+        "Infective endocarditis",
+        "Pneumonia (community-acquired, hospital-acquired)",
+        "Urinary tract infections",
+        "Skin and soft tissue infections",
+        "Central nervous system infections",
+        "Intra-abdominal infections",
+        "Sexually transmitted infections",
+        "HIV/AIDS",
+        "Tuberculosis",
+        "Opportunistic infections",
+        "Fever of unknown origin",
+        "Antimicrobial stewardship"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Management",
+  "topics": [
+    {
+      "name": "MI",
+      "chapters": [
+        "Initial assessment and triage",
+        "ECG interpretation in MI",
+        "Biomarker interpretation",
+        "STEMI management algorithm",
+        "NSTEMI management algorithm",
+        "Reperfusion strategies (fibrinolysis vs PCI)",
+        "Antithrombotic therapies",
+        "Antiplatelet management",
+        "Beta-blockers, ACE-I/ARBs, statins",
+        "Mechanical complications management",
+        "Arrhythmic complications management",
+        "Cardiogenic shock management",
+        "Post-MI secondary prevention"
+      ]
+    },
+    {
+      "name": "Stroke",
+      "chapters": [
+        "Stroke recognition and initial assessment",
+        "Ischemic vs hemorrhagic stroke differentiation",
+        "Acute ischemic stroke management",
+        "Thrombolysis inclusion/exclusion criteria",
+        "Mechanical thrombectomy indications",
+        "Hemorrhagic stroke management",
+        "Blood pressure management in stroke",
+        "Stroke unit care principles",
+        "Swallowing assessment and management",
+        "Secondary stroke prevention",
+        "Rehabilitation principles",
+        "Management of stroke complications",
+        "TIA management and ABCD2 score"
+      ]
+    },
+    {
+      "name": "Sepsis",
+      "chapters": [
+        "SIRS and sepsis definitions",
+        "Early recognition of sepsis",
+        "Initial resuscitation in sepsis",
+        "Source identification and control",
+        "Empiric antimicrobial therapy",
+        "Fluid resuscitation strategies",
+        "Vasopressors and inotropic support",
+        "Blood culture technique and interpretation",
+        "Sepsis-induced organ dysfunction management",
+        "Septic shock management",
+        "De-escalation strategies",
+        "Biomarkers in sepsis management",
+        "Sepsis bundles and quality metrics"
+      ]
+    },
+    {
+      "name": "DKA",
+      "chapters": [
+        "DKA diagnostic criteria",
+        "Precipitating factors identification",
+        "Initial assessment and risk stratification",
+        "Fluid resuscitation principles",
+        "Insulin therapy protocols",
+        "Electrolyte management (particularly potassium)",
+        "Acid-base monitoring and management",
+        "Transition from IV to subcutaneous insulin",
+        "Cerebral edema prevention and management",
+        "Mixed DKA/HHS management",
+        "Special populations (pregnancy, elderly)",
+        "Patient education for prevention",
+        "Disposition decision making"
+      ]
+    },
+    {
+      "name": "Acute Care",
+      "chapters": [
+        "Shock classification and management",
+        "Respiratory failure management",
+        "Acute renal failure management",
+        "Status epilepticus",
+        "Acute liver failure",
+        "GI bleeding management",
+        "Altered mental status approach",
+        "Severe electrolyte disturbances",
+        "Toxic ingestions and overdoses",
+        "Anaphylaxis and allergic emergencies",
+        "Hypertensive emergencies",
+        "Acute pain management",
+        "Rapid response team activation criteria"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Microbiology",
+  "topics": [
+    {
+      "name": "Gram-positive",
+      "chapters": [
+        "Staphylococcus aureus",
+        "Coagulase-negative staphylococci",
+        "Streptococcus pneumoniae",
+        "Group A streptococci",
+        "Group B streptococci",
+        "Viridans group streptococci",
+        "Enterococci",
+        "Bacillus species",
+        "Listeria monocytogenes",
+        "Corynebacterium species",
+        "Clostridium species",
+        "Actinomyces and Nocardia",
+        "MRSA and VRE"
+      ]
+    },
+    {
+      "name": "Gram-negative",
+      "chapters": [
+        "Neisseria species (meningitidis, gonorrhoeae)",
+        "Escherichia coli",
+        "Klebsiella species",
+        "Proteus species",
+        "Pseudomonas aeruginosa",
+        "Haemophilus influenzae",
+        "Bordetella pertussis",
+        "Legionella pneumophila",
+        "Bacteroides and anaerobic gram-negatives",
+        "Helicobacter pylori",
+        "Campylobacter jejuni",
+        "Vibrio species",
+        "ESBL and CRE pathogens"
+      ]
+    },
+    {
+      "name": "Atypical",
+      "chapters": [
+        "Mycoplasma pneumoniae",
+        "Chlamydia pneumoniae",
+        "Chlamydia trachomatis",
+        "Chlamydia psittaci",
+        "Rickettsia species",
+        "Coxiella burnetii",
+        "Ehrlichia and Anaplasma",
+        "Spirochetes overview",
+        "Treponema pallidum",
+        "Borrelia species",
+        "Leptospira species",
+        "Mycobacteria overview",
+        "M. tuberculosis and non-tuberculous mycobacteria"
+      ]
+    },
+    {
+      "name": "Bacteria",
+      "chapters": [
+        "Bacterial cell structure and physiology",
+        "Bacterial genetics",
+        "Bacterial metabolism",
+        "Bacterial virulence factors",
+        "Exotoxins and endotoxins",
+        "Bacterial culture methods",
+        "Antimicrobial susceptibility testing",
+        "Bacterial identification methods",
+        "Bacterial taxonomy and classification",
+        "Zoonotic bacterial infections",
+        "Foodborne bacterial pathogens",
+        "Waterborne bacterial pathogens",
+        "Emerging bacterial pathogens"
+      ]
+    },
+    {
+      "name": "HIV",
+      "chapters": [
+        "HIV structure and replication cycle",
+        "HIV transmission and epidemiology",
+        "Acute HIV infection",
+        "CD4 monitoring and viral load",
+        "Opportunistic infections in HIV/AIDS",
+        "Antiretroviral therapy principles",
+        "NRTI, NNRTI, PI, INSTI, and entry inhibitors",
+        "HIV resistance testing",
+        "HIV prevention strategies",
+        "HIV-associated malignancies",
+        "HIV in pregnancy and vertical transmission",
+        "HIV co-infections (HBV, HCV, TB)",
+        "HIV cure research"
+      ]
+    },
+    {
+      "name": "Hepatitis B/C",
+      "chapters": [
+        "HBV structure and replication",
+        "HBV serological markers",
+        "Acute hepatitis B",
+        "Chronic hepatitis B phases",
+        "HBV treatment indications and options",
+        "HBV vaccination and prevention",
+        "HCV structure and genotypes",
+        "HCV diagnostic testing",
+        "Natural history of HCV infection",
+        "Direct-acting antivirals for HCV",
+        "HCV resistance and treatment failure",
+        "HBV/HCV co-infection",
+        "HCC screening in viral hepatitis"
+      ]
+    },
+    {
+      "name": "Oncogenic viruses",
+      "chapters": [
+        "Human papillomavirus",
+        "HPV-associated cancers",
+        "HPV vaccination and screening",
+        "Epstein-Barr virus",
+        "EBV-associated malignancies",
+        "Hepatitis B and hepatocellular carcinoma",
+        "Hepatitis C and hepatocellular carcinoma",
+        "Human T-cell leukemia virus",
+        "Merkel cell polyomavirus",
+        "Human herpesvirus 8 (Kaposi sarcoma virus)",
+        "Mechanisms of viral oncogenesis",
+        "Cancer prevention strategies for oncogenic viruses",
+        "Therapeutic approaches targeting oncogenic viruses"
+      ]
+    },
+    {
+      "name": "Viruses",
+      "chapters": [
+        "Viral structure and classification",
+        "Viral replication cycles",
+        "Herpesviruses (HSV, VZV, CMV, EBV, HHV-6/7/8)",
+        "Respiratory viruses (influenza, RSV, parainfluenza)",
+        "Enteroviruses and parechoviruses",
+        "Gastroenteritis viruses (norovirus, rotavirus)",
+        "Arboviruses (dengue, Zika, chikungunya)",
+        "Viral hemorrhagic fevers",
+        "Rabies virus",
+        "Poxviruses",
+        "Antiviral agents and mechanisms",
+        "Viral vaccines",
+        "Viral diagnostics"
+      ]
+    },
+    {
+      "name": "Protozoa/Helminths",
+      "chapters": [
+        "Malaria parasites and life cycle",
+        "Intestinal protozoa (Giardia, Entamoeba)",
+        "Toxoplasma gondii",
+        "Trypanosomes",
+        "Leishmania species",
+        "Nematodes (roundworms)",
+        "Cestodes (tapeworms)",
+        "Trematodes (flukes)",
+        "Blood and tissue parasites",
+        "Antiparasitic medications",
+        "Laboratory diagnosis of parasites",
+        "Global health impact of parasitic infections",
+        "Ectoparasites and vector-borne diseases"
+      ]
+    },
+    {
+      "name": "Dimorphic fungi",
+      "chapters": [
+        "Histoplasma capsulatum",
+        "Blastomyces dermatitidis",
+        "Coccidioides immitis/posadasii",
+        "Paracoccidioides brasiliensis",
+        "Sporothrix schenckii complex",
+        "Talaromyces (Penicillium) marneffei",
+        "Dimorphic fungi characteristics",
+        "Geographic distribution of dimorphic fungi",
+        "Clinical presentations of dimorphic fungal infections",
+        "Diagnostic approaches for dimorphic fungi",
+        "Treatment of dimorphic fungal infections",
+        "Host factors in dimorphic fungal infections",
+        "Environmental sources and prevention"
+      ]
+    },
+    {
+      "name": "Parasites/Fungi",
+      "chapters": [
+        "Candida species",
+        "Aspergillus species",
+        "Cryptococcus neoformans/gattii",
+        "Pneumocystis jirovecii",
+        "Mucormycoses",
+        "Dermatophytes",
+        "Antifungal agents",
+        "Opportunistic fungal infections",
+        "Parasitic life cycles",
+        "Soil-transmitted helminths",
+        "Filarial nematodes",
+        "Schistosomiasis",
+        "Echinococci and other tissue helminths"
+      ]
+    },
+    {
+      "name": "Microbial genetics and drug resistance",
+      "chapters": [
+        "Bacterial genome structure",
+        "Horizontal gene transfer mechanisms",
+        "Plasmids and mobile genetic elements",
+        "Transposons and integrons",
+        "Beta-lactamase types and mechanisms",
+        "MRSA resistance mechanisms",
+        "VRE resistance mechanisms",
+        "Fluoroquinolone resistance",
+        "Aminoglycoside resistance",
+        "Multi-drug resistant gram-negatives",
+        "Biofilm-associated resistance",
+        "Evolution of antimicrobial resistance",
+        "Antimicrobial stewardship principles"
+      ]
+    },
+    {
+      "name": "Hospital-acquired infections",
+      "chapters": [
+        "Catheter-associated urinary tract infections",
+        "Central line-associated bloodstream infections",
+        "Ventilator-associated pneumonia",
+        "Surgical site infections",
+        "Clostridium difficile infection",
+        "Multi-drug resistant organism transmission",
+        "Environmental reservoirs in healthcare settings",
+        "Infection control practices",
+        "Outbreak investigation",
+        "Surveillance methodologies",
+        "Hand hygiene compliance",
+        "Isolation precautions",
+        "Prevention bundles and checklists"
+      ]
+    },
+    {
+      "name": "Biofilms",
+      "chapters": [
+        "Biofilm formation stages",
+        "Extracellular polymeric substances",
+        "Quorum sensing in biofilms",
+        "Biofilm-associated antimicrobial resistance",
+        "Biofilms in device-related infections",
+        "Biofilms in chronic infections",
+        "Biofilms in endocarditis",
+        "Biofilms in cystic fibrosis",
+        "Biofilms in otitis media and sinusitis",
+        "Detection methods for biofilms",
+        "Biofilm disruption strategies",
+        "Novel anti-biofilm therapies",
+        "Prevention of biofilm formation"
+      ]
+    },
+    {
+      "name": "Normal flora",
+      "chapters": [
+        "Skin microbiome",
+        "Oral microbiome",
+        "Respiratory tract microbiome",
+        "Gastrointestinal microbiome",
+        "Urogenital microbiome",
+        "Development of microbiome from birth",
+        "Microbiome functions and host defense",
+        "Dysbiosis and disease associations",
+        "Probiotics and prebiotics",
+        "Microbiome in antibiotic-associated diarrhea",
+        "Fecal microbiota transplantation",
+        "Methods for studying the microbiome",
+        "Microbiome and immune system interactions"
+      ]
+    },
+    {
+      "name": "Vaccine-preventable diseases",
+      "chapters": [
+        "Principles of vaccination",
+        "Types of vaccines",
+        "Childhood immunization schedule",
+        "Adult immunization recommendations",
+        "Diphtheria, tetanus, pertussis",
+        "Measles, mumps, rubella",
+        "Polio and Haemophilus influenzae",
+        "Pneumococcal disease",
+        "Meningococcal disease",
+        "Influenza vaccination",
+        "Hepatitis A and B vaccination",
+        "HPV vaccination",
+        "Vaccine hesitancy and public health"
+      ]
+    }
+  ]
+},
+{
+  "subject": "OB/GYN",
+  "topics": [
+    {
+      "name": "Screening tests",
+      "chapters": [
+        "First trimester screening",
+        "Cell-free DNA screening",
+        "Second trimester serum screening",
+        "Ultrasound markers and anomaly screening",
+        "Carrier screening for genetic disorders",
+        "Cervical cancer screening in pregnancy",
+        "Diabetes screening in pregnancy",
+        "Gestational diabetes management",
+        "Group B streptococcus screening",
+        "Screening for preeclampsia risk factors",
+        "Prenatal infection screening (TORCH, HIV, STIs)",
+        "Genetic counseling principles",
+        "Diagnostic testing (amniocentesis, CVS)"
+      ]
+    },
+    {
+      "name": "High-risk pregnancies",
+      "chapters": [
+        "Advanced maternal age",
+        "Multiple gestation management",
+        "Pregestational diabetes",
+        "Chronic hypertension in pregnancy",
+        "Thyroid disorders in pregnancy",
+        "Autoimmune disorders in pregnancy",
+        "Cardiac disease in pregnancy",
+        "Renal disease in pregnancy",
+        "Obesity in pregnancy",
+        "Substance use in pregnancy",
+        "Prior preterm birth management",
+        "Prior cesarean delivery management",
+        "Maternal cancer in pregnancy"
+      ]
+    },
+    {
+      "name": "Prenatal Care",
+      "chapters": [
+        "Routine prenatal visit schedule",
+        "Nutrition in pregnancy",
+        "Weight gain recommendations",
+        "Exercise in pregnancy",
+        "Medication safety in pregnancy",
+        "Immunizations in pregnancy",
+        "Management of common pregnancy complaints",
+        "Fetal growth assessment",
+        "Fetal movement monitoring",
+        "Antepartum fetal surveillance (NST, BPP)",
+        "Anemia in pregnancy",
+        "Travel during pregnancy",
+        "Patient education topics"
+      ]
+    },
+    {
+      "name": "Stages of labor",
+      "chapters": [
+        "Physiology of parturition",
+        "First stage of labor",
+        "Second stage of labor",
+        "Third stage of labor",
+        "Fourth stage of labor",
+        "Cardinal movements of labor",
+        "Labor curve and Friedman curve",
+        "Induction of labor indications and methods",
+        "Augmentation of labor",
+        "Cervical ripening methods",
+        "Fetal heart rate monitoring",
+        "Pain management in labor",
+        "Operative vaginal delivery"
+      ]
+    },
+    {
+      "name": "Postpartum hemorrhage",
+      "chapters": [
+        "Definition and classification",
+        "Risk factors for postpartum hemorrhage",
+        "Uterine atony management",
+        "Retained placenta management",
+        "Genital tract trauma repair",
+        "Coagulation disorders in obstetrics",
+        "Medical management of PPH",
+        "Surgical management of PPH",
+        "Balloon tamponade techniques",
+        "Uterine compression sutures",
+        "Postpartum hemorrhage protocols",
+        "Blood product replacement strategies",
+        "Prevention of postpartum hemorrhage"
+      ]
+    },
+    {
+      "name": "Labor Complications",
+      "chapters": [
+        "Preterm labor management",
+        "Premature rupture of membranes",
+        "Chorioamnionitis",
+        "Abnormal labor patterns",
+        "Shoulder dystocia management",
+        "Umbilical cord prolapse",
+        "Malpresentations (breech, face, brow)",
+        "Trial of labor after cesarean",
+        "Uterine rupture",
+        "Placental abruption",
+        "Placenta previa",
+        "Amniotic fluid embolism",
+        "Fetal heart rate abnormalities"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Pathology",
+  "topics": [
+    {
+      "name": "Inflammation",
+      "chapters": [
+        "Acute inflammation mechanisms",
+        "Vascular changes in inflammation",
+        "Chemical mediators of inflammation",
+        "Cellular components of inflammation",
+        "Resolution of acute inflammation",
+        "Chronic inflammation",
+        "Granulomatous inflammation",
+        "Systemic effects of inflammation",
+        "Patterns of inflammatory response",
+        "Inflammatory markers in laboratory testing",
+        "Anti-inflammatory therapies",
+        "Wound healing and repair",
+        "Abnormalities in wound healing"
+      ]
+    },
+    {
+      "name": "Neoplasia",
+      "chapters": [
+        "Characteristics of benign vs malignant tumors",
+        "Nomenclature of neoplasms",
+        "Carcinogenesis models",
+        "Oncogenes and proto-oncogenes",
+        "Tumor suppressor genes",
+        "DNA repair genes and cancer",
+        "Epigenetic mechanisms in cancer",
+        "Apoptosis and cancer",
+        "Tumor angiogenesis",
+        "Tumor invasion and metastasis",
+        "Carcinogenic agents",
+        "Paraneoplastic syndromes",
+        "Tumor immunology"
+      ]
+    },
+    {
+      "name": "Cell injury",
+      "chapters": [
+        "Reversible cell injury mechanisms",
+        "Irreversible cell injury (necrosis)",
+        "Types of necrosis (coagulative, liquefactive, etc.)",
+        "Apoptosis pathways",
+        "Autophagy mechanisms",
+        "Cellular adaptations (atrophy, hypertrophy)",
+        "Hyperplasia and metaplasia",
+        "Dysplasia",
+        "Intracellular accumulations",
+        "Pathologic calcification",
+        "Cellular aging mechanisms",
+        "Ischemia-reperfusion injury",
+        "Free radical injury"
+      ]
+    },
+    {
+      "name": "General Pathology",
+      "chapters": [
+        "Hemodynamic disorders",
+        "Thromboembolic disease",
+        "Shock pathophysiology",
+        "Edema mechanisms",
+        "Amyloidosis",
+        "Genetic disorders",
+        "Environmental pathology",
+        "Nutritional diseases",
+        "Pediatric pathology principles",
+        "Forensic pathology principles",
+        "Laboratory techniques in pathology",
+        "Molecular diagnostic methods",
+        "Immunohistochemistry"
+      ]
+    },
+    {
+      "name": "Cardiovascular",
+      "chapters": [
+        "Atherosclerosis",
+        "Ischemic heart disease",
+        "Myocardial infarction pathology",
+        "Hypertensive heart disease",
+        "Congenital heart defects",
+        "Valvular heart disease",
+        "Rheumatic heart disease",
+        "Infective endocarditis",
+        "Myocarditis and cardiomyopathies",
+        "Pericardial diseases",
+        "Aneurysms and dissections",
+        "Vasculitis",
+        "Cardiac tumors"
+      ]
+    },
+    {
+      "name": "Pulmonary",
+      "chapters": [
+        "Atelectasis",
+        "Pulmonary edema",
+        "Acute respiratory distress syndrome",
+        "Obstructive lung diseases (emphysema, bronchitis)",
+        "Asthma pathology",
+        "Bronchiectasis",
+        "Restrictive lung diseases",
+        "Interstitial lung diseases",
+        "Pulmonary vascular disorders",
+        "Pulmonary infections",
+        "Lung tumors (primary and metastatic)",
+        "Pleural diseases",
+        "Congenital lung anomalies"
+      ]
+    },
+    {
+      "name": "GI",
+      "chapters": [
+        "Esophageal pathology",
+        "Gastritis and peptic ulcer disease",
+        "Gastric tumors",
+        "Malabsorption syndromes",
+        "Inflammatory bowel diseases",
+        "Intestinal infections",
+        "Diverticular disease",
+        "Vascular disorders of bowel",
+        "Colon polyps and neoplasms",
+        "Appendicitis",
+        "Peritonitis",
+        "Hernia complications",
+        "Gastrointestinal stromal tumors"
+      ]
+    },
+    {
+      "name": "Systemic Pathology",
+      "chapters": [
+        "Liver pathology (hepatitis, cirrhosis)",
+        "Gallbladder and biliary tract disorders",
+        "Pancreatic diseases",
+        "Kidney diseases",
+        "Male reproductive pathology",
+        "Female reproductive pathology",
+        "Breast pathology",
+        "Endocrine pathology",
+        "Bone and joint pathology",
+        "Skeletal muscle diseases",
+        "Peripheral nerve disorders",
+        "Soft tissue tumors",
+        "Head and neck pathology"
+      ]
+    },
+    {
+      "name": "Renal pathology",
+      "chapters": [
+        "Congenital renal anomalies",
+        "Glomerular diseases overview",
+        "Nephritic syndrome disorders",
+        "Nephrotic syndrome disorders",
+        "Rapidly progressive glomerulonephritis",
+        "Tubulointerstitial diseases",
+        "Acute tubular necrosis",
+        "Renal vascular diseases",
+        "Pyelonephritis and urinary tract infections",
+        "Renal cystic diseases",
+        "Obstructive uropathies",
+        "Renal tumors",
+        "Kidney transplant pathology"
+      ]
+    },
+    {
+      "name": "Endocrine pathology",
+      "chapters": [
+        "Pituitary disorders",
+        "Thyroid diseases (hyper/hypothyroidism)",
+        "Thyroiditis",
+        "Thyroid neoplasms",
+        "Parathyroid disorders",
+        "Adrenal cortical diseases",
+        "Adrenal medullary disorders",
+        "Pheochromocytoma and paraganglioma",
+        "Pancreatic endocrine tumors",
+        "Multiple endocrine neoplasia syndromes",
+        "Diabetes mellitus pathology",
+        "Endocrine disorders in pregnancy",
+        "Endocrine effects of non-endocrine tumors"
+      ]
+    },
+    {
+      "name": "Hematopathology",
+      "chapters": [
+        "Red blood cell disorders",
+        "White blood cell disorders",
+        "Platelet disorders",
+        "Coagulation disorders",
+        "Acute leukemias",
+        "Chronic leukemias",
+        "Myeloproliferative neoplasms",
+        "Myelodysplastic syndromes",
+        "Hodgkin lymphoma",
+        "Non-Hodgkin lymphomas",
+        "Plasma cell disorders",
+        "Bone marrow failure syndromes",
+        "Splenic pathology"
+      ]
+    },
+    {
+      "name": "Neuropathology",
+      "chapters": [
+        "Cerebrovascular diseases",
+        "CNS trauma",
+        "CNS infections",
+        "Demyelinating diseases",
+        "Neurodegenerative diseases",
+        "Alzheimer's disease pathology",
+        "Parkinson's disease pathology",
+        "Amyotrophic lateral sclerosis",
+        "Primary CNS tumors",
+        "Metastatic CNS tumors",
+        "Peripheral nerve disorders",
+        "Skeletal muscle diseases",
+        "Congenital CNS malformations"
+      ]
+    },
+    {
+      "name": "Dermatopathology",
+      "chapters": [
+        "Inflammatory dermatoses",
+        "Vesiculobullous diseases",
+        "Infectious skin diseases",
+        "Benign epithelial tumors",
+        "Premalignant skin lesions",
+        "Non-melanoma skin cancers",
+        "Melanocytic nevi",
+        "Melanoma pathology",
+        "Adnexal tumors",
+        "Dermal tumors and proliferations",
+        "Panniculitis",
+        "Vascular disorders of skin",
+        "Disorders of pigmentation"
+      ]
+    },
+    {
+      "name": "Immunopathology",
+      "chapters": [
+        "Hypersensitivity reactions (types I-IV)",
+        "Autoimmune mechanisms",
+        "Systemic autoimmune diseases",
+        "Organ-specific autoimmune diseases",
+        "Immunodeficiency disorders",
+        "Primary immunodeficiencies",
+        "Secondary immunodeficiencies",
+        "AIDS pathology",
+        "Amyloidosis types",
+        "Transplant rejection mechanisms",
+        "Graft-versus-host disease",
+        "Immune-related adverse events",
+        "Immune checkpoint pathways"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Patient Safety",
+  "topics": [
+    {
+      "name": "Informed consent",
+      "chapters": [
+        "Elements of valid informed consent",
+        "Decision-making capacity assessment",
+        "Surrogate decision-makers",
+        "Emergency exceptions to informed consent",
+        "Therapeutic privilege",
+        "Informed refusal",
+        "Documentation requirements",
+        "Consent for minors and adolescents",
+        "Cultural considerations in consent",
+        "Informed consent for research",
+        "Electronic and multimedia consent tools",
+        "Teach-back method for consent discussions",
+        "Measuring consent quality"
+      ]
+    },
+    {
+      "name": "HIPAA",
+      "chapters": [
+        "Privacy Rule provisions",
+        "Security Rule requirements",
+        "Protected health information (PHI)",
+        "Permitted disclosures without authorization",
+        "Authorization requirements",
+        "Minimum necessary standard",
+        "Patient rights under HIPAA",
+        "Business associate agreements",
+        "HIPAA breaches and reporting",
+        "Electronic health record safeguards",
+        "De-identification standards",
+        "HIPAA and research",
+        "State laws and HIPAA interactions"
+      ]
+    },
+    {
+      "name": "End-of-life care",
+      "chapters": [
+        "Advance directives",
+        "DNR/DNAR orders",
+        "POLST paradigm",
+        "Palliative care principles",
+        "Hospice eligibility and services",
+        "Pain management at end of life",
+        "Symptom management at end of life",
+        "Cultural and spiritual aspects",
+        "Ethical dilemmas in end-of-life care",
+        "Family conferences",
+        "Bereavement support",
+        "Healthcare provider self-care",
+        "Futility and medical judgment"
+      ]
+    },
+    {
+      "name": "Medical Ethics",
+      "chapters": [
+        "Ethical principles (autonomy, beneficence, non-maleficence, justice)",
+        "Ethical frameworks for decision-making",
+        "Ethics committees and consultations",
+        "Conflicts of interest",
+        "Truth-telling and disclosure",
+        "Confidentiality boundaries",
+        "Resource allocation ethics",
+        "Research ethics and IRBs",
+        "Reproductive ethics",
+        "Genetic testing ethics",
+        "Professional boundaries",
+        "Medical error disclosure",
+        "Ethics of emerging technologies"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Pediatrics",
+  "topics": [
+    {
+      "name": "Milestones",
+      "chapters": [
+        "Gross motor milestones",
+        "Fine motor milestones",
+        "Language development",
+        "Social-emotional development",
+        "Cognitive development",
+        "Denver Developmental Screening Test",
+        "Red flags for developmental delay",
+        "Developmental surveillance",
+        "Delayed milestones evaluation",
+        "Early intervention services",
+        "Milestone variations in preterm infants",
+        "Cultural influences on development",
+        "Developmental regression causes"
+      ]
+    },
+    {
+      "name": "Congenital defects",
+      "chapters": [
+        "Neural tube defects",
+        "Congenital heart defects",
+        "Gastrointestinal malformations",
+        "Genitourinary anomalies",
+        "Craniofacial anomalies",
+        "Skeletal dysplasias",
+        "Chromosomal disorders",
+        "Teratogenic exposures",
+        "Multiple malformation syndromes",
+        "Prenatal diagnosis of congenital defects",
+        "Surgical management timing",
+        "Long-term outcomes and follow-up",
+        "Preventive strategies"
+      ]
+    },
+    {
+      "name": "Vaccines",
+      "chapters": [
+        "Childhood immunization schedule",
+        "Catch-up vaccination protocols",
+        "Vaccine contraindications and precautions",
+        "Live vs inactivated vaccines",
+        "Vaccine adverse events",
+        "Immunocompromised host vaccination",
+        "Special population considerations",
+        "Vaccine storage and handling",
+        "Vaccine hesitancy approaches",
+        "Global vaccination programs",
+        "Travel vaccines for children",
+        "New and emerging vaccines",
+        "Vaccination documentation"
+      ]
+    },
+    {
+      "name": "Growth/Development",
+      "chapters": [
+        "Normal growth patterns",
+        "Growth charts and interpretation",
+        "Failure to thrive evaluation",
+        "Short stature workup",
+        "Tall stature evaluation",
+        "Obesity in children",
+        "Nutritional assessment tools",
+        "Puberty stages (Tanner stages)",
+        "Precocious puberty",
+        "Delayed puberty",
+        "Growth hormone disorders",
+        "Impact of chronic disease on growth",
+        "Catch-up growth"
+      ]
+    },
+    {
+      "name": "Neonatal infections",
+      "chapters": [
+        "Early-onset sepsis",
+        "Late-onset sepsis",
+        "Group B streptococcal disease",
+        "Neonatal meningitis",
+        "Congenital TORCH infections",
+        "Neonatal HSV",
+        "Neonatal candidiasis",
+        "Necrotizing enterocolitis",
+        "Omphalitis",
+        "Nursery outbreaks",
+        "Antibiotic stewardship in NICU",
+        "Diagnostic approach to neonatal sepsis",
+        "Maternal factors and neonatal infection risk"
+      ]
+    },
+    {
+      "name": "Kawasaki disease",
+      "chapters": [
+        "Diagnostic criteria and clinical features",
+        "Atypical Kawasaki presentation",
+        "Laboratory findings",
+        "Cardiac complications and evaluation",
+        "Acute phase management",
+        "IVIG resistance",
+        "Coronary artery aneurysms",
+        "Long-term cardiac follow-up",
+        "Differential diagnosis",
+        "Recurrence risk",
+        "Pathophysiology theories",
+        "Age-specific considerations",
+        "Long-term outcomes"
+      ]
+    },
+    {
+      "name": "Infectious Disease",
+      "chapters": [
+        "Common childhood exanthems",
+        "Pediatric respiratory infections",
+        "Pediatric gastrointestinal infections",
+        "Urinary tract infections in children",
+        "Bone and joint infections",
+        "Central nervous system infections",
+        "Pediatric tuberculosis",
+        "Pediatric HIV",
+        "Recurrent infections evaluation",
+        "Fever of unknown origin approach",
+        "Emerging infectious diseases in children",
+        "Post-infectious immune complications",
+        "Antimicrobial resistance in pediatrics"
+      ]
+    },
+    {
+      "name": "Genetic disorders",
+      "chapters": [
+        "Down syndrome",
+        "Turner syndrome",
+        "Klinefelter syndrome",
+        "22q11.2 deletion syndrome",
+        "Fragile X syndrome",
+        "Prader-Willi and Angelman syndromes",
+        "Inborn errors of metabolism",
+        "Cystic fibrosis",
+        "Muscular dystrophies",
+        "Genetic testing approaches",
+        "Genetic counseling principles",
+        "Newborn screening programs",
+        "Gene therapy updates"
+      ]
+    },
+    {
+      "name": "Pediatric emergency management",
+      "chapters": [
+        "Pediatric basic life support",
+        "Pediatric advanced life support",
+        "Status epilepticus management",
+        "Anaphylaxis management",
+        "Diabetic ketoacidosis in children",
+        "Trauma assessment in children",
+        "Respiratory distress assessment and management",
+        "Shock recognition and management",
+        "Toxicologic emergencies",
+        "Child abuse evaluation",
+        "Procedural sedation in children",
+        "Transport of critically ill children",
+        "Disaster preparedness for pediatric patients"
+      ]
+    },
+    {
+      "name": "Nutritional requirements and disorders",
+      "chapters": [
+        "Infant feeding recommendations",
+        "Breastfeeding support and counseling",
+        "Formula selection and preparation",
+        "Introduction of complementary foods",
+        "Childhood nutrition requirements by age",
+        "Nutritional assessment methods",
+        "Micronutrient deficiencies",
+        "Vitamin D deficiency and rickets",
+        "Iron deficiency and anemia",
+        "Feeding disorders in children",
+        "Malnutrition management",
+        "Food allergies and intolerances",
+        "Special diets in pediatric conditions"
+      ]
+    },
+    {
+      "name": "Common pediatric cancers",
+      "chapters": [
+        "Leukemias in children",
+        "Lymphomas in pediatric population",
+        "Brain tumors in children",
+        "Neuroblastoma",
+        "Wilms tumor",
+        "Rhabdomyosarcoma",
+        "Retinoblastoma",
+        "Ewing sarcoma",
+        "Osteosarcoma",
+        "Cancer predisposition syndromes",
+        "Diagnostic approach to pediatric malignancies",
+        "Pediatric oncology treatment principles",
+        "Long-term survivor follow-up"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Pharmacology",
+  "topics": [
+    {
+      "name": "Antibiotics",
+      "chapters": [
+        "Penicillins and beta-lactamase inhibitors",
+        "Cephalosporins",
+        "Carbapenems and monobactams",
+        "Fluoroquinolones",
+        "Aminoglycosides",
+        "Macrolides, ketolides, and lincosamides",
+        "Tetracyclines and glycylcyclines",
+        "Sulfonamides and trimethoprim",
+        "Vancomycin and other glycopeptides",
+        "Oxazolidinones and streptogramins",
+        "Daptomycin and lipopeptides",
+        "Polymyxins",
+        "Antibiotic resistance mechanisms"
+      ]
+    },
+    {
+      "name": "Antivirals",
+      "chapters": [
+        "HIV protease inhibitors",
+        "HIV reverse transcriptase inhibitors",
+        "HIV integrase inhibitors",
+        "HIV entry inhibitors",
+        "Hepatitis B antivirals",
+        "Hepatitis C direct-acting antivirals",
+        "Influenza antivirals",
+        "Herpesvirus antivirals",
+        "Cytomegalovirus antivirals",
+        "Respiratory syncytial virus therapies",
+        "Broad-spectrum antivirals",
+        "Antiretroviral resistance",
+        "Antiviral prophylaxis strategies"
+      ]
+    },
+    {
+      "name": "Antifungals",
+      "chapters": [
+        "Polyenes (amphotericin formulations)",
+        "Azoles (imidazoles and triazoles)",
+        "Echinocandins",
+        "Flucytosine",
+        "Griseofulvin",
+        "Terbinafine",
+        "Topical antifungal agents",
+        "Antifungal prophylaxis protocols",
+        "Antifungal spectrum of activity",
+        "Antifungal resistance mechanisms",
+        "Antifungal therapeutic drug monitoring",
+        "Drug interactions with antifungals",
+        "Treatment guidelines for invasive fungal infections"
+      ]
+    },
+    {
+      "name": "Antimicrobials",
+      "chapters": [
+        "Antiparasitic drugs (antiprotozoals)",
+        "Antimalarial medications",
+        "Anthelmintics",
+        "Antiseptics and disinfectants",
+        "Antimicrobial stewardship principles",
+        "Empiric antimicrobial selection",
+        "Antimicrobial dosing in special populations",
+        "Antimicrobial pharmacokinetics/pharmacodynamics",
+        "Antimicrobial toxicities",
+        "Antimicrobial allergies and cross-reactivity",
+        "Combination antimicrobial therapy",
+        "Cost-effective antimicrobial strategies",
+        "New antimicrobial development"
+      ]
+    },
+    {
+      "name": "Cholinergic/Adrenergic drugs",
+      "chapters": [
+        "Acetylcholine receptors and function",
+        "Cholinergic agonists (direct and indirect)",
+        "Muscarinic antagonists",
+        "Nicotinic antagonists",
+        "Neuromuscular blocking agents",
+        "Adrenergic receptor subtypes",
+        "Alpha-adrenergic agonists",
+        "Beta-adrenergic agonists",
+        "Alpha-adrenergic antagonists",
+        "Beta-adrenergic antagonists",
+        "Sympathomimetics",
+        "Autonomic drug interactions",
+        "Clinical applications in autonomic disorders"
+      ]
+    },
+    {
+      "name": "Antihypertensives",
+      "chapters": [
+        "Diuretic classes and mechanisms",
+        "ACE inhibitors",
+        "Angiotensin II receptor blockers",
+        "Calcium channel blockers (dihydropyridine/non-dihydropyridine)",
+        "Beta-blockers (cardioselective/non-selective)",
+        "Alpha-blockers",
+        "Alpha-2 agonists",
+        "Direct vasodilators",
+        "Direct renin inhibitors",
+        "SGLT2 inhibitors in hypertension",
+        "Mineralocorticoid receptor antagonists",
+        "Combination antihypertensive therapy",
+        "Resistant hypertension management"
+      ]
+    },
+    {
+      "name": "Autonomic/CV Drugs",
+      "chapters": [
+        "Antiarrhythmic classification and mechanisms",
+        "Class I antiarrhythmics (sodium channel blockers)",
+        "Class II antiarrhythmics (beta blockers)",
+        "Class III antiarrhythmics (potassium channel blockers)",
+        "Class IV antiarrhythmics (calcium channel blockers)",
+        "Other antiarrhythmic agents",
+        "Antianginal drugs",
+        "Positive inotropic agents",
+        "Phosphodiesterase inhibitors",
+        "Cardiac glycosides",
+        "Vasopressors and inotropes",
+        "Pulmonary hypertension therapies",
+        "Peripheral vascular disease therapies"
+      ]
+    },
+    {
+      "name": "Pharmacokinetics (ADME principles)",
+      "chapters": [
+        "Absorption factors and bioavailability",
+        "Drug distribution and protein binding",
+        "Volume of distribution concepts",
+        "Phase I metabolism (oxidation, reduction, hydrolysis)",
+        "Phase II metabolism (conjugation reactions)",
+        "Cytochrome P450 system",
+        "First-pass metabolism",
+        "Renal excretion mechanisms",
+        "Biliary excretion",
+        "Half-life and steady state concepts",
+        "Area under the curve calculations",
+        "Dosing in renal impairment",
+        "Dosing in hepatic impairment"
+      ]
+    },
+    {
+      "name": "Drug interactions and adverse effects",
+      "chapters": [
+        "Pharmacokinetic interaction mechanisms",
+        "Pharmacodynamic interaction mechanisms",
+        "CYP450 inhibition and induction",
+        "P-glycoprotein interactions",
+        "QT prolongation and torsades de pointes",
+        "Serotonin syndrome",
+        "Neuroleptic malignant syndrome",
+        "DRESS syndrome and severe cutaneous reactions",
+        "Drug-induced liver injury",
+        "Drug-induced kidney injury",
+        "Drug-food interactions",
+        "Polypharmacy management",
+        "Pharmacovigilance principles"
+      ]
+    },
+    {
+      "name": "Anti-neoplastic drugs",
+      "chapters": [
+        "Alkylating agents",
+        "Antimetabolites",
+        "Antitumor antibiotics",
+        "Topoisomerase inhibitors",
+        "Vinca alkaloids and taxanes",
+        "Platinum compounds",
+        "Targeted therapies (kinase inhibitors)",
+        "Monoclonal antibodies in cancer",
+        "Hormonal therapies",
+        "Immunotherapies and checkpoint inhibitors",
+        "Proteasome inhibitors",
+        "Antineoplastic combination regimens",
+        "Management of chemotherapy toxicities"
+      ]
+    },
+    {
+      "name": "Immunosuppressants",
+      "chapters": [
+        "Calcineurin inhibitors",
+        "mTOR inhibitors",
+        "Antimetabolites (azathioprine, mycophenolate)",
+        "Corticosteroids",
+        "T-cell depleting antibodies",
+        "B-cell depleting antibodies",
+        "TNF inhibitors",
+        "IL-6 inhibitors",
+        "JAK inhibitors",
+        "Costimulation blockers",
+        "Complement inhibitors",
+        "Immunosuppressant drug monitoring",
+        "Post-transplant immunosuppression protocols"
+      ]
+    },
+    {
+      "name": "CNS drugs (antiepileptics, anesthetics)",
+      "chapters": [
+        "Sodium channel blocking antiepileptics",
+        "GABA-enhancing antiepileptics",
+        "Glutamate antagonist antiepileptics",
+        "SV2A modulating antiepileptics",
+        "Antiepileptic drug interactions",
+        "Inhalational anesthetics",
+        "Intravenous anesthetics",
+        "Local anesthetics",
+        "Opioid analgesics",
+        "Non-opioid analgesics",
+        "Adjuvant analgesics",
+        "Neuromuscular blockers",
+        "General anesthesia stages and monitoring"
+      ]
+    },
+    {
+      "name": "Endocrine drugs (insulin, thyroid medications)",
+      "chapters": [
+        "Insulin preparations and kinetics",
+        "Oral hypoglycemic agents",
+        "GLP-1 receptor agonists",
+        "SGLT-2 inhibitors",
+        "Thyroid hormone replacements",
+        "Antithyroid medications",
+        "Corticosteroids and mechanisms",
+        "Gonadal hormones (estrogens, progestins)",
+        "Androgens and anabolic steroids",
+        "Hormonal contraceptives",
+        "Growth hormone and analogs",
+        "Posterior pituitary hormones",
+        "Bone metabolism drugs (bisphosphonates, RANKL inhibitors)"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Physiology",
+  "topics": [
+    {
+      "name": "Cardiac cycle",
+      "chapters": [
+        "Phases of the cardiac cycle",
+        "Pressure-volume relationships",
+        "Heart sounds and their origin",
+        "Ventricular filling dynamics",
+        "Valve function during cardiac cycle",
+        "Electrical-mechanical coupling",
+        "Isovolumetric contraction and relaxation",
+        "Ventricular ejection physiology",
+        "Atrial contribution to cardiac function",
+        "Cardiac cycle in pathologic states",
+        "Diastolic function assessment",
+        "Systolic function assessment",
+        "Effects of heart rate on cardiac cycle"
+      ]
+    },
+    {
+      "name": "Hemodynamics",
+      "chapters": [
+        "Principles of blood flow (Poiseuille's law)",
+        "Vascular resistance concepts",
+        "Laminar vs. turbulent flow",
+        "Pressure gradients across circulation",
+        "Compliance of blood vessels",
+        "Arterial pressure waveform",
+        "Venous pressure and return",
+        "Pulmonary circulation hemodynamics",
+        "Autoregulation mechanisms",
+        "Orthostatic changes in hemodynamics",
+        "Shock states pathophysiology",
+        "Hemodynamic monitoring principles",
+        "Microcirculation physiology"
+      ]
+    },
+    {
+      "name": "ECG interpretation",
+      "chapters": [
+        "ECG basics and lead placement",
+        "Cardiac axis determination",
+        "P wave and atrial depolarization",
+        "PR interval significance",
+        "QRS complex analysis",
+        "ST segment evaluation",
+        "T wave and repolarization",
+        "QT interval and QTc calculation",
+        "Bundle branch blocks",
+        "Chamber enlargement patterns",
+        "Ischemia and infarction patterns",
+        "Common arrhythmia recognition",
+        "Electrolyte effects on ECG"
+      ]
+    },
+    {
+      "name": "Cardiovascular",
+      "chapters": [
+        "Cardiac output determinants",
+        "Starling's law of the heart",
+        "Preload and afterload concepts",
+        "Contractility determinants",
+        "Regulation of blood pressure",
+        "Baroreceptor reflexes",
+        "Neural control of cardiovascular function",
+        "Endothelial function and dysfunction",
+        "Coronary blood flow regulation",
+        "Regional blood flow distribution",
+        "Exercise cardiovascular physiology",
+        "Aging effects on cardiovascular system",
+        "Integrated cardiovascular responses"
+      ]
+    },
+    {
+      "name": "Glomerular filtration",
+      "chapters": [
+        "Glomerular structure and function",
+        "Filtration barrier components",
+        "Determinants of GFR",
+        "Starling forces in glomerular filtration",
+        "Renal blood flow autoregulation",
+        "Filtration fraction",
+        "GFR measurement methods",
+        "Tubuloglomerular feedback",
+        "Myogenic autoregulation",
+        "Hormonal influences on GFR",
+        "GFR in pathophysiological states",
+        "Age-related changes in GFR",
+        "Clinical estimation of GFR"
+      ]
+    },
+    {
+      "name": "Acid-base balance",
+      "chapters": [
+        "Buffer systems (bicarbonate, phosphate, protein)",
+        "Henderson-Hasselbalch equation",
+        "Renal regulation of acid-base balance",
+        "Renal bicarbonate handling",
+        "Ammonia production and excretion",
+        "Titratable acid excretion",
+        "Respiratory regulation of acid-base",
+        "Metabolic acidosis mechanisms and compensation",
+        "Metabolic alkalosis mechanisms and compensation",
+        "Respiratory acidosis mechanisms and compensation",
+        "Respiratory alkalosis mechanisms and compensation",
+        "Mixed acid-base disorders",
+        "Clinical approach to acid-base disorders"
+      ]
+    },
+    {
+      "name": "RAAS",
+      "chapters": [
+        "Renin production and regulation",
+        "Angiotensinogen to angiotensin I conversion",
+        "Angiotensin converting enzyme function",
+        "Angiotensin II receptors and actions",
+        "Aldosterone synthesis and release",
+        "Aldosterone actions on distal tubule",
+        "Sodium and potassium handling in RAAS",
+        "Negative feedback mechanisms",
+        "RAAS in volume regulation",
+        "RAAS in blood pressure control",
+        "Non-classical RAAS components",
+        "RAAS in pathophysiological states",
+        "Pharmacological targeting of RAAS"
+      ]
+    },
+    {
+      "name": "Renal",
+      "chapters": [
+        "Renal blood flow distribution",
+        "Proximal tubule reabsorption",
+        "Loop of Henle function",
+        "Distal tubule and collecting duct function",
+        "Concentration and dilution of urine",
+        "Countercurrent multiplication system",
+        "Sodium handling along the nephron",
+        "Potassium balance and regulation",
+        "Calcium and phosphate handling",
+        "Magnesium handling",
+        "Water balance and osmoregulation",
+        "Diuretic mechanisms of action",
+        "Integrated nephron function"
+      ]
+    },
+    {
+      "name": "Gas exchange",
+      "chapters": [
+        "Oxygen transport in blood",
+        "Hemoglobin-oxygen binding",
+        "Oxygen-hemoglobin dissociation curve",
+        "Bohr effect and rightward shifts",
+        "2,3-DPG effects on oxygen affinity",
+        "Carbon dioxide transport",
+        "Chloride shift mechanism",
+        "Ventilation-perfusion matching",
+        "Diffusion limitation vs perfusion limitation",
+        "Alveolar-arterial oxygen gradient",
+        "Hypoxemia mechanisms",
+        "Altitude physiology",
+        "Diving physiology"
+      ]
+    },
+    {
+      "name": "Compliance",
+      "chapters": [
+        "Definition of lung compliance",
+        "Static vs dynamic compliance",
+        "Pressure-volume curves",
+        "Surfactant function and synthesis",
+        "Surface tension effects on compliance",
+        "Elastic recoil of lung tissue",
+        "Chest wall compliance",
+        "Combined respiratory system compliance",
+        "Altered compliance in disease states",
+        "Restrictive lung disease mechanics",
+        "Obstructive lung disease effects",
+        "Compliance measurement techniques",
+        "Age-related changes in compliance"
+      ]
+    },
+    {
+      "name": "V/Q mismatch",
+      "chapters": [
+        "Ventilation-perfusion ratio concept",
+        "Normal V/Q distribution",
+        "Alveolar dead space (high V/Q)",
+        "Shunt physiology (low V/Q)",
+        "Gravity effects on V/Q distribution",
+        "V/Q ratio and gas exchange",
+        "Hypoxic pulmonary vasoconstriction",
+        "V/Q mismatch in COPD",
+        "V/Q mismatch in pulmonary embolism",
+        "V/Q mismatch in ARDS",
+        "V/Q scan principles",
+        "Oxygen therapy effects on V/Q mismatch",
+        "Ventilator strategies addressing V/Q"
+      ]
+    },
+    {
+      "name": "Respiratory",
+      "chapters": [
+        "Respiratory mechanics and work of breathing",
+        "Pulmonary volumes and capacities",
+        "Spirometry interpretation",
+        "Flow-volume loops",
+        "Airway resistance determinants",
+        "Control of breathing",
+        "Central and peripheral chemoreceptors",
+        "Respiratory centers in the brainstem",
+        "Exercise respiratory physiology",
+        "Sleep effects on respiration",
+        "High altitude adaptation",
+        "Dyspnea mechanisms",
+        "Integrated respiratory responses"
+      ]
+    },
+    {
+      "name": "Endocrine system (thyroid, adrenal, pancreas)",
+      "chapters": [
+        "Hypothalamic-pituitary axis",
+        "Thyroid hormone synthesis",
+        "Thyroid hormone transport and action",
+        "Regulation of thyroid function",
+        "Glucocorticoid synthesis and regulation",
+        "Mineralocorticoid actions",
+        "Adrenal medulla and catecholamines",
+        "Pancreatic endocrine function",
+        "Insulin secretion and action",
+        "Glucagon physiology",
+        "Glucose homeostasis mechanisms",
+        "Endocrine feedback systems",
+        "Integration of metabolic regulation"
+      ]
+    },
+    {
+      "name": "GI physiology (digestion, absorption, motility)",
+      "chapters": [
+        "Gastrointestinal hormones",
+        "Salivary secretion and function",
+        "Gastric secretion regulation",
+        "Pancreatic exocrine function",
+        "Bile production and secretion",
+        "Carbohydrate digestion and absorption",
+        "Protein digestion and absorption",
+        "Lipid digestion and absorption",
+        "Water and electrolyte handling in GI tract",
+        "Intestinal barrier function",
+        "GI motility patterns and regulation",
+        "Defecation reflex",
+        "Gut microbiome interactions"
+      ]
+    },
+    {
+      "name": "Reproductive physiology (menstrual cycle, pregnancy)",
+      "chapters": [
+        "Hypothalamic-pituitary-gonadal axis",
+        "Spermatogenesis",
+        "Oogenesis and follicular development",
+        "Female reproductive cycle phases",
+        "Ovulation physiology",
+        "Corpus luteum function",
+        "Implantation physiology",
+        "Placental development and function",
+        "Maternal physiological adaptations to pregnancy",
+        "Parturition physiology",
+        "Lactation physiology",
+        "Male sexual physiology",
+        "Female sexual physiology"
+      ]
+    },
+    {
+      "name": "Temperature regulation",
+      "chapters": [
+        "Core body temperature maintenance",
+        "Hypothalamic thermoregulation",
+        "Heat production mechanisms",
+        "Heat loss mechanisms",
+        "Behavioral thermoregulation",
+        "Fever pathophysiology",
+        "Fever patterns and significance",
+        "Hyperthermia vs fever",
+        "Hypothermia pathophysiology",
+        "Temperature regulation in neonates",
+        "Exercise and thermoregulation",
+        "Environmental stress responses",
+        "Age-related changes in thermoregulation"
+      ]
+    },
+    {
+      "name": "Exercise physiology",
+      "chapters": [
+        "Muscle fiber types and recruitment",
+        "Energy systems during exercise",
+        "Oxygen consumption and VO2 max",
+        "Cardiovascular responses to exercise",
+        "Respiratory adaptations during exercise",
+        "Metabolic changes with exercise",
+        "Acid-base balance during exercise",
+        "Thermoregulation during exercise",
+        "Exercise training adaptations",
+        "Fatigue mechanisms",
+        "Exercise testing principles",
+        "Exercise in environmental extremes",
+        "Exercise in special populations"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Psychiatry",
+  "topics": [
+    {
+      "name": "Depression",
+      "chapters": [
+        "Major depressive disorder diagnostic criteria",
+        "Neurobiological basis of depression",
+        "Genetic and environmental risk factors",
+        "Depression with melancholic features",
+        "Depression with atypical features",
+        "Depression with psychotic features",
+        "Seasonal affective disorder",
+        "Postpartum depression",
+        "Treatment-resistant depression",
+        "Pharmacotherapy for depression",
+        "Psychotherapy approaches for depression",
+        "ECT and neuromodulation therapies",
+        "Suicide risk assessment and management"
+      ]
+    },
+    {
+      "name": "Bipolar disorder",
+      "chapters": [
+        "Bipolar I disorder diagnostic criteria",
+        "Bipolar II disorder diagnostic criteria",
+        "Cyclothymic disorder",
+        "Manic episode criteria and features",
+        "Hypomanic episode criteria and features",
+        "Mixed features specification",
+        "Rapid cycling bipolar disorder",
+        "First episode management",
+        "Maintenance therapy principles",
+        "Mood stabilizers mechanisms and selection",
+        "Antipsychotics in bipolar disorder",
+        "Psychosocial interventions",
+        "Bipolar disorder in pregnancy"
+      ]
+    },
+    {
+      "name": "Anxiety",
+      "chapters": [
+        "Generalized anxiety disorder",
+        "Panic disorder",
+        "Specific phobias",
+        "Social anxiety disorder",
+        "Separation anxiety disorder",
+        "Agoraphobia",
+        "Neurobiological basis of anxiety",
+        "Cognitive-behavioral therapy for anxiety",
+        "Pharmacotherapy for anxiety disorders",
+        "Anxiety in medical conditions",
+        "Anxiety in children and adolescents",
+        "Alternative treatments for anxiety",
+        "Anxiety disorder differential diagnosis"
+      ]
+    },
+    {
+      "name": "Mood Disorders",
+      "chapters": [
+        "Persistent depressive disorder (dysthymia)",
+        "Premenstrual dysphoric disorder",
+        "Disruptive mood dysregulation disorder",
+        "Adjustment disorder with depressed mood",
+        "Substance-induced mood disorders",
+        "Mood disorders due to medical conditions",
+        "Bereavement and complicated grief",
+        "Mood disorder epidemiology",
+        "Cultural aspects of mood disorders",
+        "Child and adolescent mood disorders",
+        "Geriatric mood disorders",
+        "Comorbidities with mood disorders",
+        "Functional impairment assessment"
+      ]
+    },
+    {
+      "name": "Schizophrenia",
+      "chapters": [
+        "Diagnostic criteria and subtypes",
+        "Positive symptoms",
+        "Negative symptoms",
+        "Cognitive symptoms",
+        "Prodromal phase and early intervention",
+        "Neurobiological theories of schizophrenia",
+        "Genetics of schizophrenia",
+        "Neuroimaging findings",
+        "First-generation antipsychotics",
+        "Second-generation antipsychotics",
+        "Treatment-resistant schizophrenia",
+        "Psychosocial rehabilitation",
+        "Long-acting injectable antipsychotics"
+      ]
+    },
+    {
+      "name": "Delusional disorder",
+      "chapters": [
+        "Diagnostic criteria for delusional disorder",
+        "Types of delusional disorder (persecutory, jealous, etc.)",
+        "Differentiation from schizophrenia",
+        "Shared psychotic disorder (folie à deux)",
+        "Neurobiological basis of delusions",
+        "Cognitive theories of delusion formation",
+        "Cultural aspects of delusional beliefs",
+        "Assessment techniques for delusions",
+        "Pharmacological management",
+        "Psychotherapeutic approaches",
+        "Course and prognosis",
+        "Legal and ethical considerations",
+        "Delusional disorder in special populations"
+      ]
+    },
+    {
+      "name": "Psychotic Disorders",
+      "chapters": [
+        "Brief psychotic disorder",
+        "Schizophreniform disorder",
+        "Schizoaffective disorder",
+        "Substance-induced psychotic disorder",
+        "Psychosis due to medical conditions",
+        "Catatonia across disorders",
+        "First-episode psychosis management",
+        "Metabolic monitoring in psychotic disorders",
+        "Antipsychotic mechanisms of action",
+        "Antipsychotic side effect management",
+        "Violence risk assessment in psychosis",
+        "Cognitive remediation in psychotic disorders",
+        "Family interventions for psychotic disorders"
+      ]
+    },
+    {
+      "name": "Substance use disorders",
+      "chapters": [
+        "Neurobiology of addiction",
+        "Alcohol use disorder",
+        "Opioid use disorder",
+        "Stimulant use disorders",
+        "Cannabis use disorder",
+        "Sedative-hypnotic use disorders",
+        "Tobacco use disorder",
+        "Hallucinogen-related disorders",
+        "Motivational interviewing techniques",
+        "Withdrawal management",
+        "Medication-assisted treatment",
+        "Contingency management",
+        "Relapse prevention strategies"
+      ]
+    },
+    {
+      "name": "Personality disorders",
+      "chapters": [
+        "Cluster A personality disorders (paranoid, schizoid, schizotypal)",
+        "Antisocial personality disorder",
+        "Borderline personality disorder",
+        "Narcissistic personality disorder",
+        "Histrionic personality disorder",
+        "Avoidant personality disorder",
+        "Dependent personality disorder",
+        "Obsessive-compulsive personality disorder",
+        "Assessment and diagnosis challenges",
+        "Psychotherapeutic approaches (DBT, MBT)",
+        "Pharmacotherapy role in personality disorders",
+        "Comorbidity with Axis I disorders",
+        "Long-term management strategies"
+      ]
+    },
+    {
+      "name": "Neurodevelopmental disorders (ADHD, autism)",
+      "chapters": [
+        "ADHD subtypes and diagnostic criteria",
+        "Neurobiology of ADHD",
+        "Stimulant medications",
+        "Non-stimulant ADHD treatments",
+        "Autism spectrum disorder diagnostic criteria",
+        "Autism assessment tools",
+        "Early intervention in ASD",
+        "Applied behavior analysis",
+        "Intellectual disability classification",
+        "Learning disorders",
+        "Communication disorders",
+        "Motor disorders (tic disorders, stereotypic movement)",
+        "Transition to adult care"
+      ]
+    },
+    {
+      "name": "Cognitive disorders (dementia)",
+      "chapters": [
+        "Delirium etiology and management",
+        "Alzheimer's disease",
+        "Vascular dementia",
+        "Lewy body dementia",
+        "Frontotemporal dementia",
+        "Mild cognitive impairment",
+        "Neuropsychological testing",
+        "Cognitive assessment tools",
+        "Pharmacotherapy for cognitive disorders",
+        "Behavioral management in dementia",
+        "Caregiver support and education",
+        "Legal and ethical issues in dementia care",
+        "Preventive strategies for cognitive decline"
+      ]
+    },
+    {
+      "name": "Sleep disorders",
+      "chapters": [
+        "Normal sleep physiology",
+        "Insomnia disorder",
+        "Sleep-related breathing disorders",
+        "Central disorders of hypersomnolence",
+        "Circadian rhythm sleep-wake disorders",
+        "Parasomnias",
+        "Sleep-related movement disorders",
+        "Sleep disorders related to medical conditions",
+        "Substance/medication-induced sleep disorders",
+        "Sleep hygiene and behavioral interventions",
+        "Pharmacological management of sleep disorders",
+        "Polysomnography and sleep studies",
+        "Psychiatric comorbidities with sleep disorders"
+      ]
+    }
+  ]
+},
+{
+  "subject": "Surgery",
+  "topics": [
+    {
+      "name": "ATLS protocols",
+      "chapters": [
+        "Primary survey (ABCDE)",
+        "Airway management in trauma",
+        "Breathing assessment and management",
+        "Circulation assessment and hemorrhage control",
+        "Disability assessment (neurological status)",
+        "Exposure and environmental control",
+        "Secondary survey principles",
+        "Trauma imaging principles",
+        "Trauma team organization",
+        "Mass casualty triage",
+        "Trauma in special populations (pediatric, geriatric)",
+        "Trauma scoring systems",
+        "Trauma quality improvement"
+      ]
+    },
+    {
+      "name": "Abdominal emergencies",
+      "chapters": [
+        "Acute appendicitis",
+        "Acute cholecystitis",
+        "Small bowel obstruction",
+        "Large bowel obstruction",
+        "Mesenteric ischemia",
+        "Gastrointestinal perforation",
+        "Abdominal compartment syndrome",
+        "Acute pancreatitis management",
+        "Diverticulitis",
+        "Incarcerated/strangulated hernias",
+        "Non-operative management principles",
+        "Diagnostic approach to acute abdomen",
+        "Damage control surgery"
+      ]
+    },
+    {
+      "name": "Post-op care",
+      "chapters": [
+        "Immediate post-anesthesia care",
+        "Postoperative pain management",
+        "Fluid and electrolyte management",
+        "Nutrition support in surgical patients",
+        "Wound care principles",
+        "Drain management",
+        "Early mobilization protocols",
+        "Postoperative fever evaluation",
+        "Recognition and management of SSIs",
+        "DVT prophylaxis",
+        "Enhanced recovery after surgery (ERAS)",
+        "Postoperative respiratory care",
+        "Transition of care planning"
+      ]
+    },
+    {
+      "name": "Trauma/Emergencies",
+      "chapters": [
+        "Chest trauma management",
+        "Head trauma management",
+        "Spinal trauma",
+        "Blunt abdominal trauma",
+        "Penetrating abdominal trauma",
+        "Pelvic fractures and hemorrhage",
+        "Extremity trauma and vascular injuries",
+        "Burns assessment and management",
+        "Traumatic shock management",
+        "Resuscitative thoracotomy",
+        "Focused Assessment with Sonography in Trauma (FAST)",
+        "Trauma in pregnancy",
+        "Pediatric trauma considerations"
+      ]
+    },
+    {
+      "name": "Pre-operative evaluation",
+      "chapters": [
+        "Cardiac risk assessment",
+        "Pulmonary risk evaluation",
+        "Medications management perioperatively",
+        "Preoperative laboratory testing",
+        "Preoperative imaging selection",
+        "Antibiotic prophylaxis principles",
+        "DVT risk assessment",
+        "Nutritional assessment and optimization",
+        "Frailty assessment",
+        "Functional capacity evaluation",
+        "Informed consent process",
+        "Preoperative anesthesia evaluation",
+        "Preoperative patient education"
+      ]
+    },
+    {
+      "name": "Surgical complications",
+      "chapters": [
+        "Postoperative bleeding",
+        "Surgical site infections",
+        "Anastomotic leak",
+        "Urinary complications",
+        "Pulmonary complications",
+        "Cardiac complications",
+        "Thromboembolic complications",
+        "Neurological complications",
+        "Ileus and bowel dysfunction",
+        "Wound complications (dehiscence, evisceration)",
+        "Iatrogenic injuries",
+        "Retained surgical items",
+        "Systemic inflammatory response syndrome"
+      ]
+    },
+    {
+      "name": "Wound healing",
+      "chapters": [
+        "Phases of wound healing",
+        "Primary vs. secondary intention",
+        "Types of wound closure",
+        "Factors affecting wound healing",
+        "Chronic wounds pathophysiology",
+        "Diabetic wounds",
+        "Pressure ulcers staging and management",
+        "Surgical wound classification",
+        "Wound assessment techniques",
+        "Advanced wound care products",
+        "Negative pressure wound therapy",
+        "Hyperbaric oxygen therapy",
+        "Scarring process and management"
+      ]
+    },
+    {
+      "name": "Fluid and electrolyte management",
+      "chapters": [
+        "Body fluid compartments",
+        "Assessment of volume status",
+        "Crystalloid vs. colloid solutions",
+        "Maintenance fluid requirements",
+        "Replacement of ongoing losses",
+        "Electrolyte disorders (Na, K, Ca, Mg)",
+        "Acid-base disorders in surgical patients",
+        "Goal-directed fluid therapy",
+        "Fluid management in special populations",
+        "Transfusion triggers and strategies",
+        "Blood component therapy",
+        "Massive transfusion protocols",
+        "Point-of-care coagulation testing"
+      ]
+    },
+    {
+      "name": "Transplant medicine",
+      "chapters": [
+        "Donor selection criteria",
+        "Brain death criteria",
+        "Organ preservation techniques",
+        "Immunosuppression principles",
+        "Rejection diagnosis and management",
+        "Liver transplantation",
+        "Kidney transplantation",
+        "Heart transplantation",
+        "Lung transplantation",
+        "Pancreas and islet cell transplantation",
+        "Small bowel transplantation",
+        "Post-transplant infections",
+        "Long-term complications of transplantation"
+      ]
+    },
+        {
+      "name": "Vascular surgery",
+      "chapters": [
+        "Peripheral arterial disease diagnosis and management",
+        "Abdominal aortic aneurysm repair",
+        "Thoracic aortic aneurysm management",
+        "Carotid endarterectomy indications and technique",
+        "Dialysis access procedures and complications",
+        "Venous insufficiency and varicose vein treatment",
+        "Acute limb ischemia management",
+        "Aortic dissection management",
+        "Endovascular procedures overview",
+        "Compartment syndrome diagnosis and fasciotomy",
+        "Vascular trauma management",
+        "Thromboembolectomy procedures",
+        "Bypass grafting techniques and materials"
+      ]
+    },
+    {
+      "name": "Cardiothoracic surgery",
+      "chapters": [
+        "Coronary artery bypass grafting indications",
+        "Valve replacement and repair procedures",
+        "Thoracotomy approaches and techniques",
+        "Lung resection procedures",
+        "Mediastinal masses evaluation and management",
+        "Chest tube insertion and management",
+        "Pneumothorax management",
+        "Empyema and pleural space infections",
+        "Cardiac tamponade recognition and treatment",
+        "Aortic surgery basics",
+        "Congenital heart surgery principles",
+        "Lung transplantation candidacy",
+        "Mechanical circulatory support devices"
+      ]
+    },
+    {
+      "name": "Neurosurgery basics",
+      "chapters": [
+        "Intracranial pressure management",
+        "Brain tumor classification and management",
+        "Spinal surgery fundamentals",
+        "Hydrocephalus diagnosis and shunt procedures",
+        "Craniotomy indications and techniques",
+        "Spinal cord injury management",
+        "Cerebral aneurysm management",
+        "Arteriovenous malformation treatment",
+        "Subdural and epidural hematoma management",
+        "Lumbar puncture technique and indications",
+        "Spinal fusion procedures",
+        "Peripheral nerve surgery basics",
+        "Stereotactic procedures"
+      ]
+    },
+    {
+      "name": "Pediatric surgery",
+      "chapters": [
+        "Congenital diaphragmatic hernia",
+        "Pyloric stenosis diagnosis and pyloromyotomy",
+        "Intussusception reduction techniques",
+        "Hirschsprung disease management",
+        "Necrotizing enterocolitis surgical management",
+        "Congenital abdominal wall defects",
+        "Tracheoesophageal fistula repair",
+        "Biliary atresia and Kasai procedure",
+        "Congenital heart defects requiring surgery",
+        "Pediatric trauma considerations",
+        "Undescended testis and orchiopexy",
+        "Pediatric fluid and electrolyte management",
+        "Neonatal surgical emergencies"
+      ]
+    },
+    {
+      "name": "Gastrointestinal surgery",
+      "chapters": [
+        "Elective colorectal procedures",
+        "Inflammatory bowel disease surgical management",
+        "Colorectal cancer resection principles",
+        "Bariatric surgery procedures and complications",
+        "Hepatobiliary surgery basics",
+        "Pancreatic surgery procedures",
+        "Esophageal surgery procedures",
+        "Gastric surgery procedures",
+        "Small bowel resection and anastomosis",
+        "Anorectal procedures",
+        "Liver resection principles",
+        "Whipple procedure indications",
+        "Ostomy creation and management"
+      ]
+    },
+    {
+      "name": "Breast surgery",
+      "chapters": [
+        "Breast cancer staging and surgical management",
+        "Sentinel lymph node biopsy",
+        "Mastectomy techniques and indications",
+        "Breast conservation therapy",
+        "Axillary lymph node dissection",
+        "Benign breast disease management",
+        "Breast reconstruction options",
+        "Nipple discharge evaluation",
+        "Breast biopsy techniques",
+        "Male breast cancer",
+        "Inflammatory breast cancer",
+        "Hereditary breast cancer syndromes",
+        "Post-mastectomy complications"
+      ]
+    },
+    {
+      "name": "Endocrine surgery",
+      "chapters": [
+        "Thyroidectomy indications and techniques",
+        "Parathyroidectomy procedures",
+        "Adrenalectomy approaches",
+        "Thyroid nodule evaluation",
+        "Thyroid cancer management",
+        "Hyperparathyroidism surgical management",
+        "Pheochromocytoma resection",
+        "Multiple endocrine neoplasia syndromes",
+        "Recurrent laryngeal nerve protection",
+        "Postoperative hypocalcemia management",
+        "Endocrine surgery complications",
+        "Minimally invasive endocrine procedures",
+        "Radioguided parathyroidectomy"
+      ]
+    },
+    {
+      "name": "Minimally invasive surgery",
+      "chapters": [
+        "Laparoscopic surgery principles",
+        "Trocar placement and port sites",
+        "CO2 insufflation physiology",
+        "Laparoscopic instrumentation",
+        "Robotic surgery principles",
+        "Single-incision laparoscopic surgery",
+        "Natural orifice transluminal surgery",
+        "Endoscopic procedures overview",
+        "Complications of minimally invasive surgery",
+        "Conversion to open surgery criteria",
+        "Patient selection for minimally invasive approaches",
+        "Learning curve considerations",
+        "Cost-effectiveness of minimally invasive surgery"
+      ]
+    },
+    {
+      "name": "Oncologic surgery principles",
+      "chapters": [
+        "Tumor staging and TNM classification",
+        "Surgical margins and R0 resection",
+        "Lymph node sampling techniques",
+        "Cytoreductive surgery principles",
+        "Palliative surgical procedures",
+        "Multidisciplinary cancer care",
+        "Neoadjuvant and adjuvant therapy timing",
+        "Tumor biology and surgical planning",
+        "Metastasectomy indications",
+        "Surgical oncology emergencies",
+        "Quality of life considerations in cancer surgery",
+        "Survivorship issues after cancer surgery",
+        "Minimally invasive oncologic surgery"
+      ]
+    },
+    {
+      "name": "Gynecologic surgery",
+      "chapters": [
+        "Hysterectomy techniques and indications",
+        "Ovarian cystectomy and oophorectomy",
+        "Myomectomy procedures",
+        "Endometriosis surgical management",
+        "Pelvic organ prolapse repair",
+        "Stress urinary incontinence procedures",
+        "Cervical procedures (LEEP, cone biopsy)",
+        "Gynecologic cancer staging procedures",
+        "Laparoscopic gynecologic procedures",
+        "Robotic gynecologic surgery",
+        "Ectopic pregnancy surgical management",
+        "Ovarian torsion management",
+        "Pelvic inflammatory disease complications",
+        "Gynecologic emergency procedures",
+        "Fertility-preserving surgical techniques",
+        "Postoperative complications in gynecologic surgery"
+      ]
+    },
+    {
+      "name": "Orthopedic surgery basics",
+      "chapters": [
+        "Fracture classification and management principles",
+        "Open vs closed reduction techniques",
+        "Internal fixation methods",
+        "External fixation principles",
+        "Compartment syndrome diagnosis and fasciotomy",
+        "Joint replacement basics (hip, knee)",
+        "Arthroscopic procedures overview",
+        "Spinal fracture management",
+        "Pediatric orthopedic emergencies",
+        "Sports medicine injuries",
+        "Bone and joint infections",
+        "Orthopedic trauma priorities",
+        "Amputation indications and techniques"
+      ]
+    },
+    {
+      "name": "Urology basics",
+      "chapters": [
+        "Urinary retention management",
+        "Kidney stone management",
+        "Testicular torsion emergency management",
+        "Paraphimosis and phimosis",
+        "Urological trauma management",
+        "Prostate surgery basics",
+        "Bladder cancer surgical management",
+        "Renal cell carcinoma surgery",
+        "Urethral injury management",
+        "Nephrectomy indications",
+        "Cystoscopy and urethroscopy",
+        "Urinary diversion procedures",
+        "Male infertility surgical procedures"
+      ]
+    },
+    {
+      "name": "Anesthesia and perioperative medicine",
+      "chapters": [
+        "General anesthesia principles",
+        "Regional anesthesia techniques",
+        "Local anesthesia and nerve blocks",
+        "Airway management techniques",
+        "Anesthesia complications",
+        "Perioperative cardiovascular management",
+        "Perioperative respiratory management",
+        "Malignant hyperthermia",
+        "Anesthesia in special populations",
+        "Pain management modalities",
+        "Monitored anesthesia care",
+        "Anesthesia for emergency surgery",
+        "Postoperative anesthesia complications"
+      ]
+    }
+  ]
+}
+]

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QBank Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>QBank Generator</h1>
+            <p class="subtitle">Generate MCQs for NEET PG & USMLE</p>
+        </header>
+
+        <main>
+            <section class="form-section">
+                <div class="form-group">
+                    <label for="course">Course</label>
+                    <select id="course" required>
+                        <option value="">Select Course</option>
+                        <option value="NEET PG">NEET PG</option>
+                        <option value="USMLE">USMLE</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="subject">Subject</label>
+                    <select id="subject" disabled required>
+                        <option value="">Select Subject</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="topics">Topics</label>
+                    <select id="topics" multiple disabled required>
+                    </select>
+                    <small>Hold Ctrl/Cmd to select multiple. Questions generated per topic.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="num-questions">Number of Questions</label>
+                    <input type="range" id="num-questions" min="5" max="50" value="10" step="5">
+                    <span id="num-display">10</span>
+                </div>
+
+                <div class="info-box" id="bloom-info">
+                    <h4>Bloom's Level Distribution <span id="per-topic-label">(per topic)</span></h4>
+                    <div id="bloom-distribution"></div>
+                    <div id="total-questions-info"></div>
+                </div>
+
+                <button id="generate-btn" class="btn-primary" disabled>
+                    Generate Questions
+                </button>
+            </section>
+
+            <section class="results-section" id="results" style="display: none;">
+                <div class="results-header">
+                    <h2>Generated Questions</h2>
+                    <div class="action-buttons">
+                        <button id="download-btn" class="btn-secondary">Download JSON</button>
+                        <button id="copy-btn" class="btn-secondary">Copy to Clipboard</button>
+                    </div>
+                </div>
+                <div class="stats" id="stats"></div>
+                <div id="questions-container"></div>
+            </section>
+        </main>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Generating questions with Claude...</p>
+        </div>
+
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

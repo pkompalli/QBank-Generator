@@ -1,0 +1,464 @@
+[
+  {
+    "course": "US Medical PG",
+    "question": "A 60-year-old diabetic man with end-stage renal disease presents with acute limb ischemia of the right leg. He has a thrombosed arteriovenous fistula, is on hemodialysis, and has limited vascular access options. Angiography shows acute thrombosis of a previously placed femoral-popliteal bypass graft. He faces competing needs for limb salvage and dialysis access. Evaluate the management priority and approach.",
+    "options": [
+      "Immediate thrombectomy of bypass graft",
+      "Primary amputation to preserve resources for dialysis access",
+      "Thrombolysis followed by new AV access creation",
+      "Simultaneous revascularization and dialysis access procedure",
+      "Endovascular intervention with temporary dialysis catheter"
+    ],
+    "correct_option": "Simultaneous revascularization and dialysis access procedure",
+    "explanation": "This requires synthesis of vascular surgery, nephrology, and resource allocation principles. The patient has competing urgent needs: limb salvage and dialysis access. A simultaneous approach addresses both issues in one operation, minimizing anesthetic risk in a high-risk patient. This strategy optimizes limited vascular real estate while addressing both life-threatening (need for dialysis) and limb-threatening conditions simultaneously.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Vascular surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 52-year-old man presents with a 8 cm pancreatic head mass with biliary obstruction. Biopsy shows adenocarcinoma. Staging shows no distant metastases, but the tumor encases the superior mesenteric artery. The oncologist recommends neoadjuvant therapy, the patient wants immediate surgery, and the family requests a second opinion. Evaluate the management approach.",
+    "options": [
+      "Immediate Whipple procedure with vascular reconstruction",
+      "Neoadjuvant chemotherapy followed by reassessment",
+      "Palliative bypass surgery only",
+      "Neoadjuvant therapy with vascular surgery consultation",
+      "Second opinion followed by patient preference"
+    ],
+    "correct_option": "Neoadjuvant therapy with vascular surgery consultation",
+    "explanation": "This requires synthesis of oncologic principles, surgical judgment, and multidisciplinary care. Superior mesenteric artery encasement traditionally indicates unresectable disease, but neoadjuvant therapy may downstage the tumor. Vascular surgery consultation is essential to evaluate the feasibility of vascular reconstruction. This approach provides the best chance for R0 resection while respecting the complexity of the case and need for specialist input.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Gastrointestinal surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 18-year-old athlete suffers a severe traumatic brain injury with increased intracranial pressure. He requires decompressive craniectomy. His parents disagree about the extent of surgical intervention - his father wants maximum treatment, while his mother is concerned about quality of life. The patient had previously expressed wishes to 'never be a vegetable.' Evaluate the ethical approach to decision-making.",
+    "options": [
+      "Proceed with maximum surgical intervention per father's wishes",
+      "Limit intervention based on mother's quality of life concerns",
+      "Follow the patient's previously expressed wishes",
+      "Ethics consultation with family mediation",
+      "Court-ordered guardianship determination"
+    ],
+    "correct_option": "Ethics consultation with family mediation",
+    "explanation": "This requires synthesis of medical ethics, neurosurgery principles, and family dynamics. The case involves substituted judgment for a minor with conflicting parental wishes and previously expressed patient preferences. An ethics consultation allows for comprehensive evaluation of the patient's best interests, medical prognosis, and family dynamics. This approach respects all stakeholders while providing a framework for decision-making based on ethical principles.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Neurosurgery basics",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 65-year-old woman with morbid obesity (BMI 45) and multiple comorbidities requests bariatric surgery. She has diabetes, hypertension, sleep apnea, and depression. Her insurance requires 6-month supervised weight loss, but she has failed multiple diet attempts. She threatens self-harm if denied surgery. Evaluate the approach to her care.",
+    "options": [
+      "Immediate bariatric surgery due to suicide risk",
+      "Psychiatric evaluation and treatment before surgery consideration",
+      "Strict adherence to insurance requirements",
+      "Multidisciplinary bariatric team evaluation",
+      "Emergency psychiatric consultation"
+    ],
+    "correct_option": "Multidisciplinary bariatric team evaluation",
+    "explanation": "This requires synthesis of bariatric surgery principles, psychiatric care, and risk assessment. The patient has multiple indications for bariatric surgery but also concerning psychological factors. A multidisciplinary team approach allows for comprehensive evaluation of surgical candidacy, psychiatric stability, and risk stratification. This ensures appropriate patient selection while addressing the complex medical and psychological factors involved.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Gastrointestinal surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 35-year-old surgeon develops a tremor in her dominant hand. Neurological evaluation suggests early Parkinson's disease. She performs complex microsurgical procedures and is concerned about patient safety. Her department chair is unaware of the diagnosis. Evaluate the ethical and professional approach to this situation.",
+    "options": [
+      "Continue practice without disclosure until symptoms worsen",
+      "Immediately cease all surgical practice",
+      "Transition to non-operative subspecialty",
+      "Disclosure to department with gradual transition plan",
+      "Seek second opinion before making any decisions"
+    ],
+    "correct_option": "Disclosure to department with gradual transition plan",
+    "explanation": "This requires synthesis of medical ethics, professional responsibility, and patient safety. The surgeon has a duty to patient safety and professional integrity. Early disclosure allows for appropriate assessment of capabilities, development of a transition plan, and maintenance of professional relationships. This approach balances patient safety with the surgeon's career considerations and ensures appropriate oversight during the transition period.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Surgical complications",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 28-year-old woman with ulcerative colitis requires emergency colectomy for toxic megacolon. She is 20 weeks pregnant with her first child. The obstetric team is concerned about fetal risks, while the surgical team emphasizes maternal life-threatening condition. The patient wants to prioritize fetal safety. Evaluate the management approach.",
+    "options": [
+      "Immediate colectomy with fetal monitoring",
+      "Delayed surgery with maximum medical management",
+      "Immediate delivery followed by colectomy",
+      "Multidisciplinary approach with maternal-fetal medicine",
+      "Transfer to tertiary care center"
+    ],
+    "correct_option": "Multidisciplinary approach with maternal-fetal medicine",
+    "explanation": "This requires synthesis of colorectal surgery, obstetrics, and medical ethics. Toxic megacolon is life-threatening and requires surgical intervention, but pregnancy adds complexity. A multidisciplinary approach with maternal-fetal medicine allows for comprehensive evaluation of maternal and fetal risks, optimization of surgical and obstetric management, and coordinated care that prioritizes maternal safety while maximizing fetal outcomes.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Gastrointestinal surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 45-year-old man with a strong family history of multiple endocrine neoplasia type 2 (MEN2) presents for genetic counseling. He has not undergone genetic testing but has three children. His brother recently died of metastatic medullary thyroid cancer. Evaluate the approach to genetic testing and prophylactic surgery recommendations.",
+    "options": [
+      "Immediate prophylactic thyroidectomy without genetic testing",
+      "Genetic testing followed by family screening if positive",
+      "Screening with calcitonin levels only",
+      "Genetic counseling with testing and family cascade screening",
+      "Observation with annual screening"
+    ],
+    "correct_option": "Genetic counseling with testing and family cascade screening",
+    "explanation": "This requires synthesis of genetic counseling, endocrine surgery, and family medicine principles. MEN2 is an autosomal dominant condition requiring comprehensive genetic evaluation. Genetic counseling provides education about inheritance patterns, testing implications, and surgical options. If testing is positive, cascade screening of family members (including children) is essential for early detection and prevention. This approach ensures informed decision-making and appropriate family screening.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Endocrine surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 70-year-old man with severe aortic stenosis and coronary artery disease requires both cardiac surgery and removal of a large abdominal aortic aneurysm. He has limited physiologic reserve and high surgical risk. The cardiac surgeon recommends TAVR first, while the vascular surgeon suggests simultaneous repair. Evaluate the optimal staging and approach.",
+    "options": [
+      "Simultaneous cardiac and vascular surgery",
+      "TAVR followed by staged AAA repair",
+      "AAA repair followed by staged cardiac surgery",
+      "Medical management of both conditions",
+      "Endovascular repair of both conditions"
+    ],
+    "correct_option": "TAVR followed by staged AAA repair",
+    "explanation": "This requires synthesis of cardiac surgery, vascular surgery, and risk stratification principles. The patient has two life-threatening conditions requiring intervention. TAVR provides cardiac risk reduction with lower morbidity than open valve replacement, allowing for subsequent AAA repair with improved cardiac reserve. This staged approach minimizes the cumulative risk of simultaneous major procedures while addressing both conditions definitively.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Cardiothoracic surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "45-year-old construction worker presents after falling from scaffolding. He has multiple injuries: closed head injury with GCS 12, flail chest with respiratory distress, grade 3 splenic laceration with hemoperitoneum, and an open femur fracture. His blood pressure is 85/50 mmHg, heart rate 125/min, and oxygen saturation 88%. The trauma team must prioritize interventions. What is the most appropriate sequence of management?",
+    "options": [
+      "Intubation → splenectomy → external fixation of femur → ICP monitoring",
+      "Splenectomy → intubation → femur fixation → neurosurgical consultation",
+      "Intubation → chest tube → splenectomy → damage control orthopedics",
+      "ICP monitoring → splenectomy → intubation → femur fixation",
+      "Chest tube → splenectomy → intubation → neurosurgical intervention"
+    ],
+    "correct_option": "Intubation → chest tube → splenectomy → damage control orthopedics",
+    "explanation": "This scenario requires synthesis of trauma priorities using the ABCDE approach with damage control principles. Airway takes priority (intubation for head injury and respiratory distress), followed by breathing (chest tube for flail chest), then circulation (splenectomy for hemorrhage control). The femur fracture, while significant, is addressed with damage control orthopedics after life-threatening injuries. This represents evaluation of competing priorities and synthesis of multiple trauma principles.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "ATLS protocols",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 72-year-old man with severe coronary artery disease, ejection fraction 25%, and recent MI 6 weeks ago presents with acute cholangitis (Charcot's triad). Blood cultures grow E. coli, and ERCP shows choledocholithiasis with biliary obstruction. His surgical risk is prohibitive. Evaluate the best management strategy that balances infection control, biliary drainage, and cardiac risk.",
+    "options": [
+      "Emergency cholecystectomy with common bile duct exploration",
+      "ERCP with sphincterotomy and stone extraction followed by elective cholecystectomy",
+      "Percutaneous transhepatic biliary drainage followed by staged procedures",
+      "Medical management with antibiotics and delay all procedures",
+      "ERCP with biliary stent placement and indefinite medical management"
+    ],
+    "correct_option": "ERCP with sphincterotomy and stone extraction followed by elective cholecystectomy",
+    "explanation": "This question requires evaluation of competing risks and synthesis of multiple management principles. The patient has acute cholangitis requiring urgent biliary drainage, but prohibitive surgical risk. ERCP with sphincterotomy and stone extraction provides definitive treatment for choledocholithiasis while avoiding high-risk surgery in the acute setting. Once medically optimized, elective cholecystectomy can be considered. This represents the best balance of immediate life-saving intervention with long-term risk management.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Abdominal emergencies",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 35-year-old woman with newly diagnosed metastatic breast cancer (liver and bone metastases) presents with a 6 cm primary tumor, skin involvement, and 4 palpable axillary nodes. Her oncologist recommends neoadjuvant chemotherapy, but she requests immediate surgery. Evaluate the most appropriate recommendation considering oncologic principles, patient preference, and evidence-based care.",
+    "options": [
+      "Proceed with immediate mastectomy and axillary dissection per patient request",
+      "Recommend neoadjuvant chemotherapy and explain superior outcomes",
+      "Offer immediate surgery but recommend against it due to metastatic disease",
+      "Compromise with lumpectomy and sentinel node biopsy",
+      "Refuse surgery and insist on systemic therapy first"
+    ],
+    "correct_option": "Recommend neoadjuvant chemotherapy and explain superior outcomes",
+    "explanation": "This requires synthesis of oncologic principles, evidence-based medicine, and patient counseling. For locally advanced breast cancer with metastatic disease, neoadjuvant chemotherapy offers multiple advantages: assessment of tumor response, potential downstaging for better surgical options, early treatment of systemic disease, and improved outcomes. While respecting patient autonomy, the physician must advocate for evidence-based care and educate about superior outcomes with neoadjuvant therapy.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Oncologic surgery principles",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 28-year-old pregnant woman at 32 weeks gestation presents with acute appendicitis. She is hemodynamically stable but has significant right lower quadrant pain and leukocytosis. The obstetric team is concerned about preterm labor risk, while the surgical team recommends immediate appendectomy. Synthesize the risks and benefits to determine the optimal management approach.",
+    "options": [
+      "Immediate open appendectomy via muscle-splitting incision",
+      "Laparoscopic appendectomy with CO2 insufflation modifications",
+      "Conservative management with antibiotics until delivery",
+      "Immediate delivery followed by appendectomy",
+      "Observation with serial examinations and delayed surgery"
+    ],
+    "correct_option": "Immediate open appendectomy via muscle-splitting incision",
+    "explanation": "This requires synthesis of obstetric and surgical principles. Acute appendicitis in pregnancy requires immediate surgical intervention to prevent perforation, which significantly increases maternal and fetal morbidity. At 32 weeks, the appendix is displaced superiorly, making laparoscopic approach technically challenging. Open appendectomy via muscle-splitting incision is safest, avoiding the risks of CO2 insufflation and providing optimal exposure. Conservative management risks perforation and higher morbidity.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Abdominal emergencies",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 65-year-old man with cirrhosis (Child-Pugh B) and hepatocellular carcinoma presents with a 4 cm tumor. He has portal hypertension with esophageal varices and ascites. His MELD score is 18. Evaluate the optimal treatment strategy considering tumor stage, liver function, and available therapies.",
+    "options": [
+      "Surgical resection of the tumor",
+      "Liver transplantation evaluation",
+      "Radiofrequency ablation of the tumor",
+      "Transarterial chemoembolization (TACE)",
+      "Sorafenib chemotherapy"
+    ],
+    "correct_option": "Liver transplantation evaluation",
+    "explanation": "This requires synthesis of oncologic and transplant principles. The patient has HCC within Milan criteria (single tumor <5 cm) but with underlying cirrhosis and portal hypertension. Surgical resection is contraindicated due to poor liver function and portal hypertension. While ablation or TACE could treat the tumor, liver transplantation offers the best long-term outcome by treating both the cancer and underlying liver disease. The MELD score of 18 provides reasonable transplant priority.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Transplant medicine",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 16-year-old competitive swimmer presents with recurrent shoulder dislocation. MRI shows a Bankart lesion and significant bone loss. His coach wants him to return to competition quickly, his parents are concerned about long-term function, and the patient wants to continue swimming. Evaluate the management approach that best addresses all stakeholder concerns.",
+    "options": [
+      "Arthroscopic Bankart repair with immediate return to swimming",
+      "Open Bankart repair with 4-6 month recovery period",
+      "Conservative management with physical therapy",
+      "Latarjet procedure for bone loss with extended recovery",
+      "Temporary activity restriction with delayed surgical decision"
+    ],
+    "correct_option": "Latarjet procedure for bone loss with extended recovery",
+    "explanation": "This requires synthesis of orthopedic principles, sport medicine, and stakeholder management. Significant bone loss in a young athlete with recurrent dislocation requires definitive treatment. The Latarjet procedure addresses bone loss and provides the most durable long-term solution, which addresses parental concerns about future function. While recovery is extended, it offers the best chance for safe return to competitive swimming without recurrent instability.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Orthopedic surgery basics",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 55-year-old diabetic woman develops necrotizing fasciitis of the perineum following a minor gynecologic procedure. She has septic shock, multiorgan failure, and extensive tissue necrosis. Her family requests 'everything be done,' but her prognosis is poor. Evaluate the ethical and medical approach to her care.",
+    "options": [
+      "Aggressive surgical debridement with unlimited ICU care",
+      "Palliative care transition with comfort measures only",
+      "Limited surgical intervention with family counseling about prognosis",
+      "Extensive debridement with time-limited trial of intensive care",
+      "Transfer to another facility for second opinion"
+    ],
+    "correct_option": "Extensive debridement with time-limited trial of intensive care",
+    "explanation": "This requires synthesis of medical ethics, surgical principles, and end-of-life care. Necrotizing fasciitis requires immediate aggressive surgical debridement for any chance of survival. However, given the poor prognosis with multiorgan failure, a time-limited trial approach balances aggressive treatment with realistic expectations. This allows for appropriate surgical intervention while providing a framework for transition to comfort care if no improvement occurs.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Surgical complications",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 3-year-old child presents with congenital diaphragmatic hernia requiring repair. Preoperative echocardiogram shows severe pulmonary hypertension with suprasystemic pressures. The pediatric surgeon recommends immediate repair, while the cardiologist suggests optimizing pulmonary pressures first. Evaluate the optimal timing and approach.",
+    "options": [
+      "Immediate surgical repair regardless of pulmonary pressures",
+      "Delay surgery until pulmonary pressures normalize",
+      "ECMO support with delayed surgical repair",
+      "Medical optimization of pulmonary hypertension then early repair",
+      "Surgical repair with intraoperative ECMO support"
+    ],
+    "correct_option": "Medical optimization of pulmonary hypertension then early repair",
+    "explanation": "This requires synthesis of pediatric surgery, cardiology, and critical care principles. Severe pulmonary hypertension in CDH patients significantly increases operative risk and mortality. Medical optimization with pulmonary vasodilators, gentle ventilation, and hemodynamic support can improve pulmonary pressures before surgery. This approach reduces perioperative risk while not delaying definitive repair unnecessarily.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Pediatric surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 68-year-old man with severe peripheral arterial disease presents with rest pain and tissue loss in his right foot. Angiography shows multilevel disease with poor runoff. He has significant cardiac comorbidities and limited life expectancy. His family wants limb salvage, but he expresses preference for amputation. Evaluate the decision-making process.",
+    "options": [
+      "Pursue aggressive revascularization per family wishes",
+      "Proceed with amputation per patient preference",
+      "Attempt endovascular intervention as compromise",
+      "Multidisciplinary discussion with patient and family",
+      "Defer decision to vascular surgery specialist"
+    ],
+    "correct_option": "Multidisciplinary discussion with patient and family",
+    "explanation": "This requires synthesis of medical ethics, patient autonomy, and family dynamics. The patient's preferences should be paramount, but this complex decision involves quality of life, functional outcomes, and family relationships. A multidisciplinary approach allows for comprehensive evaluation of all factors, education of patient and family, and development of a care plan that respects patient autonomy while addressing family concerns.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Vascular surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 42-year-old surgeon is diagnosed with hepatitis C and requests evaluation for liver transplantation. Her viral load is high, and she has early cirrhosis. She wants to continue operating while awaiting transplant. Evaluate the ethical and medical considerations regarding her continued practice.",
+    "options": [
+      "Allow continued practice with universal precautions",
+      "Restrict practice to non-invasive procedures only",
+      "Require immediate cessation of all surgical practice",
+      "Allow practice with mandatory disclosure to patients",
+      "Defer decision to hospital ethics committee"
+    ],
+    "correct_option": "Defer decision to hospital ethics committee",
+    "explanation": "This requires synthesis of medical ethics, occupational health, and patient safety principles. The case involves competing interests: the surgeon's livelihood, patient safety, and public health. Current guidelines vary regarding healthcare worker practice with bloodborne pathogens. An ethics committee consultation allows for comprehensive evaluation of all factors, development of appropriate policies, and consideration of expert consultation and legal requirements.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Transplant medicine",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 75-year-old man with multiple medical comorbidities develops acute mesenteric ischemia. CT angiography shows superior mesenteric artery occlusion with bowel wall thickening. His family history includes poor outcomes with major surgery. Laboratory studies show elevated lactate and leukocytosis. Evaluate the management approach considering patient factors and family concerns.",
+    "options": [
+      "Immediate surgical revascularization and bowel resection",
+      "Endovascular revascularization followed by assessment",
+      "Conservative management with anticoagulation",
+      "Palliative care consultation",
+      "Time-limited trial of medical management"
+    ],
+    "correct_option": "Endovascular revascularization followed by assessment",
+    "explanation": "This requires synthesis of vascular surgery principles, geriatric care, and family dynamics. Acute mesenteric ischemia has high mortality without intervention. Endovascular revascularization offers a less invasive approach than open surgery, appropriate for a high-risk patient. This allows for restoration of blood flow with subsequent assessment of bowel viability, potentially avoiding extensive bowel resection. It balances the need for intervention with consideration of the patient's high-risk status.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Vascular surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 25-year-old woman with inflammatory bowel disease requires total colectomy with ileostomy. She is getting married in 6 months and wants to know about conversion to J-pouch. She has mild perianal disease and takes anti-TNF therapy. Evaluate the timing and appropriateness of J-pouch reconstruction.",
+    "options": [
+      "Immediate J-pouch construction during colectomy",
+      "Staged J-pouch after 3-6 months with temporary ileostomy",
+      "Permanent ileostomy due to perianal disease",
+      "Delay J-pouch until after marriage and pregnancy",
+      "Alternative continent ileostomy procedure"
+    ],
+    "correct_option": "Staged J-pouch after 3-6 months with temporary ileostomy",
+    "explanation": "This requires synthesis of colorectal surgery principles, IBD management, and patient lifestyle factors. J-pouch reconstruction is appropriate for ulcerative colitis but requires careful patient selection. Mild perianal disease is not an absolute contraindication, but staging allows for healing and assessment of disease activity. The 3-6 month timeline allows completion before marriage while ensuring adequate healing. Anti-TNF therapy may need adjustment perioperatively.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Gastrointestinal surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  },
+  {
+    "course": "US Medical PG",
+    "question": "A 45-year-old woman with BRCA1 mutation has completed childbearing and requests prophylactic surgery. She has no evidence of breast or ovarian cancer. Her mother died of ovarian cancer at age 50, and her sister had breast cancer at age 35. Evaluate the optimal prophylactic surgical strategy.",
+    "options": [
+      "Bilateral mastectomy only",
+      "Bilateral salpingo-oophorectomy only",
+      "Bilateral mastectomy with immediate reconstruction and bilateral salpingo-oophorectomy",
+      "Enhanced screening without prophylactic surgery",
+      "Unilateral mastectomy with contralateral surveillance"
+    ],
+    "correct_option": "Bilateral mastectomy with immediate reconstruction and bilateral salpingo-oophorectomy",
+    "explanation": "This requires synthesis of genetic counseling, oncologic principles, and patient counseling. BRCA1 mutations confer high lifetime risk for both breast and ovarian cancer. Given the patient's age, family history, and completed childbearing, bilateral prophylactic mastectomy with reconstruction and bilateral salpingo-oophorectomy provides maximum risk reduction. The timing is appropriate as she has completed childbearing and is approaching the age of increased ovarian cancer risk.",
+    "difficulty": 3,
+    "subject": "Surgery",
+    "blooms_level": 5,
+    "topic": "Breast surgery",
+    "tags": [
+      "USMLE",
+      "USMLE - Step 2",
+      "USMLE - Step 3"
+    ]
+  }
+]
