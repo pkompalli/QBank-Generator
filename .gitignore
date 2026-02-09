@@ -12,6 +12,9 @@ image_cache.json
 # Logs
 *.log
 
+# Review files
+review_*.md
+
 # IDE
 .vscode/
 .idea/

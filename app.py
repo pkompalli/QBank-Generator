@@ -14,6 +14,7 @@ from flask import Flask, render_template, request, jsonify
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from google import genai
+from PIL import Image
 
 # Configure logging
 logging.basicConfig(
@@ -270,8 +271,314 @@ def get_chapters(course, subject, topic):
     return jsonify(chapters)
 
 
+def validate_image_with_claude(image_url, question_data):
+    """Validate image relevance using Claude Vision. Returns score 0-100."""
+    try:
+        question = question_data.get('question', '')
+        image_desc = question_data.get('image_description', '')
+        image_type = question_data.get('image_type', '')
+        key_finding = question_data.get('key_finding', '')
+
+        finding_context = f"\n\nKEY DIAGNOSTIC FINDING that must be visible: {key_finding}" if key_finding else ""
+
+        validation_prompt = f"""You are a medical imaging specialist validating images for board examination questions. Analyze this image with clinical precision.
+
+QUESTION: {question}
+
+EXPECTED IMAGE:
+- Modality: {image_type}
+- Description: {image_desc}{finding_context}
+
+VALIDATION CRITERIA (score 0-100):
+
+1. MODALITY MATCH (20 points): Is this the exact type of medical image specified? (e.g., if "Chest X-ray PA view" is requested, is it actually a chest X-ray and not a CT?)
+
+2. DIAGNOSTIC FINDING PRESENT (40 points): Does the image clearly show the specific pathologic finding or characteristic feature described? This is CRITICAL - the key diagnostic element must be visible and identifiable.
+
+3. CLINICAL QUALITY (20 points):
+   - Is this a real medical image (not a diagram, flowchart, illustration, or labeled schematic)?
+   - Is the image quality sufficient for diagnostic interpretation?
+   - **CRITICAL**: Are there NO text labels, annotations, or arrows that reveal the answer or diagnosis?
+   - **CRITICAL**: Medical images for exam questions must be UNLABELED - any visible text revealing the diagnosis should result in automatic failure (score 0-30)
+
+4. EDUCATIONAL VALUE (20 points):
+   - Would this image help a medical student identify the diagnosis?
+   - Is the finding prominent enough to be clinically useful?
+   - Does it match board examination image standards?
+
+SCORING GUIDE:
+- 90-100: Perfect match - correct modality, diagnostic finding clearly visible, clinical quality, NO text labels
+- 80-89: Very good match - correct type, finding clearly visible, minor quality issues, NO text labels
+- 70-79: Good match - correct type, finding visible but not ideal quality, NO text labels
+- 50-69: Partial match - correct type but finding unclear or poor quality
+- 30-49: Wrong finding or very poor quality
+- 0-29: Wrong modality, diagram/illustration, or **ANY visible text revealing the diagnosis/answer**
+
+**AUTOMATIC DISQUALIFICATION (score 0-30)**: If the image contains ANY text, labels, annotations, or arrows that reveal or hint at the diagnosis/answer. For example:
+- "Mitochondrial inheritance" on a pedigree → score 0-20
+- "Pneumonia" labeled on chest X-ray → score 0-20
+- "STEMI" or diagnosis text on ECG → score 0-20
+- Educational diagrams with labeled pathology → score 0-20
+
+Respond with ONLY a JSON object:
+{{"score": <number 0-100>, "reason": "<specific explanation of what you see and why score was given>"}}"""
+
+        # Download image to base64
+        img_response = requests.get(image_url, timeout=10)
+        if img_response.status_code != 200:
+            return {'score': 0, 'reason': 'Failed to download image'}
+
+        import base64
+        img_base64 = base64.b64encode(img_response.content).decode('utf-8')
+
+        # Determine media type
+        content_type = img_response.headers.get('content-type', 'image/jpeg')
+
+        # Call Claude Vision
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=500,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": content_type,
+                            "data": img_base64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": validation_prompt
+                    }
+                ]
+            }]
+        )
+
+        # Parse response
+        response_text = message.content[0].text
+        result = json.loads(response_text)
+        return result
+
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        return {'score': 0, 'reason': str(e)}
+
+
+def collect_candidate_images(image_search_terms, image_type, max_candidates=10):
+    """Collect candidate images from multiple sources. Try harder to find images from internet sources."""
+    candidates = []
+
+    # Try Open-i (NIH) - more aggressive search
+    try:
+        url = "https://openi.nlm.nih.gov/api/search"
+        image_type_map = {
+            'X-ray': 'xg', 'CT scan': 'ct', 'CT': 'ct', 'MRI': 'mri', 'Ultrasound': 'us',
+            'Microscopy': 'mi', 'Gram stain': 'mi', 'Histopathology': 'mi',
+            'Culture plate': 'mi', 'Microscopy stain': 'mi'
+        }
+        it_param = image_type_map.get(image_type, 'xg,ct,mri,us,mi')
+
+        # Try ALL search terms (not just first 2)
+        for search_term in image_search_terms[:5]:
+            params = {'query': search_term, 'it': it_param, 'm': 1, 'n': 15}
+            response = requests.get(url, params=params, timeout=15)
+            data = response.json()
+
+            if 'list' in data:
+                for item in data['list'][:3]:  # Take top 3 from each search (increased from 2)
+                    if 'imgLarge' in item:
+                        candidates.append({
+                            'url': f"https://openi.nlm.nih.gov{item['imgLarge']}",
+                            'source': 'Open-i (NIH)',
+                            'title': item.get('title', '')[:100]
+                        })
+                        if len(candidates) >= max_candidates:
+                            return candidates
+    except Exception as e:
+        logger.error(f"Open-i collection error: {e}")
+
+    # Try Wikimedia Commons - more aggressive search
+    try:
+        url = "https://commons.wikimedia.org/w/api.php"
+        for search_term in image_search_terms[:5]:  # Increased from 2 to 5
+            params = {
+                'action': 'query', 'format': 'json', 'generator': 'search',
+                'gsrnamespace': 6, 'gsrsearch': f"{search_term} medical",
+                'gsrlimit': 15, 'prop': 'imageinfo', 'iiprop': 'url|mime', 'iiurlwidth': 600
+            }
+            response = requests.get(url, params=params, timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                if 'query' in data and 'pages' in data['query']:
+                    for page_id, page in list(data['query']['pages'].items())[:3]:  # Increased from 2 to 3
+                        if 'imageinfo' in page and len(page['imageinfo']) > 0:
+                            img_info = page['imageinfo'][0]
+                            mime = img_info.get('mime', '')
+                            if mime.startswith('image/') and 'svg' not in mime.lower():
+                                candidates.append({
+                                    'url': img_info.get('thumburl', img_info.get('url')),
+                                    'source': 'Wikimedia Commons',
+                                    'title': page.get('title', '').replace('File:', '')
+                                })
+                                if len(candidates) >= max_candidates:
+                                    return candidates
+    except Exception as e:
+        logger.error(f"Wikimedia collection error: {e}")
+
+    logger.info(f"Collected {len(candidates)} candidate images from internet sources")
+    return candidates
+
+
+def generate_image_with_gemini(question_data):
+    """Generate image with Gemini Nano Banana Pro."""
+    try:
+        image_desc = question_data.get('image_description', '')
+        image_type = question_data.get('image_type', '')
+        key_finding = question_data.get('key_finding', '')
+
+        # Build context about what must be visible
+        finding_emphasis = f"\n\nCRITICAL DIAGNOSTIC FINDING that MUST be clearly visible: {key_finding}" if key_finding else ""
+
+        # Universal restriction: NO text labels that reveal the answer
+        no_answer_text = "\n\n**CRITICAL RESTRICTION**: The image must be COMPLETELY UNLABELED. NO text, NO annotations, NO labels, NO arrows with text, NO diagnosis names written on the image. Students must interpret the raw clinical image without any textual hints or answers visible."
+
+        # Create very specific prompt based on image type
+        if 'gram stain' in image_type.lower() or 'microscopy' in image_type.lower() and 'histopathology' not in image_type.lower():
+            prompt = f"""Create a realistic high-resolution microscopy photograph: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual microscope photograph showing the exact morphology described
+- Show individual cells/organisms with proper staining characteristics (Gram stain: purple for Gram+, pink for Gram-)
+- High magnification (1000x oil immersion) clinical microscopy view
+- Clear focus on the diagnostic morphology
+- NO diagrams, NO flowcharts, NO tables, NO illustrations, NO labels, NO text annotations
+- Realistic medical laboratory quality photograph as seen through microscope eyepiece"""
+
+        elif 'histopathology' in image_type.lower() or 'h&e' in image_type.lower() or 'biopsy' in image_type.lower():
+            prompt = f"""Create a realistic histopathology microscopy image: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be actual tissue histology showing the specific pathologic cells/patterns described
+- Show characteristic cellular architecture and pathognomonic features
+- Proper H&E staining (or specified stain): nuclei blue/purple, cytoplasm pink
+- Medium to high magnification showing cellular detail
+- NO diagrams, NO illustrations, NO schematic drawings, NO labels, NO text annotations
+- Realistic pathology slide photograph suitable for board examination"""
+
+        elif 'culture' in image_type.lower() or 'agar' in image_type.lower():
+            prompt = f"""Create a realistic photograph of a culture plate: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual photograph of a petri dish with bacterial/fungal colonies
+- Show the exact colony morphology, color, and hemolysis pattern described
+- Clear view of growth characteristics on agar medium
+- NO diagrams, NO flowcharts, NO tables, NO illustrations, NO text labels
+- Realistic medical microbiology laboratory photograph"""
+
+        elif 'ecg' in image_type.lower() or 'ekg' in image_type.lower():
+            prompt = f"""Create a realistic 12-lead ECG tracing: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual ECG printout showing the specific abnormality described
+- Show clear waveforms with proper lead labels (I, II, III, aVR, aVL, aVF, V1-V6)
+- Standard calibration (10mm/mV, 25mm/s) and grid paper background
+- The diagnostic finding must be clearly visible in the appropriate leads
+- NO diagnosis text, NO annotations pointing to findings - only standard lead labels allowed
+- NO illustrations, NO diagrams - actual ECG machine printout appearance
+- High contrast and clinically readable quality"""
+
+        elif 'x-ray' in image_type.lower() or 'radiograph' in image_type.lower():
+            prompt = f"""Create a realistic medical X-ray radiograph: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual X-ray image showing the specific pathologic finding described
+- Proper radiographic contrast (white bones, black air, gray soft tissue)
+- Show anatomical landmarks and the diagnostic abnormality clearly
+- Correct patient positioning and view as specified (PA, AP, lateral, etc.)
+- NO diagrams, NO illustrations, NO arrows, NO labels, NO text annotations
+- High-quality diagnostic radiology image suitable for interpretation"""
+
+        elif 'ct' in image_type.lower() or 'computed tomography' in image_type.lower():
+            prompt = f"""Create a realistic CT scan image: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual CT cross-sectional image showing the specific pathology described
+- Proper Hounsfield unit contrast (bone white, air black, soft tissue gray)
+- Show anatomical structures and the diagnostic abnormality clearly
+- Axial/coronal/sagittal slice as appropriate
+- NO diagrams, NO illustrations, NO annotations, NO text labels
+- High-resolution diagnostic CT quality"""
+
+        elif 'mri' in image_type.lower():
+            prompt = f"""Create a realistic MRI scan: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual MRI image showing the specific pathologic finding
+- Proper signal characteristics for the specified sequence (T1, T2, FLAIR, etc.)
+- Show anatomical detail and the diagnostic abnormality clearly
+- Correct tissue contrast for the MRI sequence specified
+- NO diagrams, NO illustrations, NO labels, NO text annotations
+- High-resolution diagnostic MRI quality"""
+
+        elif 'ultrasound' in image_type.lower() or 'sonography' in image_type.lower():
+            prompt = f"""Create a realistic ultrasound image: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be an actual ultrasound/sonography image showing the pathologic finding
+- Proper grayscale echogenicity (hyperechoic, hypoechoic, anechoic regions)
+- Show anatomical structures and diagnostic features clearly
+- Typical ultrasound interface with measurement calipers if relevant (but NO text labels of diagnosis)
+- NO diagrams, NO illustrations, NO text annotations
+- Clinical ultrasound machine output quality"""
+
+        else:
+            # Generic medical imaging
+            prompt = f"""Create a professional medical {image_type} showing: {image_desc}.{finding_emphasis}{no_answer_text}
+
+REQUIREMENTS:
+- Must be realistic medical imaging/photography showing the exact clinical finding described
+- The diagnostic feature must be prominently visible and identifiable
+- Proper medical imaging characteristics for this modality
+- NO diagrams, NO flowcharts, NO tables, NO schematic illustrations, NO labels, NO text annotations
+- High-quality clinical photograph suitable for medical board examination
+- Actual medical imaging modality output, not educational graphics"""
+
+        response = gemini_client.models.generate_content(
+            model='gemini-3-pro-image-preview',
+            contents=[prompt],
+        )
+
+        for part in response.parts:
+            if part.inline_data is not None:
+                image = part.as_image()
+
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='static') as f:
+                    img_path = f.name
+
+                image.save(img_path)
+
+                return {
+                    'url': f"/static/{os.path.basename(img_path)}",
+                    'source': 'Nano Banana Pro (AI Generated)',
+                    'title': f'Generated: {image_type}'
+                }
+    except Exception as e:
+        logger.error(f"Generation error: {e}")
+    return None
+
+
 def search_and_validate_image(question_data, subject):
-    """Search for image, validate with Claude Vision, or generate with Nano Banana Pro."""
+    """
+    STEP 1: Form good query (done by Claude in question generation)
+    STEP 2: Get 3 most promising images from sources
+    STEP 3: Validate with Claude Vision, score each
+    STEP 4: Pick highest scoring image
+    STEP 5: If no image >90%, generate with Nano Banana Pro
+    """
     image_search_terms = question_data.get('image_search_terms', [])
     image_type = question_data.get('image_type', '')
 
@@ -281,91 +588,116 @@ def search_and_validate_image(question_data, subject):
     # Check cache first
     cached = get_cached_image(image_search_terms, image_type)
     if cached:
+        print(f"✓ Cached image for: {image_search_terms[:2]}")
         return cached
 
     print(f"\n🔍 Searching image: {image_type}")
 
-    # Try Open-i (NIH) for radiology
-    if image_type in ['X-ray', 'CT scan', 'CT', 'MRI', 'Ultrasound']:
-        try:
-            url = "https://openi.nlm.nih.gov/api/search"
-            params = {'query': image_search_terms[0], 'it': 'xg,ct,mri,us', 'm': 1, 'n': 5}
-            response = requests.get(url, params=params, timeout=15)
-            data = response.json()
-            if 'list' in data and len(data['list']) > 0:
-                for item in data['list']:
-                    if 'imgLarge' in item:
-                        result = {
-                            'url': f"https://openi.nlm.nih.gov{item['imgLarge']}",
-                            'source': 'Open-i (NIH)',
-                            'title': item.get('title', '')[:100]
-                        }
-                        cache_image(image_search_terms, image_type, result)
-                        print(f"✓ Found Open-i image")
-                        return result
-        except Exception as e:
-            logger.error(f"Open-i error: {e}")
+    # STEP 2: Collect candidate images (try harder - up to 10 candidates)
+    print(f"  → Collecting candidates from internet sources...")
+    candidates = collect_candidate_images(image_search_terms, image_type, max_candidates=10)
 
-    # Try Wikimedia Commons
-    try:
-        url = "https://commons.wikimedia.org/w/api.php"
-        params = {
-            'action': 'query', 'format': 'json', 'generator': 'search',
-            'gsrnamespace': 6, 'gsrsearch': f"{image_search_terms[0]} medical",
-            'gsrlimit': 10, 'prop': 'imageinfo', 'iiprop': 'url|mime', 'iiurlwidth': 600
-        }
-        response = requests.get(url, params=params, timeout=20)
-        if response.status_code == 200:
-            data = response.json()
-            if 'query' in data and 'pages' in data['query']:
-                for page_id, page in data['query']['pages'].items():
-                    if 'imageinfo' in page and len(page['imageinfo']) > 0:
-                        img_info = page['imageinfo'][0]
-                        mime = img_info.get('mime', '')
-                        if mime.startswith('image/') and 'svg' not in mime.lower():
-                            result = {
-                                'url': img_info.get('thumburl', img_info.get('url')),
-                                'source': 'Wikimedia Commons',
-                                'title': page.get('title', '').replace('File:', '')
-                            }
-                            cache_image(image_search_terms, image_type, result)
-                            print(f"✓ Found Wikimedia image")
-                            return result
-    except Exception as e:
-        logger.error(f"Wikimedia error: {e}")
-
-    # Generate with Nano Banana Pro if nothing found
-    if gemini_client:
-        try:
-            print(f"  → Generating with Nano Banana Pro...")
-            image_desc = question_data.get('image_description', '')
-            prompt = f"Generate medical {image_type} image: {image_desc}. Professional clinical quality."
-
-            response = gemini_client.models.generate_images(
-                model='imagen-3.0-generate-001',
-                prompt=prompt,
-                config={'number_of_images': 1, 'aspect_ratio': '1:1'}
-            )
-
-            if response.images and len(response.images) > 0:
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='static') as f:
-                    f.write(response.images[0].image_bytes)
-                    img_path = f.name
-
-                result = {
-                    'url': f"/static/{os.path.basename(img_path)}",
-                    'source': 'Nano Banana Pro (AI Generated)',
-                    'title': f'Generated: {image_type}'
-                }
+    if not candidates:
+        print(f"  → No candidates found, generating with Nano Banana Pro...")
+        if gemini_client:
+            result = generate_image_with_gemini(question_data)
+            if result:
                 cache_image(image_search_terms, image_type, result)
                 print(f"✓ Generated image")
                 return result
-        except Exception as e:
-            logger.error(f"Generation error: {e}")
+        print(f"✗ No image available")
+        return None
 
-    print(f"✗ No image found")
-    return None
+    print(f"  → Found {len(candidates)} candidates, validating with Claude Vision...")
+
+    # STEP 3 & 4: Validate and score each candidate
+    scored_candidates = []
+    for idx, candidate in enumerate(candidates):
+        print(f"    • Validating candidate {idx+1}/{len(candidates)}...")
+        logger.info(f"Validating candidate {idx+1}: {candidate['source']}")
+        validation = validate_image_with_claude(candidate['url'], question_data)
+        scored_candidates.append({
+            **candidate,
+            'score': validation['score'],
+            'reason': validation['reason']
+        })
+        logger.info(f"Score: {validation['score']}/100 - {validation['reason']}")
+        print(f"      Score: {validation['score']}/100 - {validation['reason']}")
+
+    # Pick best candidate
+    best_candidate = max(scored_candidates, key=lambda x: x['score'])
+
+    # STEP 5: Use best if >=80%, otherwise generate
+    if best_candidate['score'] >= 80:
+        print(f"✓ Using internet image (score: {best_candidate['score']}/100)")
+        result = {
+            'url': best_candidate['url'],
+            'source': best_candidate['source'],
+            'title': best_candidate['title']
+        }
+        cache_image(image_search_terms, image_type, result)
+        return result
+    else:
+        print(f"  → Best internet image score only {best_candidate['score']}/100, generating with Nano Banana Pro...")
+        if gemini_client:
+            result = generate_image_with_gemini(question_data)
+            if result:
+                cache_image(image_search_terms, image_type, result)
+                print(f"✓ Generated image")
+                return result
+
+    # Fallback to best candidate if generation fails
+    print(f"✓ Using best available (score: {best_candidate['score']}/100)")
+    result = {
+        'url': best_candidate['url'],
+        'source': best_candidate['source'],
+        'title': best_candidate['title']
+    }
+    cache_image(image_search_terms, image_type, result)
+    return result
+
+
+def save_generation_review(questions, course, subject, topics):
+    """Save generation to a markdown file for easy review."""
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"review_{timestamp}.md"
+
+    with open(filename, 'w') as f:
+        f.write(f"# QBank Generation Review\n\n")
+        f.write(f"**Course:** {course}\n")
+        f.write(f"**Subject:** {subject}\n")
+        f.write(f"**Topics:** {', '.join(topics)}\n")
+        f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"**Total Questions:** {len(questions)}\n\n")
+        f.write("---\n\n")
+
+        for idx, q in enumerate(questions, 1):
+            f.write(f"## Q{idx}\n\n")
+            f.write(f"**Bloom's Level:** {q.get('blooms_level')}\n")
+            f.write(f"**Difficulty:** {['', 'Medium', 'Hard', 'Very Hard'][q.get('difficulty', 1)]}\n")
+            f.write(f"**Tags:** {', '.join(q.get('tags', []))}\n\n")
+
+            if q.get('image_url'):
+                f.write(f"**Image:** {q['image_url']}\n")
+                f.write(f"**Source:** {q.get('image_source', 'N/A')}\n")
+                if q.get('image_description'):
+                    f.write(f"**Expected:** {q['image_description']}\n")
+                f.write(f"\n")
+
+            f.write(f"**Question:**\n{q['question']}\n\n")
+
+            f.write(f"**Options:**\n")
+            for opt_idx, opt in enumerate(q['options'], 1):
+                marker = "✓ " if opt == q['correct_option'] else "  "
+                f.write(f"{marker}{opt_idx}. {opt}\n")
+            f.write(f"\n")
+
+            f.write(f"**Explanation:**\n{q['explanation']}\n\n")
+            f.write("---\n\n")
+
+    logger.info(f"Review file saved: {filename}")
+    return filename
 
 
 def generate_for_topic(course, subject, topic, num_questions, include_images=False):
@@ -382,10 +714,37 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     if include_images:
         image_instructions = """
 
-IMPORTANT: These must be IMAGE-BASED questions. For each question, add these fields:
-- "image_description": Detailed description of the medical image (e.g., "Chest X-ray showing right lower lobe consolidation with air bronchograms")
-- "image_search_terms": Array of 3-5 specific search terms (e.g., ["pneumonia chest X-ray lower lobe", "air bronchogram consolidation", "lobar pneumonia radiology"])
-- "image_type": Type of image (e.g., "X-ray", "CT scan", "Gram stain", "Culture plate", "Histopathology slide", "ECG")
+IMPORTANT: These must be IMAGE-BASED questions. For each question, you MUST analyze what the KEY DIAGNOSTIC FINDING is that needs to be visualized.
+
+Think step-by-step:
+1. What is the clinical diagnosis or pathology in this question?
+2. What specific imaging finding or visual feature would help a student make this diagnosis?
+3. What exact medical terminology describes this visual finding?
+
+Then add these fields:
+- "image_description": PRECISE description of the KEY diagnostic finding visible in the image. Be specific about pathology, anatomy, and visual characteristics. Examples:
+  * "Chest X-ray showing dense right lower lobe consolidation with air bronchograms, consistent with lobar pneumonia"
+  * "Brain MRI T2-weighted showing hyperintense periventricular white matter lesions perpendicular to ventricles (Dawson fingers), characteristic of multiple sclerosis"
+  * "ECG showing ST-segment elevation >1mm in leads II, III, aVF indicating inferior wall myocardial infarction"
+  * "Light microscopy of Gram stain showing gram-positive cocci in grape-like clusters (Staphylococcus aureus)"
+  * "Histopathology showing Reed-Sternberg cells (large cells with bilobed 'owl-eye' nuclei) in background of inflammatory cells"
+
+- "image_search_terms": Array of 3-5 HIGHLY SPECIFIC medical search queries using precise clinical terminology. **IMPORTANT: Add "unlabeled" or "no text" to search terms to avoid finding images with answer text visible**. Include:
+  * Primary: [condition] + [modality] + [key finding] + "unlabeled"
+  * Secondary: [specific pathologic sign/pattern] + [medical term] + "no text"
+  * Tertiary: [differential diagnosis term] + "clinical image"
+  Examples:
+  * ["lobar pneumonia chest x-ray air bronchogram unlabeled", "right lower lobe consolidation radiology no annotations", "pneumococcal pneumonia imaging clinical"]
+  * ["multiple sclerosis MRI dawson fingers unlabeled", "periventricular white matter lesions T2 no text", "demyelinating plaques brain clinical"]
+  * ["inferior STEMI ECG unlabeled", "ST elevation leads II III aVF no diagnosis text", "inferior wall myocardial infarction EKG clinical"]
+
+- "image_type": Specific imaging modality (e.g., "Chest X-ray PA view", "Brain MRI T2-weighted", "12-lead ECG", "Gram stain microscopy", "H&E histopathology", "CT abdomen with contrast")
+
+- "key_finding": Single sentence describing what the student should identify (e.g., "Air bronchograms within consolidation", "Dawson fingers pattern", "ST elevation in inferior leads")
+
+CRITICAL: The image should show the PATHOGNOMONIC or CHARACTERISTIC finding that distinguishes this diagnosis. Avoid generic images - be specific about what clinical feature is visible.
+
+**ABSOLUTELY CRITICAL - NO ANSWER TEXT IN IMAGES**: The image MUST be completely unlabeled with NO text, NO annotations, NO arrows with labels, NO diagnosis names visible. Students must interpret the raw clinical image. Any text revealing the answer makes the question invalid. Search terms should include "unlabeled", "no text", "clinical image" to find appropriate images.
 
 The question text should reference "the image shown" or "based on the image"."""
         prompt = prompt.replace("Output ONLY the JSON array, no other text.", image_instructions + "\n\nOutput ONLY the JSON array, no other text.")
@@ -480,11 +839,16 @@ def generate_questions():
             }
             logger.info(f"Image statistics: {image_stats}")
 
+        # Save review file for easy validation
+        review_file = save_generation_review(all_questions, course, subject, topics)
+        print(f"\n📄 Review file saved: {review_file}")
+
         response_data = {
             'success': True,
             'questions': all_questions,
             'count': len(all_questions),
-            'topics_count': len(topics)
+            'topics_count': len(topics),
+            'review_file': review_file
         }
 
         if image_stats:
@@ -503,8 +867,224 @@ def download_questions():
     """Return questions as downloadable JSON."""
     data = request.json
     questions = data.get('questions', [])
-    
+
     return jsonify(questions)
+
+
+@app.route('/api/add-image', methods=['POST'])
+def add_image_to_question():
+    """Analyze questions (single or batch) and add appropriate medical images."""
+    # Check for API key first
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not set. Please set it in your environment.'}), 500
+
+    data = request.json
+    questions = data.get('questions', [])
+    course = data.get('course', '')
+
+    # Handle both single question object and array of questions
+    if not isinstance(questions, list):
+        questions = [questions]
+
+    # Validate
+    if not questions or len(questions) == 0:
+        return jsonify({'error': 'At least one question is required'}), 400
+
+    try:
+        results = []
+        stats = {
+            'total': len(questions),
+            'images_added': 0,
+            'no_image_needed': 0,
+            'failed': 0,
+            'explanations_generated': 0
+        }
+
+        logger.info(f"Processing {len(questions)} question(s) for image addition...")
+
+        for idx, q in enumerate(questions, 1):
+            question_text = q.get('question', '')
+            options = q.get('options', [])
+            correct_option = q.get('correct_option', '')
+            explanation = (q.get('explanation') or '').strip()
+            subject = q.get('subject', '')
+
+            # Auto-detect course from tags if not provided
+            if not course:
+                tags = q.get('tags', [])
+                if any('NEET' in tag.upper() for tag in tags):
+                    q_course = 'NEET PG'
+                elif any('USMLE' in tag.upper() for tag in tags):
+                    q_course = 'USMLE'
+                else:
+                    q_course = 'NEET PG'
+            else:
+                q_course = course
+
+            if not question_text:
+                logger.warning(f"Question {idx}: Missing question text, skipping")
+                results.append({**q, 'image_status': 'error', 'image_error': 'Missing question text'})
+                stats['failed'] += 1
+                continue
+
+            logger.info(f"Question {idx}/{len(questions)}: Analyzing...")
+
+            # Generate explanation if missing
+            if not explanation:
+                logger.info(f"Question {idx}: No explanation found, generating...")
+                try:
+                    explanation_prompt = f"""You are a medical educator. Generate a clear, educational explanation for this medical question.
+
+QUESTION: {question_text}
+
+OPTIONS:
+{chr(10).join([f"{i+1}. {opt}" for i, opt in enumerate(options)])}
+
+CORRECT ANSWER: {correct_option}
+
+SUBJECT: {subject or 'General Medicine'}
+COURSE: {q_course}
+
+Generate a comprehensive explanation that:
+1. Explains why the correct answer is correct
+2. Briefly explains why other options are incorrect (if relevant)
+3. Provides relevant clinical context or teaching points
+4. Is 2-4 sentences long
+5. Uses appropriate medical terminology for {q_course} level
+
+Respond with ONLY the explanation text, no other content."""
+
+                    expl_message = client.messages.create(
+                        model="claude-sonnet-4-5",
+                        max_tokens=1000,
+                        messages=[
+                            {"role": "user", "content": explanation_prompt}
+                        ]
+                    )
+
+                    explanation = expl_message.content[0].text.strip()
+                    q['explanation'] = explanation
+                    stats['explanations_generated'] += 1
+                    logger.info(f"Question {idx}: ✓ Explanation generated")
+
+                except Exception as e:
+                    logger.error(f"Question {idx}: Failed to generate explanation - {e}")
+                    explanation = ""
+
+            # Step 1: Use Claude to analyze the question and generate image metadata
+            analysis_prompt = f"""You are a medical imaging specialist. Analyze this medical question and determine what diagnostic image would be most helpful.
+
+QUESTION: {question_text}
+
+OPTIONS:
+{chr(10).join([f"{i+1}. {opt}" for i, opt in enumerate(options)])}
+
+CORRECT ANSWER: {correct_option}
+
+EXPLANATION: {explanation}
+
+Your task: Identify the KEY DIAGNOSTIC FINDING that should be visualized in an image to help students answer this question.
+
+Think step-by-step:
+1. What is the clinical diagnosis or pathology in this question?
+2. What specific imaging finding or visual feature would help make this diagnosis?
+3. What exact medical terminology describes this visual finding?
+
+Return a JSON object with these fields:
+{{
+  "needs_image": true/false,
+  "image_type": "Specific imaging modality (e.g., 'Chest X-ray PA view', 'Brain MRI T2-weighted', '12-lead ECG', 'Gram stain microscopy', 'H&E histopathology')",
+  "image_description": "PRECISE description of the KEY diagnostic finding visible in the image. Be specific about pathology, anatomy, and visual characteristics.",
+  "image_search_terms": ["array of 3-5 HIGHLY SPECIFIC medical search queries using precise clinical terminology"],
+  "key_finding": "Single sentence describing what the student should identify",
+  "reasoning": "Brief explanation of why this image would help"
+}}
+
+If this question does NOT need an image (e.g., pure clinical reasoning, no visual diagnosis), set needs_image to false.
+
+CRITICAL: Focus on PATHOGNOMONIC or CHARACTERISTIC findings that distinguish this diagnosis.
+
+Respond with ONLY the JSON object, no other text."""
+
+            try:
+                # Call Claude API
+                message = client.messages.create(
+                    model="claude-sonnet-4-5",
+                    max_tokens=2000,
+                    messages=[
+                        {"role": "user", "content": analysis_prompt}
+                    ]
+                )
+
+                # Parse response
+                response_text = message.content[0].text
+
+                # Try to extract JSON from response
+                if '```json' in response_text:
+                    response_text = response_text.split('```json')[1].split('```')[0]
+                elif '```' in response_text:
+                    response_text = response_text.split('```')[1].split('```')[0]
+
+                image_metadata = json.loads(response_text.strip())
+
+                # Check if image is needed
+                if not image_metadata.get('needs_image', False):
+                    logger.info(f"Question {idx}: No image needed - {image_metadata.get('reasoning', 'N/A')}")
+                    results.append({
+                        **q,
+                        'image_status': 'no_image_needed',
+                        'image_reasoning': image_metadata.get('reasoning', 'No visual diagnosis required')
+                    })
+                    stats['no_image_needed'] += 1
+                    continue
+
+                # Step 2: Search and validate image using existing pipeline
+                logger.info(f"Question {idx}: Searching for {image_metadata.get('image_type')}...")
+                image_result = search_and_validate_image(image_metadata, subject)
+
+                if image_result:
+                    # Step 3: Add image metadata to question (only user-facing fields)
+                    result_q = {
+                        **q,
+                        'image_url': image_result['url'],
+                        'image_source': image_result['source'],
+                        'image_type': image_metadata.get('image_type'),
+                        'image_description': image_metadata.get('image_description'),
+                        'image_status': 'success'
+                    }
+                    results.append(result_q)
+                    stats['images_added'] += 1
+                    logger.info(f"Question {idx}: ✓ Image added from {image_result['source']}")
+                else:
+                    logger.warning(f"Question {idx}: Could not find suitable image")
+                    results.append({
+                        **q,
+                        'image_status': 'failed',
+                        'image_error': 'Could not find or generate suitable image'
+                    })
+                    stats['failed'] += 1
+
+            except Exception as e:
+                logger.error(f"Question {idx}: Error - {e}")
+                results.append({
+                    **q,
+                    'image_status': 'error',
+                    'image_error': str(e)
+                })
+                stats['failed'] += 1
+
+        logger.info(f"Batch complete: {stats['images_added']}/{stats['total']} images added")
+
+        return jsonify({
+            'success': True,
+            'questions': results,
+            'stats': stats
+        })
+
+    except Exception as e:
+        logger.error(f"Batch processing error: {e}")
+        return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

@@ -13,7 +13,15 @@
             <p class="subtitle">Generate MCQs for NEET PG & USMLE</p>
         </header>
 
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="generate">Generate Questions</button>
+            <button class="tab-button" data-tab="add-image">Add Image to Question</button>
+        </div>
+
         <main>
+            <!-- Generate Questions Tab -->
+            <div class="tab-content active" id="generate-tab">
             <section class="form-section">
                 <div class="form-group">
                     <label for="course">Course</label>
@@ -62,13 +70,79 @@
                     Generate Questions
                 </button>
             </section>
+            </div>
+
+            <!-- Add Image Tab -->
+            <div class="tab-content" id="add-image-tab">
+                <section class="form-section">
+                    <div class="info-box">
+                        <h3>📸 Add Images to Questions</h3>
+                        <p>Upload a JSON file or paste question data. The system will analyze each question and add appropriate medical images.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload JSON File</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="json-file-input" accept=".json" style="display: none;">
+                            <button type="button" id="upload-json-btn" class="btn-secondary">
+                                📁 Choose File
+                            </button>
+                            <span id="file-name" style="margin-left: 0.5rem; color: var(--text-muted); font-size: 0.9rem;"></span>
+                        </div>
+                    </div>
+
+                    <div class="divider">
+                        <span>OR</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="json-input">Paste JSON</label>
+                        <textarea id="json-input" rows="10" placeholder='[
+  {
+    "question": "...",
+    "options": ["A", "B", "C", "D"],
+    "correct_option": "A",
+    "explanation": "...",
+    "subject": "Medicine",
+    "tags": ["NEET-PG"]
+  }
+]'></textarea>
+                        <small>Format: <code>NEET PG Example.json</code> or <code>USMLE Example.json</code></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="batch-course">Course</label>
+                        <select id="batch-course">
+                            <option value="">Auto-detect</option>
+                            <option value="NEET PG">NEET PG</option>
+                            <option value="USMLE">USMLE</option>
+                        </select>
+                    </div>
+
+                    <button id="add-image-btn" class="btn-primary">
+                        🔍 Analyze & Add Images
+                    </button>
+                </section>
+
+                <section class="results-section" id="image-result" style="display: none;">
+                    <div class="results-header">
+                        <h2>Questions with Images</h2>
+                        <div class="action-buttons">
+                            <button id="download-image-result-btn" class="btn-secondary">Download JSON</button>
+                            <button id="download-image-md-btn" class="btn-secondary">📄 Download Markdown</button>
+                        </div>
+                    </div>
+                    <div class="stats" id="image-stats"></div>
+                    <div id="image-result-container"></div>
+                </section>
+            </div>
 
             <section class="results-section" id="results" style="display: none;">
                 <div class="results-header">
                     <h2>Generated Questions</h2>
                     <div class="action-buttons">
                         <button id="download-btn" class="btn-secondary">Download JSON</button>
-                        <button id="copy-btn" class="btn-secondary">Copy to Clipboard</button>
+                        <button id="copy-btn" class="btn-secondary">📄 Download Markdown</button>
                     </div>
                 </div>
                 <div class="stats" id="stats"></div>
