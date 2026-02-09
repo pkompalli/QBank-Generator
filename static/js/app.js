@@ -2,6 +2,7 @@
 const courseSelect = document.getElementById('course');
 const subjectSelect = document.getElementById('subject');
 const topicsSelect = document.getElementById('topics');
+const includeImagesCheckbox = document.getElementById('include-images');
 const numQuestionsInput = document.getElementById('num-questions');
 const numDisplay = document.getElementById('num-display');
 const bloomInfo = document.getElementById('bloom-distribution');
@@ -159,6 +160,7 @@ generateBtn.addEventListener('click', async () => {
     const subject = subjectSelect.value;
     const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numQuestions = parseInt(numQuestionsInput.value);
+    const includeImages = includeImagesCheckbox.checked;
     
     loading.style.display = 'flex';
     generateBtn.disabled = true;
@@ -171,7 +173,8 @@ generateBtn.addEventListener('click', async () => {
                 course,
                 subject,
                 topics,
-                num_questions: numQuestions
+                num_questions: numQuestions,
+                include_images: includeImages
             })
         });
         
@@ -182,8 +185,13 @@ generateBtn.addEventListener('click', async () => {
         }
         
         generatedQuestions = data.questions;
-        displayResults(data.questions, course);
-        showToast(`Generated ${data.count} questions across ${topics.length} topic(s)!`, 'success');
+        displayResults(data.questions, course, data.image_stats);
+
+        let message = `Generated ${data.count} questions across ${topics.length} topic(s)!`;
+        if (data.image_stats) {
+            message += ` | Images: ${data.image_stats.images_found}/${data.image_stats.total_image_questions} (${data.image_stats.success_rate})`;
+        }
+        showToast(message, 'success');
         
     } catch (error) {
         showToast(error.message || 'Error generating questions', 'error');
@@ -194,20 +202,20 @@ generateBtn.addEventListener('click', async () => {
 });
 
 // Display results
-function displayResults(questions, course) {
+function displayResults(questions, course, imageStats = null) {
     resultsSection.style.display = 'block';
-    
+
     // Calculate stats
     const bloomCounts = {};
     const difficultyCounts = { 1: 0, 2: 0, 3: 0 };
-    
+
     questions.forEach(q => {
         bloomCounts[q.blooms_level] = (bloomCounts[q.blooms_level] || 0) + 1;
         difficultyCounts[q.difficulty] = (difficultyCounts[q.difficulty] || 0) + 1;
     });
-    
+
     const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
-    
+
     statsContainer.innerHTML = `
         <div class="stat-item">
             <div class="label">Total Questions</div>
@@ -217,6 +225,16 @@ function displayResults(questions, course) {
             <div class="label">Course</div>
             <div class="value">${course}</div>
         </div>
+        ${imageStats ? `
+            <div class="stat-item">
+                <div class="label">Images Found</div>
+                <div class="value">${imageStats.images_found}/${imageStats.total_image_questions}</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Image Success</div>
+                <div class="value">${imageStats.success_rate}</div>
+            </div>
+        ` : ''}
         ${Object.entries(bloomCounts).map(([level, count]) => `
             <div class="stat-item">
                 <div class="label">Bloom's L${level}</div>
@@ -238,9 +256,27 @@ function displayResults(questions, course) {
                 <div class="question-tags">
                     <span class="tag tag-bloom">Bloom's L${q.blooms_level}</span>
                     <span class="tag tag-difficulty">${difficultyLabels[q.difficulty]}</span>
+                    ${(q.image_url || q.image_description) ? '<span class="tag tag-image">Image</span>' : ''}
                     ${q.tags.map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
                 </div>
             </div>
+            ${q.image_url ? `
+                <div class="question-image">
+                    <img src="${q.image_url}" alt="${q.image_description || 'Medical image'}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="image-fallback" style="display:none;">
+                        <p class="image-placeholder">${q.image_type ? `[${q.image_type}]` : '[Image]'} ${q.image_description || ''}</p>
+                    </div>
+                    ${q.image_source ? `<small class="image-source">Source: ${q.image_source}</small>` : ''}
+                </div>
+            ` : (q.image_description ? `
+                <div class="question-image">
+                    <div class="image-placeholder-box">
+                        <div class="placeholder-icon">🖼️</div>
+                        <p class="image-placeholder"><strong>${q.image_type || 'Image'}:</strong> ${q.image_description}</p>
+                        ${q.image_search_terms ? `<small>Search: ${q.image_search_terms.slice(0,2).join(', ')}</small>` : ''}
+                    </div>
+                </div>
+            ` : '')}
             <p class="question-text">${q.question}</p>
             <ul class="options-list">
                 ${q.options.map(opt => `
