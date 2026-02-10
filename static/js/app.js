@@ -1052,11 +1052,63 @@ function displayLessons(data) {
 function formatLessonContent(content) {
     if (!content) return '<p class="text-muted">No content available</p>';
 
-    // Convert markdown-like formatting to HTML
-    return content
-        .split('\n\n')
-        .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
-        .join('');
+    let html = content;
+
+    // Extract and process Mermaid code blocks
+    const mermaidBlocks = [];
+    html = html.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        mermaidBlocks.push({ id, code: code.trim() });
+        return `<div class="mermaid-container"><pre class="mermaid" id="${id}">${code.trim()}</pre></div>`;
+    });
+
+    // Convert markdown headings
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Convert markdown images
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 1rem 0;">');
+
+    // Convert bold and italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Convert bullet lists
+    html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Convert tables (simple markdown tables)
+    const tableRegex = /(\|.+\|\n)+/g;
+    html = html.replace(tableRegex, (table) => {
+        const rows = table.trim().split('\n');
+        let tableHtml = '<table class="lesson-table">';
+        rows.forEach((row, idx) => {
+            if (idx === 1 && row.includes('---')) return; // Skip separator row
+            const cells = row.split('|').filter(c => c.trim());
+            const tag = idx === 0 ? 'th' : 'td';
+            tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
+        });
+        tableHtml += '</table>';
+        return tableHtml;
+    });
+
+    // Convert paragraphs
+    html = html.split('\n\n').map(para => {
+        if (para.startsWith('<')) return para; // Already HTML
+        return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+
+    // Initialize Mermaid rendering after content is added to DOM
+    setTimeout(() => {
+        if (window.mermaid) {
+            window.mermaid.run({
+                querySelector: '.mermaid'
+            });
+        }
+    }, 100);
+
+    return html;
 }
 
 // Download lessons as JSON

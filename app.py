@@ -1316,6 +1316,58 @@ Respond with ONLY the JSON object, no other text."""
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
+def integrate_images_into_lesson(lesson_content, subject, topic):
+    """Parse lesson content and integrate actual images where placeholders exist."""
+    import re
+
+    # Find all image placeholders: [Image: description]
+    image_pattern = r'\[Image:\s*([^\]]+)\]'
+    matches = re.finditer(image_pattern, lesson_content)
+
+    replacements = []
+    for match in matches:
+        description = match.group(1).strip()
+        placeholder = match.group(0)
+
+        # Create image metadata for search
+        image_metadata = {
+            'image_description': description,
+            'image_type': 'Medical illustration',
+            'image_search_terms': [
+                f"{subject} {topic} {description}",
+                f"{description} medical image",
+                f"{topic} {description}"
+            ],
+            'question': f"Medical illustration showing {description} in the context of {topic}"
+        }
+
+        logger.info(f"Searching for image: {description}")
+
+        try:
+            # Use existing image search function
+            image_result = search_and_validate_image(image_metadata, subject)
+
+            if image_result:
+                # Replace with markdown image
+                image_url = image_result['url']
+                image_alt = description
+                markdown_image = f"![{image_alt}]({image_url})"
+                replacements.append((placeholder, markdown_image))
+                logger.info(f"✓ Found image for: {description}")
+            else:
+                logger.warning(f"✗ No image found for: {description}")
+                # Keep the placeholder if no image found
+
+        except Exception as e:
+            logger.error(f"Error searching for image '{description}': {e}")
+
+    # Apply all replacements
+    for old, new in replacements:
+        lesson_content = lesson_content.replace(old, new)
+
+    return lesson_content
+
+
 @app.route('/api/generate-lessons', methods=['POST'])
 def generate_lessons():
     """Generate review lessons for topics and chapters."""
@@ -1468,7 +1520,7 @@ def generate_lessons():
 **How Things Actually Work**
 * Cause-effect pathways, WHY processes occur
 * Quantitative relationships and thresholds
-* **Visual:** [Image: descriptive text] OR ASCII flowchart/mechanism table
+* **Visual:** [Image: descriptive text] OR Mermaid flowchart/mechanism table
 * Tables showing mechanism categories with numbers
 * Link mechanism-heavy chapters naturally
 
@@ -1491,7 +1543,7 @@ def generate_lessons():
 ### Page 5 — [Topic-Specific Title for Evaluation/Evaluate]
 **Treatment Logic and Decision-Making**
 * Management algorithms with quantitative decision points
-* ASCII flowcharts ≤80 characters per line
+* Mermaid flowcharts (use ```mermaid code blocks for complex flows)
 * **Visual:** [Image: descriptive text] OR treatment decision table
 * Treatment tables with dosages, thresholds, timelines
 * Link management/therapy chapters
@@ -1531,10 +1583,11 @@ def generate_lessons():
 ✓ Concrete numbers, dosages, thresholds, percentages throughout
 ✓ Chapter links contextually integrated (MUST exactly match provided ChaptersJSON list)
 ✓ Engaging, confidence-building language
-✓ ASCII flowcharts where appropriate (≤80 char lines)
+✓ Mermaid flowcharts where appropriate (use ```mermaid code blocks for decision trees, workflows, algorithms)
 ✓ Memory hooks and mnemonics with quantitative elements
 ✓ CRITICAL: All chapter links must use exact chapter names from ChaptersJSON - no variations or interpretations
 ✓ Visual elements should enhance understanding, not just fill space
+✓ For images: Use format [Image: detailed description including subject, topic context, and what should be shown]
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
@@ -1566,6 +1619,11 @@ Create "stealth preparation" - inherently useful for assessment without explicit
 
                     topic_lesson = message.content[0].text.strip()
                     logger.info(f"✓ Generated lesson for {topic_name} ({len(topic_lesson)} chars)")
+
+                    # Integrate images into the lesson
+                    logger.info(f"Integrating images for {topic_name}...")
+                    topic_lesson = integrate_images_into_lesson(topic_lesson, subject, topic_name)
+                    logger.info(f"✓ Images integrated for {topic_name}")
 
                 except Exception as e:
                     logger.error(f"Error generating lesson for {topic_name}: {e}")
