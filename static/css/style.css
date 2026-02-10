@@ -675,3 +675,113 @@ main {
     background: #fee2e2;
     color: #991b1b;
 }
+
+/* ============================================
+   LESSON GENERATION STYLES
+   ============================================ */
+
+.lesson-card {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.lesson-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.lesson-header h3 {
+    color: var(--primary);
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.lesson-tags {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.lesson-content {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.lesson-content h4 {
+    color: var(--text);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.lesson-text {
+    line-height: 1.8;
+    color: var(--text);
+}
+
+.lesson-text p {
+    margin-bottom: 1rem;
+}
+
+.lesson-text p:last-child {
+    margin-bottom: 0;
+}
+
+.chapters-section {
+    margin-top: 1.5rem;
+}
+
+.chapters-section > h4 {
+    color: var(--text);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.chapter-card {
+    background: var(--card-bg);
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary);
+}
+
+.chapter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.chapter-card h5 {
+    color: var(--primary);
+    font-size: 1rem;
+    margin: 0;
+    flex: 1;
+}
+
+.chapter-refs {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: #f0f9ff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.chapter-card .lesson-text {
+    font-size: 0.95rem;
+}
+
+.text-muted {
+    color: var(--text-muted);
+    font-style: italic;
+}

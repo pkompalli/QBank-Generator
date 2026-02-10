@@ -416,6 +416,7 @@ tabButtons.forEach(button => {
         // Hide results sections when switching tabs
         resultsSection.style.display = 'none';
         document.getElementById('image-result').style.display = 'none';
+        document.getElementById('lessons-result').style.display = 'none';
     });
 });
 
@@ -700,6 +701,418 @@ downloadImageMdBtn.addEventListener('click', async () => {
         const a = document.createElement('a');
         a.href = url;
         a.download = `questions_with_images_${timestamp}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('Markdown downloaded!', 'success');
+    } catch (error) {
+        console.error('Error generating markdown:', error);
+        showToast('Failed to generate markdown', 'error');
+    }
+});
+
+// ============================================
+// LESSON GENERATION FUNCTIONALITY
+// ============================================
+
+const generateLessonsBtn = document.getElementById('generate-lessons-btn');
+const lessonCourse = document.getElementById('lesson-course');
+const lessonJsonFile = document.getElementById('lesson-json-file');
+const generateSubjectsBtn = document.getElementById('generate-subjects-btn');
+const uploadStructureBtn = document.getElementById('upload-structure-btn');
+const structureStatus = document.getElementById('structure-status');
+const lessonSubjectsContainer = document.getElementById('subjects-container');
+const lessonSubjectSelect = document.getElementById('subject-select');
+const lessonTopicsSelect = document.getElementById('topics-select');
+const lessonChaptersSelect = document.getElementById('chapters-select');
+const generateAllCheckbox = document.getElementById('generate-all-checkbox');
+const lessonsResultSection = document.getElementById('lessons-result');
+const lessonsContainer = document.getElementById('lessons-container');
+const lessonsStatsContainer = document.getElementById('lessons-stats');
+const downloadLessonsJsonBtn = document.getElementById('download-lessons-json-btn');
+const downloadLessonsMdBtn = document.getElementById('download-lessons-md-btn');
+
+let lessonsData = null;
+let courseStructure = null;  // Stores the full course structure
+
+// Generate Subjects button handler
+generateSubjectsBtn.addEventListener('click', async () => {
+    const course = lessonCourse.value.trim();
+    if (!course) {
+        showToast('Please enter a course/exam name', 'error');
+        lessonCourse.focus();
+        return;
+    }
+
+    structureStatus.textContent = '⏳ Generating course structure...';
+    generateSubjectsBtn.disabled = true;
+
+    try {
+        // TODO: This will call Claude to generate structure
+        // For now, show placeholder
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Placeholder structure
+        courseStructure = {
+            Course: course,
+            subjects: [
+                {
+                    name: "Core Medicine",
+                    topics: [
+                        { name: "Cardiology", high_yield: true, chapters: [{ name: "Heart Failure" }, { name: "Arrhythmias" }] },
+                        { name: "Respiratory", chapters: [{ name: "Asthma" }, { name: "COPD" }] }
+                    ]
+                },
+                {
+                    name: "Surgery",
+                    topics: [
+                        { name: "General Surgery", chapters: [{ name: "Appendicitis" }] }
+                    ]
+                }
+            ]
+        };
+
+        populateSubjects(courseStructure);
+        structureStatus.textContent = `✓ Generated ${courseStructure.subjects.length} subjects`;
+        showToast('Course structure generated!', 'success');
+    } catch (error) {
+        structureStatus.textContent = '✗ Failed to generate structure';
+        showToast('Failed to generate structure', 'error');
+    } finally {
+        generateSubjectsBtn.disabled = false;
+    }
+});
+
+// Upload JSON button handler
+uploadStructureBtn.addEventListener('click', () => {
+    lessonJsonFile.click();
+});
+
+// File selection handler for lessons
+lessonJsonFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+
+        // Store the full JSON
+        courseStructure = json;
+
+        // Auto-fill course field
+        if (json.Course) {
+            lessonCourse.value = json.Course;
+        }
+
+        // Populate subjects dropdown
+        populateSubjects(json);
+
+        // Display info
+        if (json.subjects) {
+            const totalTopics = json.subjects.reduce((sum, subj) =>
+                sum + (subj.topics?.length || 0), 0);
+            structureStatus.textContent = `✓ Loaded: ${json.subjects.length} subjects, ${totalTopics} topics`;
+            showToast(`JSON loaded: ${file.name}`, 'success');
+        } else {
+            showToast('JSON file loaded successfully', 'success');
+        }
+    } catch (error) {
+        console.error('Error parsing JSON:', error);
+        showToast('Invalid JSON file', 'error');
+        structureStatus.textContent = '✗ Invalid JSON file';
+        courseStructure = null;
+    }
+});
+
+function populateSubjects(structure) {
+    if (!structure || !structure.subjects) return;
+
+    lessonSubjectsContainer.style.display = 'block';
+    lessonSubjectSelect.innerHTML = '<option value="">Select a subject...</option>';
+    lessonTopicsSelect.innerHTML = '';
+    lessonChaptersSelect.innerHTML = '';
+
+    // Populate subjects
+    structure.subjects.forEach((subject, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = subject.name;
+        lessonSubjectSelect.appendChild(option);
+    });
+
+    // Enable generate button
+    generateLessonsBtn.disabled = false;
+}
+
+function updateTopics() {
+    if (!courseStructure || !courseStructure.subjects) return;
+
+    const selectedSubjectIdx = lessonSubjectSelect.value;
+    lessonTopicsSelect.innerHTML = '';
+    lessonChaptersSelect.innerHTML = '';
+
+    if (selectedSubjectIdx === '') return;
+
+    const subject = courseStructure.subjects[selectedSubjectIdx];
+
+    subject.topics.forEach((topic, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        const highYieldMarker = topic.high_yield ? ' ⭐' : '';
+        option.textContent = `${topic.name}${highYieldMarker}`;
+        lessonTopicsSelect.appendChild(option);
+    });
+}
+
+function updateChapters() {
+    if (!courseStructure || !courseStructure.subjects) return;
+
+    const selectedSubjectIdx = lessonSubjectSelect.value;
+    if (selectedSubjectIdx === '') return;
+
+    const subject = courseStructure.subjects[selectedSubjectIdx];
+    const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    lessonChaptersSelect.innerHTML = '';
+
+    // If no topics selected, don't show chapters
+    if (selectedTopicIndices.length === 0) return;
+
+    // Collect chapters from selected topics
+    selectedTopicIndices.forEach(topicIdx => {
+        const topic = subject.topics[topicIdx];
+        if (topic.chapters && topic.chapters.length > 0) {
+            topic.chapters.forEach((chapter, chIdx) => {
+                const option = document.createElement('option');
+                option.value = `${topicIdx}-${chIdx}`;
+                const chapterName = typeof chapter === 'string' ? chapter : chapter.name;
+                option.textContent = `${topic.name} > ${chapterName}`;
+                lessonChaptersSelect.appendChild(option);
+            });
+        }
+    });
+}
+
+// Update topics when subject changes
+lessonSubjectSelect.addEventListener('change', updateTopics);
+
+// Update chapters when topics change
+lessonTopicsSelect.addEventListener('change', updateChapters);
+
+// Handle "Generate All" checkbox
+generateAllCheckbox.addEventListener('change', (e) => {
+    const isChecked = e.target.checked;
+    lessonSubjectSelect.disabled = isChecked;
+    lessonTopicsSelect.disabled = isChecked;
+    lessonChaptersSelect.disabled = isChecked;
+
+    if (isChecked) {
+        structureStatus.textContent = '✓ Will generate lessons for entire course';
+    } else {
+        structureStatus.textContent = structureStatus.textContent.replace('Will generate lessons for entire course', '');
+    }
+});
+
+// Generate lessons button handler
+generateLessonsBtn.addEventListener('click', async () => {
+    const course = lessonCourse.value.trim();
+
+    // Validation
+    if (!course) {
+        showToast('Please enter a course name', 'error');
+        return;
+    }
+
+    if (!courseStructure) {
+        showToast('Please generate or upload course structure first', 'error');
+        return;
+    }
+
+    const generateAll = generateAllCheckbox.checked;
+
+    // Prepare request data
+    const requestData = {
+        course: course,
+        uploaded_json: courseStructure,
+        generate_all: generateAll
+    };
+
+    if (!generateAll) {
+        const selectedSubjectIdx = lessonSubjectSelect.value;
+        if (selectedSubjectIdx === '') {
+            showToast('Please select a subject', 'error');
+            return;
+        }
+
+        requestData.selected_subject_idx = parseInt(selectedSubjectIdx);
+
+        // Get selected topics (empty means all topics in subject)
+        const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
+        if (selectedTopicIndices.length > 0) {
+            requestData.selected_topic_indices = selectedTopicIndices;
+        }
+
+        // Get selected chapters (optional)
+        const selectedChapters = Array.from(lessonChaptersSelect.selectedOptions).map(opt => opt.value);
+        if (selectedChapters.length > 0) {
+            requestData.selected_chapters = selectedChapters;
+        }
+    }
+
+    // Show loading
+    loadingDiv.style.display = 'flex';
+    loadingDiv.querySelector('p').textContent = 'Generating lessons with Claude...';
+    generateLessonsBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/generate-lessons', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate lessons');
+        }
+
+        const data = await response.json();
+        lessonsData = data;
+
+        // Display results
+        displayLessons(data);
+        lessonsResultSection.style.display = 'block';
+
+        showToast(`Generated ${data.lessons.length} lessons!`, 'success');
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(error.message, 'error');
+    } finally {
+        loadingDiv.style.display = 'none';
+        generateLessonsBtn.disabled = false;
+    }
+});
+
+function displayLessons(data) {
+    // Display stats
+    const stats = {
+        'Course': data.course,
+        'Subject': data.subject,
+        'Total Topics': data.lessons.length,
+        'Total Chapters': data.lessons.reduce((sum, lesson) => sum + (lesson.chapters?.length || 0), 0)
+    };
+
+    lessonsStatsContainer.innerHTML = Object.entries(stats)
+        .map(([label, value]) => `
+            <div class="stat-item">
+                <div class="label">${label}</div>
+                <div class="value">${value}</div>
+            </div>
+        `).join('');
+
+    // Display lessons
+    lessonsContainer.innerHTML = data.lessons.map((lesson, idx) => `
+        <div class="lesson-card">
+            <div class="lesson-header">
+                <h3>Topic ${idx + 1}: ${lesson.topic}</h3>
+                <div class="lesson-tags">
+                    ${lesson.high_yield ? '<span class="tag tag-success">High Yield</span>' : ''}
+                    <span class="tag tag-info">${lesson.chapters?.length || 0} Chapters</span>
+                </div>
+            </div>
+
+            <div class="lesson-content">
+                <h4>📖 Topic-Level Lesson (Detailed)</h4>
+                <div class="lesson-text">${formatLessonContent(lesson.topic_lesson)}</div>
+            </div>
+
+            ${lesson.chapters && lesson.chapters.length > 0 ? `
+                <div class="chapters-section">
+                    <h4>📝 Chapter-Level Lessons (Rapid Revision)</h4>
+                    ${lesson.chapters.map((chapter, chIdx) => `
+                        <div class="chapter-card">
+                            <div class="chapter-header">
+                                <h5>Chapter ${chIdx + 1}: ${chapter.name}</h5>
+                                ${chapter.nice_refs && chapter.nice_refs.length > 0 ? `
+                                    <span class="chapter-refs">📋 ${chapter.nice_refs.join(', ')}</span>
+                                ` : ''}
+                            </div>
+                            <div class="lesson-text">${formatLessonContent(chapter.lesson)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function formatLessonContent(content) {
+    if (!content) return '<p class="text-muted">No content available</p>';
+
+    // Convert markdown-like formatting to HTML
+    return content
+        .split('\n\n')
+        .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+}
+
+// Download lessons as JSON
+downloadLessonsJsonBtn.addEventListener('click', () => {
+    if (!lessonsData) {
+        showToast('No lessons to download', 'error');
+        return;
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(lessonsData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lessons_${lessonsData.course}_${timestamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast('Lessons downloaded!', 'success');
+});
+
+// Download lessons as Markdown
+downloadLessonsMdBtn.addEventListener('click', () => {
+    if (!lessonsData) {
+        showToast('No lessons to download', 'error');
+        return;
+    }
+
+    try {
+        const timestamp = new Date().toISOString().slice(0, 10);
+        let markdown = `# ${lessonsData.course} - ${lessonsData.subject}\n\n`;
+        markdown += `Generated on: ${new Date().toLocaleDateString()}\n\n`;
+        markdown += `---\n\n`;
+
+        lessonsData.lessons.forEach((lesson, idx) => {
+            markdown += `## Topic ${idx + 1}: ${lesson.topic}\n\n`;
+
+            markdown += `### 📖 Detailed Lesson\n\n`;
+            markdown += `${lesson.topic_lesson}\n\n`;
+
+            if (lesson.chapters && lesson.chapters.length > 0) {
+                markdown += `### 📝 Chapter-Level Rapid Revision\n\n`;
+                lesson.chapters.forEach((chapter, chIdx) => {
+                    markdown += `#### ${chIdx + 1}. ${chapter.name}\n\n`;
+                    markdown += `${chapter.lesson}\n\n`;
+                });
+            }
+
+            markdown += `---\n\n`;
+        });
+
+        const blob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lessons_${lessonsData.course}_${timestamp}.md`;
         a.click();
         URL.revokeObjectURL(url);
 

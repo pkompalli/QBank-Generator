@@ -1316,5 +1316,168 @@ Respond with ONLY the JSON object, no other text."""
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
+@app.route('/api/generate-lessons', methods=['POST'])
+def generate_lessons():
+    """Generate review lessons for topics and chapters."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not set'}), 500
+
+    data = request.json
+    course = data.get('course')
+    uploaded_json = data.get('uploaded_json')
+    generate_all = data.get('generate_all', False)
+    selected_subject_idx = data.get('selected_subject_idx')
+    selected_topic_indices = data.get('selected_topic_indices')
+    selected_chapters = data.get('selected_chapters')
+
+    if not course:
+        return jsonify({'error': 'Course is required'}), 400
+
+    if not uploaded_json:
+        return jsonify({'error': 'Course structure is required'}), 400
+
+    try:
+        course = uploaded_json.get('Course', course)
+        subjects = uploaded_json.get('subjects', [])
+
+        if not subjects:
+            return jsonify({'error': 'No subjects found in structure'}), 400
+
+        # Process based on selection
+        subjects_to_process = []
+
+        if generate_all:
+            # Generate for all subjects
+            logger.info(f"Generating lessons for entire course: {course}")
+            subjects_to_process = subjects
+        else:
+            # Generate for selected subject/topics/chapters
+            if selected_subject_idx is None:
+                return jsonify({'error': 'Subject selection required'}), 400
+
+            subject_data = subjects[selected_subject_idx]
+            logger.info(f"Generating lessons for subject: {subject_data.get('name')}")
+
+            # Filter topics if specific ones are selected
+            if selected_topic_indices:
+                filtered_topics = [subject_data['topics'][i] for i in selected_topic_indices]
+                subject_data = {**subject_data, 'topics': filtered_topics}
+
+            # Filter chapters if specific ones are selected
+            if selected_chapters:
+                # Parse chapter selections (format: "topicIdx-chapterIdx")
+                chapter_selections = {}
+                for ch in selected_chapters:
+                    topic_idx, ch_idx = map(int, ch.split('-'))
+                    if topic_idx not in chapter_selections:
+                        chapter_selections[topic_idx] = []
+                    chapter_selections[topic_idx].append(ch_idx)
+
+                # Filter topics and chapters
+                filtered_topics = []
+                for topic_idx, topic in enumerate(subject_data['topics']):
+                    if topic_idx in chapter_selections:
+                        filtered_chapters = [topic['chapters'][i] for i in chapter_selections[topic_idx]]
+                        filtered_topics.append({**topic, 'chapters': filtered_chapters})
+
+                subject_data = {**subject_data, 'topics': filtered_topics}
+
+            subjects_to_process = [subject_data]
+
+        # Parse structure for lesson generation
+        all_lessons = []
+        subject = None
+
+        for subject_data in subjects_to_process:
+            subject = subject_data.get('name')
+            structure = []
+
+            for topic_data in subject_data.get('topics', []):
+                topic_entry = {
+                    'topic': topic_data.get('name'),
+                    'chapters': []
+                }
+
+                # Include optional fields if present
+                if 'high_yield' in topic_data:
+                    topic_entry['high_yield'] = topic_data['high_yield']
+
+                # Parse chapters (can be strings or objects)
+                for chapter in topic_data.get('chapters', []):
+                    if isinstance(chapter, str):
+                        topic_entry['chapters'].append({'name': chapter})
+                    elif isinstance(chapter, dict):
+                        chapter_entry = {'name': chapter.get('name')}
+                        # Preserve optional fields like nice_refs
+                        if 'nice_refs' in chapter:
+                            chapter_entry['nice_refs'] = chapter['nice_refs']
+                        topic_entry['chapters'].append(chapter_entry)
+
+                structure.append(topic_entry)
+
+            # TODO: User will provide detailed prompt later
+            # For now, return a placeholder response to test the UI
+
+            # Generate lessons (placeholder for now)
+            for topic_data in structure:
+                topic_name = topic_data.get('topic')
+                chapters = topic_data.get('chapters', [])
+                high_yield = topic_data.get('high_yield', False)
+
+                # Placeholder lesson content
+                high_yield_note = " (HIGH YIELD)" if high_yield else ""
+                topic_lesson = f"""This is a placeholder for the detailed topic-level lesson on {topic_name}{high_yield_note}.
+
+The user will provide a detailed prompt for generating comprehensive 7-8 page lessons covering:
+- Core concepts and definitions
+- Physiological mechanisms
+- Clinical correlations
+- Common pathologies
+- Diagnostic approaches
+- Treatment principles
+
+This placeholder demonstrates the UI structure. The actual content will be generated by Claude using the user's detailed prompt."""
+
+                chapter_lessons = []
+                for chapter in chapters:
+                    chapter_name = chapter.get('name') if isinstance(chapter, dict) else chapter
+                    nice_refs = chapter.get('nice_refs', []) if isinstance(chapter, dict) else []
+
+                    refs_note = f"\nNICE Guidelines: {', '.join(nice_refs)}" if nice_refs else ""
+
+                    chapter_lessons.append({
+                        'name': chapter_name,
+                        'lesson': f"""Rapid revision for {chapter_name}:{refs_note}
+
+• Key Point 1: Important concept
+• Key Point 2: Clinical correlation
+• Key Point 3: Examination tip
+
+This is a placeholder for 1-2 page rapid revision content. The actual content will be generated by Claude.""",
+                        'nice_refs': nice_refs  # Include in response for display
+                    })
+
+                all_lessons.append({
+                    'topic': topic_name,
+                    'high_yield': high_yield,
+                    'topic_lesson': topic_lesson,
+                    'chapters': chapter_lessons,
+                    'subject': subject
+                })
+
+        return jsonify({
+            'course': course,
+            'subject': subject if len(subjects_to_process) == 1 else 'Multiple Subjects',
+            'lessons': all_lessons
+        })
+
+    except Exception as e:
+        logger.error(f"Lesson generation error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
