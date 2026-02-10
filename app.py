@@ -1320,14 +1320,16 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
     """Parse lesson content and integrate actual images where placeholders exist."""
     import re
 
-    # Find all image placeholders: [Image: description]
-    image_pattern = r'\[Image:\s*([^\]]+)\]'
+    # Find all image placeholders with Figure numbers: **Figure N: [Image: description]**
+    # Pattern captures: Figure number and description
+    image_pattern = r'\*\*Figure (\d+):\s*\[Image:\s*([^\]]+)\]\*\*'
     matches = re.finditer(image_pattern, lesson_content)
 
     replacements = []
     for match in matches:
-        description = match.group(1).strip()
-        placeholder = match.group(0)
+        figure_num = match.group(1)
+        description = match.group(2).strip()
+        full_placeholder = match.group(0)
 
         # Create image metadata for search
         image_metadata = {
@@ -1341,21 +1343,21 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
             'question': f"Medical illustration showing {description} in the context of {topic}"
         }
 
-        logger.info(f"Searching for image: {description}")
+        logger.info(f"Searching for Figure {figure_num}: {description}")
 
         try:
             # Use existing image search function
             image_result = search_and_validate_image(image_metadata, subject)
 
             if image_result:
-                # Replace with markdown image
+                # Replace with markdown image + caption below
                 image_url = image_result['url']
                 image_alt = description
-                markdown_image = f"![{image_alt}]({image_url})"
-                replacements.append((placeholder, markdown_image))
-                logger.info(f"✓ Found image for: {description}")
+                markdown_with_caption = f"![{image_alt}]({image_url})\n*Figure {figure_num}: {description}*"
+                replacements.append((full_placeholder, markdown_with_caption))
+                logger.info(f"✓ Found image for Figure {figure_num}")
             else:
-                logger.warning(f"✗ No image found for: {description}")
+                logger.warning(f"✗ No image found for Figure {figure_num}")
                 # Keep the placeholder if no image found
 
         except Exception as e:
@@ -1501,8 +1503,11 @@ def generate_lessons():
 
 🔴 CRITICAL MANDATORY REQUIREMENTS (NON-NEGOTIABLE):
 1. MUST end with "### High Yield Summary" section (Key Take-Aways, Essential Numbers, Clinical Pearls, Quick Reference)
-2. MUST integrate chapter names throughout text: "...hypertension (see Hypertension diagnosis and management)..."
-3. MUST use [Image: description] format for images to be auto-fetched: **Figure 1: [Image: ECG showing STEMI]**
+2. MUST integrate chapter names INSIDE sentences throughout ALL sections - NOT as a list at the end!
+   ✅ CORRECT: "Acute coronary syndromes (see Acute coronary syndrome management) present with chest pain..."
+   ❌ WRONG: Having a "Related Chapters:" list at the end of sections
+   → Weave chapter names naturally when discussing each clinical concept
+3. MUST use [Image: description] format: **Figure 1: [Image: ECG showing STEMI]**
 4. MUST include 2-3 ```mermaid flowcharts for algorithms/pathways
 ==========================================================================
 
@@ -1548,9 +1553,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Must-know mnemonics linked to clinical decision-making
 * **Figure 1: [Image: specific clinical image or anatomical diagram]**
 * 🔴 MANDATORY: Reference Figure 1 in text when discussing related concepts
-* 🔴 MANDATORY: Integrate 1-2 chapter names IN THE TEXT like this example:
+* 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
   → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
+  → Weave chapter references into the narrative flow, not as separate bullet points
 
 ### 2 — [Topic-Specific Title for Mechanisms/Understand]
 **Pathophysiology & Clinical Mechanisms**
@@ -1563,7 +1569,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Use ```mermaid code block for pathways/cascades
 * Reference Figure 2 in text when explaining mechanisms
 * Table linking mechanisms to clinical manifestations
-* Integrate 1-3 chapter names naturally in text (e.g., "The RAAS activation in heart failure...")
+* 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
 
 ### 3 — [Topic-Specific Title for Clinical Application/Apply]
 **Clinical Presentations & Diagnostic Approach**
@@ -1577,7 +1583,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Reference Figure 3 when discussing diagnostic approach
 * Table with likelihood ratios and diagnostic accuracy
 * Red flags requiring urgent action
-* Integrate 2-3 chapter names in narrative (e.g., "Acute coronary syndromes present with...")
+* 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
 **Differential Diagnosis & Clinical Reasoning**
@@ -1591,7 +1597,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * If using Mermaid, create decision tree for differentiation
 * Reference Figure 4 when discussing key discriminators
 * Quantitative differentiators with specific thresholds
-* Integrate 2-3 chapter names in text (e.g., "Unlike stable angina, ACS presents...")
+* 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Unlike stable angina (see Stable angina management), ACS presents...")
 
 ### 5 — [Topic-Specific Title for Evaluation/Evaluate]
 **Evidence-Based Management & Treatment**
@@ -1606,7 +1612,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Reference Figure 5 when discussing treatment decisions
 * Evidence-based treatment table with specific dosing
 * Cost-effectiveness and NHS formulary considerations
-* Integrate 2-3 chapter names in text with NICE refs (e.g., "As per NICE NG106 for heart failure...")
+* 🔴 Integrate 2-3 chapter names INSIDE sentences with NICE refs (e.g., "Heart failure pharmacotherapy (see Heart failure drug therapy - NICE NG106) includes...")
 
 ### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
 **Advanced Clinical Integration & Special Scenarios**
@@ -1619,7 +1625,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * **Figure 6: [Image: specific clinical image or specialized chart]** OR advanced table
 * Mnemonic for complex decisions (≤10 words with clinical context)
 * Reference Figure 6 when discussing advanced concepts
-* Integrate the chosen deep-dive chapter prominently in narrative with NICE refs
+* 🔴 Integrate 1-2 chapter names INSIDE sentences with NICE refs (e.g., "In pregnancy (see Hypertension in pregnancy), target BP is lower...")
 
 ### High Yield Summary
 🔴🔴🔴 ABSOLUTELY MANDATORY FINAL SECTION - DO NOT SKIP THIS! 🔴🔴🔴
@@ -1645,7 +1651,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Decision rules and clinical scores
 * Safety-critical points and medicolegal considerations
 
-**Related Chapters:** List any remaining chapters from ChaptersJSON not yet mentioned above
+**Related Chapters:**
+* ONLY list chapters from ChaptersJSON that were NOT already integrated into the text above
+* If all chapters were already mentioned in the lesson, write "All chapters covered above"
+* Do NOT repeat chapters that were already woven into the narrative
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
@@ -1664,17 +1673,21 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ For theoretical topics (Physiology, Pharmacology): Aim for 2-4 images total
 ✓ Tables/flowcharts with quantitative data in every section
 ✓ Concrete numbers, dosages, thresholds, percentages throughout
-✓ Chapter links contextually integrated (MUST exactly match provided ChaptersJSON list)
 ✓ Engaging, confidence-building language
 ✓ Mermaid flowcharts where appropriate (use ```mermaid code blocks for decision trees, workflows, algorithms)
 ✓ Memory hooks and mnemonics with quantitative elements
-✓ CRITICAL: All chapter links must use exact chapter names from ChaptersJSON - no variations or interpretations
-✓ CRITICAL: Integrate chapter names contextually throughout ALL sections where relevant - NOT just at the end
-✓ CRITICAL: When mentioning a clinical concept, immediately reference the relevant chapter in parentheses
+
+🔴🔴🔴 CHAPTER INTEGRATION RULES (CRITICAL - DO NOT VIOLATE): 🔴🔴🔴
+✓ All chapter names must use EXACT names from ChaptersJSON - no variations
+✓ Integrate chapter names INSIDE sentences when discussing each concept
+✓ Format: "Clinical concept (see Chapter Name) explanation continues..."
   - Example: "Hypertension diagnosis (see Hypertension diagnosis and management) requires..."
-  - Example: "Risk stratification with QRISK3 (see Cardiovascular risk assessment (QRISK)) helps..."
-  - Example: "Atrial fibrillation management (see Atrial fibrillation and anticoagulation) depends on..."
-✓ CRITICAL: Each section MUST integrate 1-3 specific chapter names from ChaptersJSON naturally in the text
+  - Example: "Risk stratification (see Cardiovascular risk assessment) uses QRISK3..."
+  - Example: "Atrial fibrillation (see Atrial fibrillation and anticoagulation) management depends on..."
+✓ Each section MUST integrate 1-3 chapter names naturally in flowing text
+✓ NEVER create separate "Related Chapters:" lists within sections
+✓ NEVER list chapters as bullet points at section ends
+✓ Chapters should feel like natural cross-references, not forced insertions
 ✓ Visual elements should enhance understanding, not just fill space
 ✓ For images: Use format [Image: specific medical visual description] - be precise about what anatomical structure, pathology, chart type, or diagram is needed
 ✓ End lesson with "High Yield Summary" section containing most testable concepts
@@ -1708,9 +1721,14 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ===========  CRITICAL OUTPUT REQUIREMENTS (CHECK BEFORE SUBMITTING)  ===========
 🔴 1. IMAGES: Use format **Figure N: [Image: specific description]** (brackets required!)
      Example: **Figure 1: [Image: ECG showing inferior STEMI with ST elevation in leads II, III, aVF]**
+     → System will auto-fetch the image and add caption below
 🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks for decision trees/algorithms
-🔴 3. CHAPTERS: Integrate chapter names IN EVERY SECTION like "(see ChapterName from list)"
-     Example: "Heart failure management (see Heart failure pharmacological therapy) involves..."
+🔴 3. CHAPTERS: Weave chapter names NATURALLY INTO SENTENCES throughout ALL sections
+     ✅ DO THIS: "Heart failure management (see Heart failure pharmacological therapy) involves..."
+     ✅ DO THIS: "Risk stratification (see Cardiovascular risk assessment) uses QRISK3..."
+     ❌ DON'T: Put "Related Chapters:" lists at the end of sections
+     ❌ DON'T: List chapters as bullet points separately from the text
+     → Aim for 1-3 chapter references naturally integrated per section
 🔴 4. HIGH YIELD SUMMARY: MUST end with "### High Yield Summary" section with all 5 subsections
 🔴 5. WORD COUNT: 1000-1200 words total
 🔴 6. NO PAGE NUMBERS in headers - use topic-specific memorable titles
