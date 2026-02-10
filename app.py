@@ -1539,8 +1539,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Evidence-based definitions and diagnostic criteria with specific thresholds
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
-* **Visual:** [Image: specific medical image/diagram] OR evidence-based table
-* Contextually integrate 1-2 chapter names from ChaptersJSON with NICE refs where applicable
+* **Figure 1: [Image: specific clinical image or anatomical diagram]** - Include brief caption
+* Reference Figure 1 in text when discussing related concepts
+* Integrate 1-2 chapter names from ChaptersJSON in the narrative (NOT at section end)
 
 ### 2 — [Topic-Specific Title for Mechanisms/Understand]
 **Pathophysiology & Clinical Mechanisms**
@@ -1549,9 +1550,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * WHY certain investigations work, WHY certain treatments target specific pathways
 * Pharmacodynamics and pharmacokinetics with clinical implications
 * Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
-* **Visual:** [Image: pathway diagram or mechanism illustration] OR Mermaid flowchart
-* Tables linking mechanisms to clinical features and treatment targets
-* Contextually integrate relevant chapters from ChaptersJSON: with mechanistic focus
+* **Figure 2: Mermaid flowchart** showing pathophysiological pathway OR [Image: mechanism diagram]
+* Use ```mermaid code block for pathways/cascades
+* Reference Figure 2 in text when explaining mechanisms
+* Table linking mechanisms to clinical manifestations
+* Integrate 1-3 chapter names naturally in text (e.g., "The RAAS activation in heart failure...")
 
 ### 3 — [Topic-Specific Title for Clinical Application/Apply]
 **Clinical Presentations & Diagnostic Approach**
@@ -1560,10 +1563,12 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
 * Interpretation of results in clinical context (not just normal ranges)
 * When to investigate further vs when to act on clinical diagnosis
-* **Visual:** [Image: clinical image, investigation result, or diagnostic algorithm] OR correlation table
-* Tables linking symptoms/signs to underlying pathology with likelihood ratios
-* Red flag features requiring urgent action or escalation
-* Contextually integrate relevant chapters from ChaptersJSON: with clinical focus and NICE refs
+* **Figure 3: Mermaid flowchart** for diagnostic algorithm OR [Image: specific investigation image like ECG/X-ray]
+* Use ```mermaid for decision trees
+* Reference Figure 3 when discussing diagnostic approach
+* Table with likelihood ratios and diagnostic accuracy
+* Red flags requiring urgent action
+* Integrate 2-3 chapter names in narrative (e.g., "Acute coronary syndromes present with...")
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
 **Differential Diagnosis & Clinical Reasoning**
@@ -1573,9 +1578,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Time course, age, comorbidities, and other contextual factors
 * Common diagnostic errors and cognitive biases to avoid
 * When similar conditions require different urgent interventions
-* **Visual:** [Image: comparison chart or decision algorithm] OR detailed comparison table
-* Quantitative differentiators (lab values, imaging findings, response to treatment)
-* Contextually integrate relevant chapters from ChaptersJSON: focusing on differential diagnosis
+* **Figure 4: [Image: comparison chart]** OR detailed comparison table (prefer table for clarity)
+* If using Mermaid, create decision tree for differentiation
+* Reference Figure 4 when discussing key discriminators
+* Quantitative differentiators with specific thresholds
+* Integrate 2-3 chapter names in text (e.g., "Unlike stable angina, ACS presents...")
 
 ### 5 — [Topic-Specific Title for Evaluation/Evaluate]
 **Evidence-Based Management & Treatment**
@@ -1586,10 +1593,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Contraindications, drug interactions, and adverse effects requiring action
 * Non-pharmacological interventions with evidence level
 * When to refer and to which specialty (primary vs secondary care)
-* Mermaid flowcharts for complex decision trees (use ```mermaid blocks)
-* **Visual:** [Image: treatment algorithm or medication reference] OR evidence-based treatment table
-* Cost-effectiveness and formulary considerations (especially UK NHS)
-* Contextually integrate relevant chapters from ChaptersJSON: with guideline references and NICE refs
+* **Figure 5: Mermaid flowchart** for treatment algorithm (MUST use ```mermaid block)
+* Reference Figure 5 when discussing treatment decisions
+* Evidence-based treatment table with specific dosing
+* Cost-effectiveness and NHS formulary considerations
+* Integrate 2-3 chapter names in text with NICE refs (e.g., "As per NICE NG106 for heart failure...")
 
 ### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
 **Advanced Clinical Integration & Special Scenarios**
@@ -1599,22 +1607,36 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Emerging evidence or recent guideline changes
 * Complications, long-term sequelae, and follow-up requirements
 * Integration with other conditions/systems (holistic clinical thinking)
-* **Visual:** [Image: complex scenario diagram or integration chart] OR advanced concept table
-* Mnemonic for complex decision-making (≤10 words with clinical anchors)
-* Contextually integrate relevant chapters from ChaptersJSON: with focus on the deep-dive chapter and NICE refs
+* **Figure 6: [Image: specific clinical image or specialized chart]** OR advanced table
+* Mnemonic for complex decisions (≤10 words with clinical context)
+* Reference Figure 6 when discussing advanced concepts
+* Integrate the chosen deep-dive chapter prominently in narrative with NICE refs
 
-### 7 — [Topic-Specific Title for High Yield Summary]
-**High Yield Summary**
-* "Essential [Topic] Arsenal" - critical numbers for clinical practice
-* Most commonly tested diagnostic thresholds and treatment parameters
-* Red flags that cannot be missed in clinical practice
-* Quick decision rules and clinical prediction scores
-* Critical drug dosages, contraindications, and monitoring
-* Key clinical pearls with evidence base
-* **Visual:** [Image: comprehensive quick reference chart or summary wheel]
-* Pattern recognition framework for rapid clinical assessment
-* Medicolegal and safety-critical points
-* Contextually integrate any remaining chapters from ChaptersJSON not yet mentioned, with NICE refs where applicable
+### High Yield Summary
+**MANDATORY FINAL SECTION** - Must be included with this exact format:
+
+**Key Take-Aways:**
+* 5-7 bullet points with the most critical clinical concepts
+* Include specific numbers, thresholds, and dosages
+* Red flags that cannot be missed
+* Evidence-based recommendations with NICE refs
+
+**Essential [Topic] Numbers:**
+* Critical thresholds for diagnosis and treatment (in table format)
+* Most commonly used drug dosages
+* Key timing parameters (when to treat, monitor, refer)
+
+**Clinical Pearls:**
+* 3-5 practical pearls from clinical experience
+* Common pitfalls and how to avoid them
+* Pattern recognition tips
+
+**Quick Reference:**
+* **Figure 7: [Image: summary chart or quick reference wheel]** OR comprehensive summary table
+* Decision rules and clinical scores
+* Safety-critical points and medicolegal considerations
+
+**Related Chapters:** Integrate any remaining chapters from ChaptersJSON not yet mentioned
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
@@ -1638,20 +1660,30 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Mermaid flowcharts where appropriate (use ```mermaid code blocks for decision trees, workflows, algorithms)
 ✓ Memory hooks and mnemonics with quantitative elements
 ✓ CRITICAL: All chapter links must use exact chapter names from ChaptersJSON - no variations or interpretations
-✓ CRITICAL: Integrate chapter names contextually throughout all sections where relevant - NOT just at the end
+✓ CRITICAL: Integrate chapter names contextually throughout ALL sections where relevant - NOT just at the end
+✓ CRITICAL: When mentioning a clinical concept, immediately reference the relevant chapter in parentheses
+  - Example: "Hypertension diagnosis (see Hypertension diagnosis and management) requires..."
+  - Example: "Risk stratification with QRISK3 (see Cardiovascular risk assessment (QRISK)) helps..."
+  - Example: "Atrial fibrillation management (see Atrial fibrillation and anticoagulation) depends on..."
+✓ CRITICAL: Each section MUST integrate 1-3 specific chapter names from ChaptersJSON naturally in the text
 ✓ Visual elements should enhance understanding, not just fill space
 ✓ For images: Use format [Image: specific medical visual description] - be precise about what anatomical structure, pathology, chart type, or diagram is needed
 ✓ End lesson with "High Yield Summary" section containing most testable concepts
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
-===========  IMAGE DESCRIPTION GUIDELINES  ===========
-✓ Be SPECIFIC about what medical image/diagram is needed
-✓ Include: anatomical structures, pathology type, imaging modality, or chart/diagram type
-✓ Good: "Chest X-ray showing cardiomegaly with pulmonary edema"
-✓ Good: "Anatomical diagram of cardiac conduction system with SA node, AV node, bundle branches"
-✓ Good: "ECG strip showing atrial fibrillation with irregularly irregular rhythm"
-✓ Bad: "Heart diagram" (too vague)
-✓ Bad: "Medical chart" (not specific)
+===========  IMAGE & FLOWCHART GUIDELINES  ===========
+✓ Use NUMBERED images: **Figure 1**, **Figure 2**, etc.
+✓ Include brief caption below each image: "Figure 1: [Brief description]"
+✓ Reference figures in text: "As shown in Figure 1..." or "(Figure 2)"
+✓ Be CLINICALLY SPECIFIC about medical images needed:
+  - Good: "ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI"
+  - Good: "Chest X-ray PA view showing bilateral pulmonary infiltrates with air bronchograms"
+  - Good: "Anatomical diagram of nephron showing sites of diuretic action"
+  - Bad: "Heart diagram" or "Medical flowchart" (too vague - will generate meaningless AI images)
+✓ Use MERMAID FLOWCHARTS instead of AI-generated flowcharts/algorithms (more useful!)
+✓ Aim for 2-3 Mermaid flowcharts throughout the lesson for decision trees, pathways, algorithms
+✓ Use real medical images/diagrams for anatomy, pathology, investigations
+✓ If image description is too vague/generic, use a TABLE or MERMAID flowchart instead
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
@@ -1662,11 +1694,19 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Make learning exciting through discovery, not pressure
 ✓ Stealth preparation through strategic content organization
 
+===========  CRITICAL OUTPUT REQUIREMENTS  ===========
+✓ Total word count: 1000-1200 words
+✓ Use NUMBERED FIGURES (Figure 1, Figure 2, etc.) with brief captions
+✓ Reference figures in text: "(Figure 3)" or "As shown in Figure 5..."
+✓ Include 2-3 MERMAID FLOWCHARTS using ```mermaid code blocks
+✓ Integrate chapter names from ChaptersJSON throughout EVERY section (not at end!)
+✓ MUST end with complete "High Yield Summary" section with Key Take-Aways
+✓ Section headers should be topic-specific and memorable (NO "Page 1" etc.)
+✓ Focus on clinical application and evidence-based practice
+✓ Markdown format only, no meta commentary
+
 ===========  OUTPUT: MARKDOWN ONLY, NO META COMMENTARY  ===========
-Total word count: 1000-1200 words exactly
-Section headers should be topic-specific and memorable
-Focus on understanding and application over memorization
-Create "stealth preparation" - inherently useful for assessment without explicit mention"""
+Create "stealth preparation" - inherently useful for clinical practice and assessment"""
 
                 try:
                     # Call Claude API
