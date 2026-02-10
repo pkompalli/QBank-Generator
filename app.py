@@ -1576,14 +1576,13 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Evidence-based definitions and diagnostic criteria with specific thresholds
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
-* **Figure 1: [Image: specific investigation or anatomy]**
-  → Examples: "ECG showing STEMI", "Chest X-ray showing pneumothorax", "Anatomical diagram of coronary circulation"
-  → NOT: "Heart overview" or "Cardiac pathway diagram" (use table/mermaid instead)
-* 🔴 MANDATORY: Reference Figure 1 in text when discussing related concepts
+* TABLE with key classifications or criteria
+* 🔴 OPTIONAL: Include 1 essential clinical image ONLY if truly necessary
+  → Examples: "ECG showing STEMI in leads II, III, aVF", "Chest X-ray showing tension pneumothorax"
+  → Most topics won't need an image here - use table instead
 * 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
   → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
-  → Weave chapter references into the narrative flow, not as separate bullet points
 
 ### 2 — [Topic-Specific Title for Mechanisms/Understand]
 **Pathophysiology & Clinical Mechanisms**
@@ -1592,11 +1591,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * WHY certain investigations work, WHY certain treatments target specific pathways
 * Pharmacodynamics and pharmacokinetics with clinical implications
 * Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
-* **Figure 2:** Use ```mermaid flowchart for pathophysiological pathways/cascades
-  → OR if showing specific anatomy: **Figure 2: [Image: Anatomical diagram of renal nephron showing diuretic sites of action]**
-  → NOT: "Mechanism diagram" or "Pathway illustration" (too vague)
-* Reference Figure 2 in text when explaining mechanisms
+* ```mermaid flowchart showing pathophysiological pathway/cascade (MANDATORY)
 * Table linking mechanisms to clinical manifestations
+* 🔴 OPTIONAL: Include anatomical image ONLY if essential for understanding mechanism
 * 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
 
 ### 3 — [Topic-Specific Title for Clinical Application/Apply]
@@ -1606,13 +1603,12 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
 * Interpretation of results in clinical context (not just normal ranges)
 * When to investigate further vs when to act on clinical diagnosis
-* **Figure 3:** Use ```mermaid flowchart for diagnostic algorithms/decision trees
-  → OR actual investigation: **Figure 3: [Image: ECG showing atrial fibrillation with irregular RR intervals]**
-  → Examples: "CT pulmonary angiogram showing PE", "Chest X-ray PA view showing pneumonia"
-  → NOT: "Diagnostic flowchart" (use mermaid instead)
-* Reference Figure 3 when discussing diagnostic approach
+* ```mermaid flowchart for diagnostic algorithm (MANDATORY)
 * Table with likelihood ratios and diagnostic accuracy
 * Red flags requiring urgent action
+* 🔴 OPTIONAL: Include 1 diagnostic investigation image if pathognomonic/essential
+  → Examples: "ECG showing AF with absent P waves", "Chest X-ray showing lobar pneumonia"
+  → Only if the visual finding is critical for diagnosis
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
@@ -1623,11 +1619,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Time course, age, comorbidities, and other contextual factors
 * Common diagnostic errors and cognitive biases to avoid
 * When similar conditions require different urgent interventions
-* **Figure 4:** Use COMPARISON TABLE (most clear for differentials)
-  → OR ```mermaid decision tree if algorithm-based differentiation
-  → Avoid requesting comparison images - tables work better
-* Reference Figure 4 when discussing key discriminators
+* COMPARISON TABLE showing key differentiators (MANDATORY)
+* ```mermaid decision tree for differentiation if algorithm-based (OPTIONAL)
 * Quantitative differentiators with specific thresholds
+* 🔴 NO images needed in this section - tables are clearer for differentials
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Unlike stable angina (see Stable angina management), ACS presents...")
 
 ### 5 — [Topic-Specific Title for Evaluation/Evaluate]
@@ -1639,11 +1634,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Contraindications, drug interactions, and adverse effects requiring action
 * Non-pharmacological interventions with evidence level
 * When to refer and to which specialty (primary vs secondary care)
-* **Figure 5:** MUST use ```mermaid flowchart for treatment algorithm
-  → NOT an image - algorithms should always be Mermaid flowcharts
-* Reference Figure 5 when discussing treatment decisions
-* Evidence-based treatment table with specific dosing
+* ```mermaid flowchart for treatment algorithm (MANDATORY)
+* Evidence-based treatment table with specific dosing (MANDATORY)
 * Cost-effectiveness and NHS formulary considerations
+* 🔴 NO images needed - use mermaid flowcharts and tables only
 * 🔴 Integrate 2-3 chapter names INSIDE sentences with NICE refs (e.g., "Heart failure pharmacotherapy (see Heart failure drug therapy - NICE NG106) includes...")
 
 ### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
@@ -1654,11 +1648,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Emerging evidence or recent guideline changes
 * Complications, long-term sequelae, and follow-up requirements
 * Integration with other conditions/systems (holistic clinical thinking)
-* **Figure 6:** Use ADVANCED TABLE for complex data
-  → OR specific investigation if relevant: **Figure 6: [Image: MRI brain showing multiple sclerosis plaques]**
-  → NOT: "Complication diagram" or "Integration chart" (use table instead)
+* ADVANCED TABLE for complex data (MANDATORY)
 * Mnemonic for complex decisions (≤10 words with clinical context)
-* Reference Figure 6 when discussing advanced concepts
+* 🔴 OPTIONAL: Include 1 specialist investigation ONLY if truly essential
+  → Examples: "MRI brain showing MS plaques", "Bone marrow biopsy showing leukaemia"
+  → Most topics won't need an image here
 * 🔴 Integrate 1-2 chapter names INSIDE sentences with NICE refs (e.g., "In pregnancy (see Hypertension in pregnancy), target BP is lower...")
 
 ### High Yield Summary
@@ -1681,11 +1675,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Pattern recognition tips
 
 **Quick Reference:**
-* **Figure 7:** Use SUMMARY TABLE with key numbers/thresholds
-  → OR ```mermaid flowchart for quick reference algorithm
-  → NOT: "Summary chart image" (use table/mermaid instead)
+* SUMMARY TABLE with key numbers/thresholds (MANDATORY)
+* ```mermaid flowchart for quick reference algorithm if needed (OPTIONAL)
 * Decision rules and clinical scores
 * Safety-critical points and medicolegal considerations
+* 🔴 NO images needed in summary - tables and mermaid only
 
 **Related Chapters:**
 * ONLY list chapters from ChaptersJSON that were NOT already integrated into the text above
@@ -1702,15 +1696,15 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Rapid problem-solving approaches (decision algorithms)
 ✓ Integration points between concepts (connects to clinical thinking)
 
-===========  MANDATORY ELEMENTS PER PAGE  ===========
-✓ At least 1 visual per page: [Image: descriptive text] OR practical table/flowchart
-✓ For visual topics (Anatomy, Radiology, Pathology): Aim for 5-7 images total
-✓ For clinical topics (Medicine, Surgery): Aim for 3-5 images total
-✓ For theoretical topics (Physiology, Pharmacology): Aim for 2-4 images total
-✓ Tables/flowcharts with quantitative data in every section
-✓ Concrete numbers, dosages, thresholds, percentages throughout
+===========  MANDATORY ELEMENTS  ===========
+✓ 2-3 ```mermaid flowcharts for algorithms/decision trees (MANDATORY)
+✓ Tables with quantitative data in every section (MANDATORY)
+✓ Concrete numbers, dosages, thresholds, percentages throughout (MANDATORY)
+✓ 1-3 [Image: ...] ONLY if truly essential clinical images (OPTIONAL - be selective!)
+  → Most topics should have 0-2 images maximum
+  → Only include if the image is absolutely necessary for understanding
+  → When in doubt, use a table or mermaid instead
 ✓ Engaging, confidence-building language
-✓ Mermaid flowcharts where appropriate (use ```mermaid code blocks for decision trees, workflows, algorithms)
 ✓ Memory hooks and mnemonics with quantitative elements
 
 🔴🔴🔴 CHAPTER INTEGRATION RULES (CRITICAL - DO NOT VIOLATE): 🔴🔴🔴
@@ -1729,37 +1723,46 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ End lesson with "High Yield Summary" section containing most testable concepts
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
-===========  IMAGE & FLOWCHART GUIDELINES  ===========
-🔴 CRITICAL: Only request images for ACTUAL MEDICAL INVESTIGATIONS/ANATOMY, not concepts!
+===========  IMAGE STRATEGY (CRITICAL - READ CAREFULLY)  ===========
+🔴 IMAGES ARE EXPENSIVE AND OFTEN FAIL - BE EXTREMELY SELECTIVE! 🔴
 
-✓ MANDATORY FORMAT: **Figure 1: [Image: specific description]** - The [Image: ...] format is REQUIRED for auto-fetching
-✓ Reference figures in text: "As shown in Figure 1..." or "(Figure 2)"
+STEP 1: Before writing, identify 2-3 ESSENTIAL medical images for this topic
+→ Ask yourself: "What would a doctor MUST see to understand this clinically?"
+→ NOT decorative, NOT conceptual, NOT flowcharts - ONLY essential clinical images
 
-✓ WHEN TO USE [Image: ...] - ONLY for these types:
-  ✅ ECGs: "ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI"
-  ✅ X-rays: "Chest X-ray PA view showing cardiomegaly with pulmonary edema"
-  ✅ Scans: "CT head showing acute subdural hematoma with midline shift"
-  ✅ Histology: "Histopathology showing caseating granulomas in tuberculosis"
-  ✅ Anatomy: "Anatomical diagram of Circle of Willis showing aneurysm locations"
-  ✅ Clinical photos: "Photograph showing erythema nodosum on lower legs"
-  ✅ Lab results: "Blood film showing hypochromic microcytic anemia"
+STEP 2: Only include images that are:
+✅ Actual medical investigations (ECG, X-ray, CT, histology, endoscopy)
+✅ Critical anatomy that's hard to explain in words
+✅ Pathognomonic clinical signs (rashes, physical findings)
+✅ Lab results that are diagnostic (blood films, cultures)
 
-✓ WHEN TO USE ```mermaid INSTEAD - For concepts/pathways/algorithms:
-  ✅ Treatment pathways → Use ```mermaid flowchart
-  ✅ Diagnostic algorithms → Use ```mermaid flowchart
-  ✅ Drug metabolism pathways → Use ```mermaid flowchart or TABLE
-  ✅ Pathophysiology cascades → Use ```mermaid flowchart
-  ✅ Decision trees → Use ```mermaid flowchart
-  ✅ Risk stratification → Use TABLE
+❌ NEVER include:
+❌ Calculators or interfaces (like QRISK3 calculator)
+❌ Generic charts or graphs
+❌ Flowcharts or algorithms (use ```mermaid instead)
+❌ "Overview" or "summary" diagrams
+❌ Conceptual illustrations
 
-❌ NEVER request vague images like:
-  ❌ "Treatment pathway diagram" → Use ```mermaid instead
-  ❌ "Drug mechanism flowchart" → Use ```mermaid instead
-  ❌ "Heart diagram" → Too vague, be specific: "Anatomical diagram showing coronary arteries"
-  ❌ "Medical flowchart" → Use ```mermaid instead
-  ❌ "Pathophysiology illustration" → Use ```mermaid instead
+STEP 3: Image format when essential image identified:
+**Figure N: [Image: HIGHLY SPECIFIC description]**
+Examples of GOOD descriptions:
+- "12-lead ECG showing atrial fibrillation with absent P waves and irregular RR intervals"
+- "Chest X-ray PA view showing right upper lobe consolidation with air bronchograms"
+- "Fundoscopy photograph showing papilloedema with blurred disc margins"
+- "Histopathology H&E stain showing Reed-Sternberg cells in Hodgkin lymphoma"
 
-✓ MANDATORY: Include 2-3 Mermaid flowcharts throughout the lesson for algorithms/pathways
+Examples of BAD descriptions (will be rejected):
+- "QRISK3 calculator showing risk assessment"
+- "Heart failure risk stratification chart"
+- "Treatment pathway overview"
+- "Summary of cardiovascular risk factors"
+
+RECOMMENDED IMAGE COUNTS:
+- Visual topics (Dermatology, Radiology): 2-3 images
+- Clinical topics (Cardiology, Respiratory): 1-2 images
+- Theoretical topics (Pharmacology): 0-1 images
+
+✓ MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/pathways (NOT images)
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
@@ -1771,20 +1774,29 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Stealth preparation through strategic content organization
 
 ===========  CRITICAL OUTPUT REQUIREMENTS (CHECK BEFORE SUBMITTING)  ===========
-🔴 1. IMAGES: Use format **Figure N: [Image: specific description]** (brackets required!)
-     Example: **Figure 1: [Image: ECG showing inferior STEMI with ST elevation in leads II, III, aVF]**
-     → System will auto-fetch the image and add caption below
-🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks for decision trees/algorithms
-🔴 3. CHAPTERS: Weave chapter names NATURALLY INTO SENTENCES throughout ALL sections
-     ✅ DO THIS: "Heart failure management (see Heart failure pharmacological therapy) involves..."
-     ✅ DO THIS: "Risk stratification (see Cardiovascular risk assessment) uses QRISK3..."
-     ❌ DON'T: Put "Related Chapters:" lists at the end of sections
-     ❌ DON'T: List chapters as bullet points separately from the text
-     → Aim for 1-3 chapter references naturally integrated per section
-🔴 4. HIGH YIELD SUMMARY: MUST end with "### High Yield Summary" section with all 5 subsections
-🔴 5. WORD COUNT: 1000-1200 words total
-🔴 6. NO PAGE NUMBERS in headers - use topic-specific memorable titles
-🔴 7. REFERENCE FIGURES in text: "(Figure 3)" or "As shown in Figure 5..."
+🔴 1. IMAGES: Include 0-2 images maximum - ONLY if absolutely essential!
+     → Format: **Figure N: [Image: HIGHLY specific description]**
+     → Example: **Figure 1: [Image: 12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals]**
+     → Ask: "Would a doctor NEED to see this to understand clinically?"
+     → When in doubt, use table or mermaid instead
+     → NO calculators, NO generic charts, NO concept diagrams
+
+🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks (MANDATORY)
+     → Use for: diagnostic algorithms, treatment pathways, decision trees
+     → NOT images - actual mermaid code blocks
+
+🔴 3. TABLES: Include tables in EVERY section (MANDATORY)
+     → Classifications, differentials, dosing, thresholds, criteria
+
+🔴 4. CHAPTERS: Weave chapter names NATURALLY INTO SENTENCES throughout ALL sections
+     ✅ DO: "Heart failure (see Heart failure pharmacological therapy) management involves..."
+     ❌ DON'T: Separate "Related Chapters:" lists
+
+🔴 5. HIGH YIELD SUMMARY: MUST end with "### High Yield Summary" with all subsections
+
+🔴 6. WORD COUNT: 1000-1200 words total
+
+🔴 7. NO PAGE NUMBERS in headers - use topic-specific memorable titles
 
 ===========  OUTPUT FORMAT  ===========
 Markdown only. No meta commentary. No apologies. No "here's the lesson".
