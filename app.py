@@ -1495,77 +1495,126 @@ def generate_lessons():
 - Topic        : {topic_name}
 - ChaptersJSON : {chapter_list_json}
 - WordTarget   : 1000-1200 words max | 7 pages max
+- Audience     : Medical licensing exam candidates (UKMLA/NEET PG/USMLE level)
+- Depth Level  : Clinical practitioner level - assume medical school foundation knowledge
 ==========================================================================
 
+===========  CLINICAL RIGOR REQUIREMENTS  ===========
+✓ Write for qualified doctors preparing for licensing exams - NOT medical students
+✓ Assume foundational anatomy/physiology/pathology knowledge - focus on CLINICAL APPLICATION
+✓ Include evidence-based medicine with specific guidelines (NICE, ESC, AHA where applicable)
+✓ Specific drug dosages, timing, monitoring parameters, contraindications
+✓ Specific diagnostic thresholds with sensitivity/specificity where relevant
+✓ Clinical decision-making with real-world trade-offs and nuances
+✓ Red flags, complications, and when to escalate/refer
+✓ Medicolegal considerations where relevant (consent, capacity, safeguarding)
+✓ Cost-effectiveness and resource allocation awareness (especially for UK candidates)
+✓ Depth over breadth - better to cover fewer concepts thoroughly than many superficially
+
+===========  NICE GUIDELINE & EVIDENCE INTEGRATION  ===========
+✓ When chapters have 'nice_refs' in ChaptersJSON, reference these guidelines naturally
+✓ Cite specific guideline numbers (e.g., "NICE NG136 recommends clinic BP <140/90 for treatment")
+✓ Include guideline-specific thresholds, algorithms, and recommendations
+✓ Mention updates or controversies in guidelines where clinically important
+✓ Reference other evidence (landmark trials, meta-analyses) where relevant for depth
+✓ UK-specific practice points for UKMLA (e.g., NHS pathways, formulary restrictions)
+
 ===========  ONCOURSE BRAND VOICE  ===========
-✓ Informal yet authoritative - conversational but confident
-✓ Engaging storytelling with visual hooks
-✓ Concrete, graspable explanations over abstract theory
-✓ Numbers and quantitative data wherever appropriate
-✓ Confidence-building without being transactional
-✓ NO explicit mentions of "NEET PG", "exams", "examiners", "toppers", "candidates", "test", "assessment"
-✓ Capture exam-oriented spirit through content structure, not explicit references
+✓ Professional yet engaging - authoritative clinical voice with narrative flow
+✓ Conversational but clinically sophisticated
+✓ Evidence-based explanations with mechanistic depth
+✓ Concrete clinical scenarios over abstract theory
+✓ Specific numbers, thresholds, dosages, timings throughout
+✓ Confidence-building through mastery of clinical nuance
+✓ NO explicit mentions of "exams", "examiners", "toppers", "candidates", "test", "assessment"
+✓ Capture clinical excellence through depth and precision, not exam rhetoric
 
 ===========  BLOOM'S PROGRESSION STRUCTURE (Levels 1-7)  ===========
 IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only the topic-specific titles.
 
 ### [Topic-Specific Memorable Title for Foundation/Remember]
 **Core Knowledge Building**
-* Engaging hook ≤25 words with storytelling element
-* Essential definitions, classifications, key facts with numbers
-* Must-know mnemonics & quantitative thresholds
-* **Visual:** [Image: descriptive text] OR practical table/flowchart
-* Contextually integrate 1-2 chapter names from ChaptersJSON (MUST match exactly)
+* Engaging clinical vignette or scenario hook ≤25 words
+* Essential classifications with clinical significance (not just lists)
+* Evidence-based definitions and diagnostic criteria with specific thresholds
+* Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
+* Must-know mnemonics linked to clinical decision-making
+* **Visual:** [Image: specific medical image/diagram] OR evidence-based table
+* Contextually integrate 1-2 chapter names from ChaptersJSON with NICE refs where applicable
 
 ### 2 — [Topic-Specific Title for Mechanisms/Understand]
-**How Things Actually Work**
-* Cause-effect pathways, WHY processes occur
-* Quantitative relationships and thresholds
-* **Visual:** [Image: descriptive text] OR Mermaid flowchart/mechanism table
-* Tables showing mechanism categories with numbers
-* Contextually integrate relevant chapters from ChaptersJSON: mechanism-heavy chapters naturally
+**Pathophysiology & Clinical Mechanisms**
+* Mechanistic understanding that explains clinical presentations
+* Molecular/cellular basis linked to macroscopic clinical findings
+* WHY certain investigations work, WHY certain treatments target specific pathways
+* Pharmacodynamics and pharmacokinetics with clinical implications
+* Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
+* **Visual:** [Image: pathway diagram or mechanism illustration] OR Mermaid flowchart
+* Tables linking mechanisms to clinical features and treatment targets
+* Contextually integrate relevant chapters from ChaptersJSON: with mechanistic focus
 
 ### 3 — [Topic-Specific Title for Clinical Application/Apply]
-**Real-World Pattern Recognition**
-* Clinical scenarios with specific quantitative markers
-* "What you see" vs "what it means" correlations
-* **Visual:** [Image: descriptive text] OR clinical correlation table
-* Table linking presentations to pathology with numbers
-* Contextually integrate relevant chapters from ChaptersJSON: clinical chapters organically
+**Clinical Presentations & Diagnostic Approach**
+* Real clinical scenarios with presenting complaints and examination findings
+* Diagnostic approach with pre-test probability considerations
+* Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
+* Interpretation of results in clinical context (not just normal ranges)
+* When to investigate further vs when to act on clinical diagnosis
+* **Visual:** [Image: clinical image, investigation result, or diagnostic algorithm] OR correlation table
+* Tables linking symptoms/signs to underlying pathology with likelihood ratios
+* Red flag features requiring urgent action or escalation
+* Contextually integrate relevant chapters from ChaptersJSON: with clinical focus and NICE refs
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
-**Smart Discrimination Between Look-Alikes**
-* Detailed comparison matrices with quantitative differentiators
-* Common pitfalls and how to avoid them (not "most people ignore")
-* **Visual:** [Image: descriptive text] OR comparison table/decision tree
-* Timeline or cascade tables with specific numbers
-* Contextually integrate relevant chapters from ChaptersJSON: differential diagnosis chapters
+**Differential Diagnosis & Clinical Reasoning**
+* Systematic approach to distinguishing between similar presentations
+* Key discriminating features with clinical significance (not just lists of differences)
+* Likelihood ratios, Bayesian reasoning, or clinical prediction rules where applicable
+* Time course, age, comorbidities, and other contextual factors
+* Common diagnostic errors and cognitive biases to avoid
+* When similar conditions require different urgent interventions
+* **Visual:** [Image: comparison chart or decision algorithm] OR detailed comparison table
+* Quantitative differentiators (lab values, imaging findings, response to treatment)
+* Contextually integrate relevant chapters from ChaptersJSON: focusing on differential diagnosis
 
 ### 5 — [Topic-Specific Title for Evaluation/Evaluate]
-**Treatment Logic and Decision-Making**
-* Management algorithms with quantitative decision points
-* Mermaid flowcharts (use ```mermaid code blocks for complex flows)
-* **Visual:** [Image: descriptive text] OR treatment decision table
-* Treatment tables with dosages, thresholds, timelines
-* Contextually integrate relevant chapters from ChaptersJSON: management/therapy chapters
+**Evidence-Based Management & Treatment**
+* Evidence-based treatment algorithms with NICE/guideline references
+* Specific drug names, dosages, routes, frequencies, durations
+* Monitoring requirements (what to check, when, and why)
+* Treatment targets and when to escalate/switch therapy
+* Contraindications, drug interactions, and adverse effects requiring action
+* Non-pharmacological interventions with evidence level
+* When to refer and to which specialty (primary vs secondary care)
+* Mermaid flowcharts for complex decision trees (use ```mermaid blocks)
+* **Visual:** [Image: treatment algorithm or medication reference] OR evidence-based treatment table
+* Cost-effectiveness and formulary considerations (especially UK NHS)
+* Contextually integrate relevant chapters from ChaptersJSON: with guideline references and NICE refs
 
 ### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
-**Deep Dive into Underused High-Yield Content**
-* Pick one underutilized chapter from the JSON
-* Advanced concepts with concrete numbers
-* **Visual:** [Image: descriptive text] OR specialized concept table
-* Mnemonic ≤10 words with quantitative element
-* Contextually integrate relevant chapters from ChaptersJSON: the chosen deep-dive chapter
+**Advanced Clinical Integration & Special Scenarios**
+* Pick one clinically important but less emphasized chapter from ChaptersJSON
+* Complex cases: multimorbidity, atypical presentations, special populations
+* Pregnancy, elderly, renal/hepatic impairment considerations where relevant
+* Emerging evidence or recent guideline changes
+* Complications, long-term sequelae, and follow-up requirements
+* Integration with other conditions/systems (holistic clinical thinking)
+* **Visual:** [Image: complex scenario diagram or integration chart] OR advanced concept table
+* Mnemonic for complex decision-making (≤10 words with clinical anchors)
+* Contextually integrate relevant chapters from ChaptersJSON: with focus on the deep-dive chapter and NICE refs
 
 ### 7 — [Topic-Specific Title for High Yield Summary]
 **High Yield Summary**
-* "Essential [Topic] Arsenal" with power numbers
-* **Visual:** [Image: quick reference wheel or summary table]
-* Key framework summary (The [Topic] Commandments)
-* Most testable concepts with specific numbers
-* Pattern recognition quick reference
-* Critical clinical pearls for rapid recall
-* Contextually integrate any remaining chapters from ChaptersJSON not yet mentioned
+* "Essential [Topic] Arsenal" - critical numbers for clinical practice
+* Most commonly tested diagnostic thresholds and treatment parameters
+* Red flags that cannot be missed in clinical practice
+* Quick decision rules and clinical prediction scores
+* Critical drug dosages, contraindications, and monitoring
+* Key clinical pearls with evidence base
+* **Visual:** [Image: comprehensive quick reference chart or summary wheel]
+* Pattern recognition framework for rapid clinical assessment
+* Medicolegal and safety-critical points
+* Contextually integrate any remaining chapters from ChaptersJSON not yet mentioned, with NICE refs where applicable
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
