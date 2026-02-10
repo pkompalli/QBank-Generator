@@ -432,6 +432,169 @@ def collect_candidate_images(image_search_terms, image_type, max_candidates=10):
     return candidates
 
 
+def add_visual_markers_to_image(image_path, question_text, image_description):
+    """Add visual markers (arrows, circles, highlights) to an image based on question references."""
+    try:
+        logger.info(f"add_visual_markers_to_image called with:")
+        logger.info(f"  - image_path: {image_path}")
+        logger.info(f"  - question_text length: {len(question_text) if question_text else 0}")
+        logger.info(f"  - question_text: '{question_text[:100]}...'")
+        logger.info(f"  - image_description: '{image_description[:50]}...'")
+
+        # Detect if question has spatial references
+        # Use word boundary matching to avoid false positives like "markedly" triggering "marked"
+        import re
+        spatial_keywords = [
+            r'\barrow\b', r'\barrows\b', r'\bpointing to\b', r'\bpoints to\b', r'\bindicated by\b',
+            r'\bcircle\b', r'\bcircled\b', r'\bencircled\b', r'\bmarked\b', r'\bhighlighted\b', r'\bshown by\b',
+            r'\bboxed\b', r'\boutlined\b', r'\blabeled\b', r'\basterisk\b', r'\bstar\b'
+        ]
+
+        question_lower = question_text.lower() if question_text else ""
+        has_spatial_reference = any(re.search(keyword, question_lower) for keyword in spatial_keywords)
+
+        logger.info(f"Spatial reference detected: {has_spatial_reference}")
+
+        if not has_spatial_reference:
+            logger.info("No spatial keywords found in question, skipping markers")
+            return None
+
+        logger.info("✓ Question has spatial references - proceeding to add visual markers")
+
+        # Step 1: Use Claude Vision to locate the diagnostic finding
+        import base64
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+            img_base64 = base64.b64encode(image_data).decode('utf-8')
+
+        # Determine media type
+        from PIL import Image
+        img = Image.open(image_path)
+        img_format = img.format.lower()
+        media_type = f"image/{img_format}" if img_format in ['jpeg', 'jpg', 'png'] else 'image/jpeg'
+
+        location_prompt = f"""Analyze this medical image and locate the key diagnostic finding.
+
+IMAGE DESCRIPTION: {image_description}
+
+QUESTION: {question_text}
+
+Identify the location of the main diagnostic feature that the question refers to. Provide coordinates as percentages of image dimensions (0-100%).
+
+Respond with ONLY a JSON object:
+{{
+  "center_x": <percentage 0-100>,
+  "center_y": <percentage 0-100>,
+  "radius_percent": <percentage 5-15 for circle size>,
+  "marker_type": "circle" or "arrow" or "box",
+  "description": "brief description of what you're marking"
+}}
+
+For example: {{"center_x": 45, "center_y": 60, "radius_percent": 10, "marker_type": "circle", "description": "fractured tooth fragment"}}"""
+
+        # Call Claude Vision
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=500,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": img_base64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": location_prompt
+                    }
+                ]
+            }]
+        )
+
+        # Parse location response
+        response_text = message.content[0].text
+        if '```json' in response_text:
+            response_text = response_text.split('```json')[1].split('```')[0]
+        elif '```' in response_text:
+            response_text = response_text.split('```')[1].split('```')[0]
+
+        location_data = json.loads(response_text.strip())
+
+        # Step 2: Draw the marker using PIL
+        from PIL import ImageDraw
+        img = Image.open(image_path)
+        draw = ImageDraw.Draw(img)
+
+        width, height = img.size
+        center_x = int(location_data['center_x'] * width / 100)
+        center_y = int(location_data['center_y'] * height / 100)
+        radius = int(location_data.get('radius_percent', 10) * min(width, height) / 100)
+
+        # Choose color based on marker type
+        color = 'red'
+        line_width = max(3, int(min(width, height) / 200))
+
+        marker_type = location_data.get('marker_type', 'circle')
+
+        if marker_type == 'circle' or re.search(r'\bcircle\b', question_lower) or re.search(r'\bencircle', question_lower):
+            # Draw circle
+            draw.ellipse(
+                [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+                outline=color,
+                width=line_width
+            )
+            logger.info(f"Drew circle at ({center_x}, {center_y}) with radius {radius}")
+
+        elif marker_type == 'arrow':
+            # Draw arrow pointing to the location
+            arrow_length = radius * 2
+            draw.line(
+                [center_x - arrow_length, center_y - arrow_length, center_x, center_y],
+                fill=color,
+                width=line_width
+            )
+            # Arrow head
+            head_size = radius // 2
+            draw.polygon(
+                [
+                    (center_x, center_y),
+                    (center_x - head_size, center_y - head_size),
+                    (center_x + head_size, center_y - head_size)
+                ],
+                fill=color
+            )
+            logger.info(f"Drew arrow pointing to ({center_x}, {center_y})")
+
+        elif marker_type == 'box':
+            # Draw rectangle
+            draw.rectangle(
+                [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+                outline=color,
+                width=line_width
+            )
+            logger.info(f"Drew box at ({center_x}, {center_y})")
+
+        # Save the marked image
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='static') as f:
+            marked_img_path = f.name
+
+        img.save(marked_img_path, format='PNG')
+        logger.info(f"✓ Added {marker_type} marker to image: {location_data.get('description', '')}")
+
+        return marked_img_path
+
+    except Exception as e:
+        logger.error(f"Error adding visual markers: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
+
+
 def generate_image_with_gemini(question_data):
     """Generate image with Gemini Nano Banana Pro."""
     try:
@@ -636,12 +799,67 @@ def search_and_validate_image(question_data, subject):
             'title': best_candidate['title']
         }
         cache_image(image_search_terms, image_type, result)
+
+        # STEP 6: Add visual markers if question references specific parts
+        question_text = question_data.get('question', '')
+        image_description = question_data.get('image_description', '')
+
+        logger.info(f"Checking for spatial references in question: {question_text[:50]}...")
+
+        if question_text and image_description:
+            # Download the image locally first
+            try:
+                import tempfile
+                img_response = requests.get(result['url'], timeout=10)
+                if img_response.status_code == 200:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='static') as f:
+                        f.write(img_response.content)
+                        temp_path = f.name
+
+                    logger.info(f"Attempting to add markers to internet image: {temp_path}")
+                    marked_path = add_visual_markers_to_image(temp_path, question_text, image_description)
+
+                    if marked_path:
+                        result['url'] = f"/static/{os.path.basename(marked_path)}"
+                        result['source'] = f"{result['source']} (with markers)"
+                        logger.info(f"Successfully added markers, new URL: {result['url']}")
+                    else:
+                        logger.info("No markers added (no spatial reference or error)")
+            except Exception as e:
+                logger.error(f"Error adding markers to internet image: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+
         return result
     else:
         print(f"  → Best internet image score only {best_candidate['score']}/100, generating with Nano Banana Pro...")
         if gemini_client:
             result = generate_image_with_gemini(question_data)
             if result:
+                # STEP 6: Add visual markers to generated image if needed
+                question_text = question_data.get('question', '')
+                image_description = question_data.get('image_description', '')
+
+                logger.info(f"Checking for spatial references in question: {question_text[:50]}...")
+
+                if question_text and image_description and result.get('url'):
+                    # Convert URL to absolute local path
+                    import os
+                    if result['url'].startswith('/static/'):
+                        local_path = os.path.join(os.getcwd(), result['url'][1:])  # Remove leading /
+                    else:
+                        local_path = result['url']
+
+                    logger.info(f"Attempting to add markers to: {local_path}")
+                    marked_path = add_visual_markers_to_image(local_path, question_text, image_description)
+
+                    if marked_path:
+                        result['url'] = f"/static/{os.path.basename(marked_path)}"
+                        result['source'] = f"{result['source']} (with markers)"
+                        logger.info(f"Successfully added markers, new URL: {result['url']}")
+                    else:
+                        logger.info("No markers added (no spatial reference or error)")
+
                 cache_image(image_search_terms, image_type, result)
                 print(f"✓ Generated image")
                 return result
@@ -746,6 +964,13 @@ CRITICAL: The image should show the PATHOGNOMONIC or CHARACTERISTIC finding that
 
 **ABSOLUTELY CRITICAL - NO ANSWER TEXT IN IMAGES**: The image MUST be completely unlabeled with NO text, NO annotations, NO arrows with labels, NO diagnosis names visible. Students must interpret the raw clinical image. Any text revealing the answer makes the question invalid. Search terms should include "unlabeled", "no text", "clinical image" to find appropriate images.
 
+**SPATIAL REFERENCES IN QUESTIONS**: When appropriate, use spatial references in the question text to help students focus on the relevant diagnostic area. Examples:
+- "The arrow points to which structure?"
+- "The circled area shows what pathology?"
+- "What diagnosis is indicated by the highlighted region?"
+- "The marked area represents which finding?"
+These references will trigger automatic visual marker addition (arrows, circles, highlights) to the image. Use them when the diagnostic finding needs to be localized in a specific area of the image.
+
 The question text should reference "the image shown" or "based on the image"."""
         prompt = prompt.replace("Output ONLY the JSON array, no other text.", image_instructions + "\n\nOutput ONLY the JSON array, no other text.")
 
@@ -779,6 +1004,7 @@ The question text should reference "the image shown" or "based on the image"."""
         for idx, q in enumerate(questions, 1):
             if 'image_search_terms' in q or 'image_type' in q:
                 logger.info(f"  Question {idx}/{len(questions)}: {q.get('image_type', 'Unknown')}")
+                # Note: q already contains 'question' field, so it can be passed directly
                 image_result = search_and_validate_image(q, subject)
                 if image_result:
                     q['image_url'] = image_result['url']
@@ -1040,6 +1266,9 @@ Respond with ONLY the JSON object, no other text."""
                     continue
 
                 # Step 2: Search and validate image using existing pipeline
+                # Add the actual question text to image_metadata so markers can be added
+                image_metadata['question'] = question_text
+
                 logger.info(f"Question {idx}: Searching for {image_metadata.get('image_type')}...")
                 image_result = search_and_validate_image(image_metadata, subject)
 
