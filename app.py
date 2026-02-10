@@ -1320,6 +1320,13 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
     """Parse lesson content and integrate actual images where placeholders exist."""
     import re
 
+    # Vague terms that should use Mermaid/tables instead of images
+    vague_terms = [
+        'pathway', 'flowchart', 'algorithm', 'diagram', 'mechanism', 'cascade',
+        'process', 'cycle', 'overview', 'summary', 'treatment plan', 'management',
+        'approach', 'strategy', 'decision tree', 'flow', 'schematic'
+    ]
+
     # Find all image placeholders with Figure numbers: **Figure N: [Image: description]**
     # Pattern captures: Figure number and description
     image_pattern = r'\*\*Figure (\d+):\s*\[Image:\s*([^\]]+)\]\*\*'
@@ -1330,6 +1337,24 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
         figure_num = match.group(1)
         description = match.group(2).strip()
         full_placeholder = match.group(0)
+
+        # Check if description is too vague (should use Mermaid instead)
+        description_lower = description.lower()
+        is_vague = any(term in description_lower for term in vague_terms)
+
+        if is_vague:
+            logger.warning(f"⚠️ Figure {figure_num} description is too vague: '{description}' - keeping placeholder (should use Mermaid/table instead)")
+            continue  # Skip this image, keep placeholder
+
+        # Check if it's a specific medical investigation type
+        specific_terms = ['ecg', 'x-ray', 'ct', 'mri', 'ultrasound', 'histology',
+                         'histopathology', 'microscopy', 'endoscopy', 'photograph',
+                         'blood film', 'smear', 'angiography', 'anatomical']
+        is_specific = any(term in description_lower for term in specific_terms)
+
+        if not is_specific:
+            logger.warning(f"⚠️ Figure {figure_num} not specific enough: '{description}' - skipping")
+            continue
 
         # Create image metadata for search
         image_metadata = {
@@ -1551,7 +1576,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Evidence-based definitions and diagnostic criteria with specific thresholds
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
-* **Figure 1: [Image: specific clinical image or anatomical diagram]**
+* **Figure 1: [Image: specific investigation or anatomy]**
+  → Examples: "ECG showing STEMI", "Chest X-ray showing pneumothorax", "Anatomical diagram of coronary circulation"
+  → NOT: "Heart overview" or "Cardiac pathway diagram" (use table/mermaid instead)
 * 🔴 MANDATORY: Reference Figure 1 in text when discussing related concepts
 * 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
@@ -1565,8 +1592,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * WHY certain investigations work, WHY certain treatments target specific pathways
 * Pharmacodynamics and pharmacokinetics with clinical implications
 * Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
-* **Figure 2: Mermaid flowchart** showing pathophysiological pathway OR [Image: mechanism diagram]
-* Use ```mermaid code block for pathways/cascades
+* **Figure 2:** Use ```mermaid flowchart for pathophysiological pathways/cascades
+  → OR if showing specific anatomy: **Figure 2: [Image: Anatomical diagram of renal nephron showing diuretic sites of action]**
+  → NOT: "Mechanism diagram" or "Pathway illustration" (too vague)
 * Reference Figure 2 in text when explaining mechanisms
 * Table linking mechanisms to clinical manifestations
 * 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
@@ -1578,8 +1606,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
 * Interpretation of results in clinical context (not just normal ranges)
 * When to investigate further vs when to act on clinical diagnosis
-* **Figure 3: Mermaid flowchart** for diagnostic algorithm OR [Image: specific investigation image like ECG/X-ray]
-* Use ```mermaid for decision trees
+* **Figure 3:** Use ```mermaid flowchart for diagnostic algorithms/decision trees
+  → OR actual investigation: **Figure 3: [Image: ECG showing atrial fibrillation with irregular RR intervals]**
+  → Examples: "CT pulmonary angiogram showing PE", "Chest X-ray PA view showing pneumonia"
+  → NOT: "Diagnostic flowchart" (use mermaid instead)
 * Reference Figure 3 when discussing diagnostic approach
 * Table with likelihood ratios and diagnostic accuracy
 * Red flags requiring urgent action
@@ -1593,8 +1623,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Time course, age, comorbidities, and other contextual factors
 * Common diagnostic errors and cognitive biases to avoid
 * When similar conditions require different urgent interventions
-* **Figure 4: [Image: comparison chart]** OR detailed comparison table (prefer table for clarity)
-* If using Mermaid, create decision tree for differentiation
+* **Figure 4:** Use COMPARISON TABLE (most clear for differentials)
+  → OR ```mermaid decision tree if algorithm-based differentiation
+  → Avoid requesting comparison images - tables work better
 * Reference Figure 4 when discussing key discriminators
 * Quantitative differentiators with specific thresholds
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Unlike stable angina (see Stable angina management), ACS presents...")
@@ -1608,7 +1639,8 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Contraindications, drug interactions, and adverse effects requiring action
 * Non-pharmacological interventions with evidence level
 * When to refer and to which specialty (primary vs secondary care)
-* **Figure 5: Mermaid flowchart** for treatment algorithm (MUST use ```mermaid block)
+* **Figure 5:** MUST use ```mermaid flowchart for treatment algorithm
+  → NOT an image - algorithms should always be Mermaid flowcharts
 * Reference Figure 5 when discussing treatment decisions
 * Evidence-based treatment table with specific dosing
 * Cost-effectiveness and NHS formulary considerations
@@ -1622,7 +1654,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Emerging evidence or recent guideline changes
 * Complications, long-term sequelae, and follow-up requirements
 * Integration with other conditions/systems (holistic clinical thinking)
-* **Figure 6: [Image: specific clinical image or specialized chart]** OR advanced table
+* **Figure 6:** Use ADVANCED TABLE for complex data
+  → OR specific investigation if relevant: **Figure 6: [Image: MRI brain showing multiple sclerosis plaques]**
+  → NOT: "Complication diagram" or "Integration chart" (use table instead)
 * Mnemonic for complex decisions (≤10 words with clinical context)
 * Reference Figure 6 when discussing advanced concepts
 * 🔴 Integrate 1-2 chapter names INSIDE sentences with NICE refs (e.g., "In pregnancy (see Hypertension in pregnancy), target BP is lower...")
@@ -1647,7 +1681,9 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Pattern recognition tips
 
 **Quick Reference:**
-* **Figure 7: [Image: summary chart or quick reference algorithm]**
+* **Figure 7:** Use SUMMARY TABLE with key numbers/thresholds
+  → OR ```mermaid flowchart for quick reference algorithm
+  → NOT: "Summary chart image" (use table/mermaid instead)
 * Decision rules and clinical scores
 * Safety-critical points and medicolegal considerations
 
@@ -1694,20 +1730,36 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
 ===========  IMAGE & FLOWCHART GUIDELINES  ===========
+🔴 CRITICAL: Only request images for ACTUAL MEDICAL INVESTIGATIONS/ANATOMY, not concepts!
+
 ✓ MANDATORY FORMAT: **Figure 1: [Image: specific description]** - The [Image: ...] format is REQUIRED for auto-fetching
-  - Example: **Figure 1: [Image: ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI]**
-  - Example: **Figure 2: [Image: Chest X-ray PA view showing cardiomegaly with pulmonary edema]**
-  - The system will automatically search for and insert the actual image
 ✓ Reference figures in text: "As shown in Figure 1..." or "(Figure 2)"
-✓ Be CLINICALLY SPECIFIC about medical images needed:
-  - Good: "ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI"
-  - Good: "Chest X-ray PA view showing bilateral pulmonary infiltrates with air bronchograms"
-  - Good: "Anatomical diagram of nephron showing sites of diuretic action"
-  - Bad: "Heart diagram" or "Medical flowchart" (too vague - will generate meaningless AI images)
-✓ Use MERMAID FLOWCHARTS (with ```mermaid blocks) for decision trees, pathways, algorithms
-✓ MANDATORY: Include 2-3 Mermaid flowcharts throughout the lesson
-✓ Use [Image: ...] format for anatomy, pathology, investigations, NOT for flowcharts
-✓ If description is too vague/generic, use a TABLE or MERMAID flowchart instead
+
+✓ WHEN TO USE [Image: ...] - ONLY for these types:
+  ✅ ECGs: "ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI"
+  ✅ X-rays: "Chest X-ray PA view showing cardiomegaly with pulmonary edema"
+  ✅ Scans: "CT head showing acute subdural hematoma with midline shift"
+  ✅ Histology: "Histopathology showing caseating granulomas in tuberculosis"
+  ✅ Anatomy: "Anatomical diagram of Circle of Willis showing aneurysm locations"
+  ✅ Clinical photos: "Photograph showing erythema nodosum on lower legs"
+  ✅ Lab results: "Blood film showing hypochromic microcytic anemia"
+
+✓ WHEN TO USE ```mermaid INSTEAD - For concepts/pathways/algorithms:
+  ✅ Treatment pathways → Use ```mermaid flowchart
+  ✅ Diagnostic algorithms → Use ```mermaid flowchart
+  ✅ Drug metabolism pathways → Use ```mermaid flowchart or TABLE
+  ✅ Pathophysiology cascades → Use ```mermaid flowchart
+  ✅ Decision trees → Use ```mermaid flowchart
+  ✅ Risk stratification → Use TABLE
+
+❌ NEVER request vague images like:
+  ❌ "Treatment pathway diagram" → Use ```mermaid instead
+  ❌ "Drug mechanism flowchart" → Use ```mermaid instead
+  ❌ "Heart diagram" → Too vague, be specific: "Anatomical diagram showing coronary arteries"
+  ❌ "Medical flowchart" → Use ```mermaid instead
+  ❌ "Pathophysiology illustration" → Use ```mermaid instead
+
+✓ MANDATORY: Include 2-3 Mermaid flowcharts throughout the lesson for algorithms/pathways
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
