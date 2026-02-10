@@ -843,6 +843,8 @@ function populateSubjects(structure) {
 
     // Enable generate button
     generateLessonsBtn.disabled = false;
+    console.log('✓ Generate Lessons button enabled');
+    console.log('Course structure loaded:', structure);
 }
 
 function updateTopics() {
@@ -916,16 +918,19 @@ generateAllCheckbox.addEventListener('change', (e) => {
 
 // Generate lessons button handler
 generateLessonsBtn.addEventListener('click', async () => {
+    console.log('Generate Lessons button clicked');
+
     const course = lessonCourse.value.trim();
 
     // Validation
     if (!course) {
         showToast('Please enter a course name', 'error');
+        lessonCourse.focus();
         return;
     }
 
     if (!courseStructure) {
-        showToast('Please generate or upload course structure first', 'error');
+        showToast('Please click "Generate Subjects" or "Upload JSON" first!', 'error');
         return;
     }
 
@@ -960,12 +965,29 @@ generateLessonsBtn.addEventListener('click', async () => {
         }
     }
 
-    // Show loading
+    console.log('Request data:', requestData);
+
+    // Show loading with enhanced messages
     loadingDiv.style.display = 'flex';
-    loadingDiv.querySelector('p').textContent = 'Generating lessons with Claude...';
+    const loadingText = loadingDiv.querySelector('p');
+    loadingText.textContent = '🔄 Initializing lesson generation...';
     generateLessonsBtn.disabled = true;
 
+    // Update loading messages periodically
+    let messageIndex = 0;
+    const messages = [
+        '📝 Generating lesson content with Claude...',
+        '🔍 Searching for medical images...',
+        '🎨 Integrating visuals and flowcharts...',
+        '✨ Finalizing lesson format...'
+    ];
+    const messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % messages.length;
+        loadingText.textContent = messages[messageIndex];
+    }, 3000);
+
     try {
+        console.log('Sending request to /api/generate-lessons...');
         const response = await fetch('/api/generate-lessons', {
             method: 'POST',
             headers: {
@@ -974,23 +996,28 @@ generateLessonsBtn.addEventListener('click', async () => {
             body: JSON.stringify(requestData)
         });
 
+        console.log('Response status:', response.status);
+
         if (!response.ok) {
             const error = await response.json();
+            console.error('Server error:', error);
             throw new Error(error.error || 'Failed to generate lessons');
         }
 
         const data = await response.json();
+        console.log('Lessons data received:', data);
         lessonsData = data;
 
         // Display results
         displayLessons(data);
         lessonsResultSection.style.display = 'block';
 
-        showToast(`Generated ${data.lessons.length} lessons!`, 'success');
+        showToast(`✓ Generated ${data.lessons.length} lessons!`, 'success');
     } catch (error) {
-        console.error('Error:', error);
-        showToast(error.message, 'error');
+        console.error('Error generating lessons:', error);
+        showToast(error.message || 'Failed to generate lessons', 'error');
     } finally {
+        clearInterval(messageInterval);
         loadingDiv.style.display = 'none';
         generateLessonsBtn.disabled = false;
     }
