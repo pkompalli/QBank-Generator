@@ -1507,62 +1507,65 @@ def generate_lessons():
 ✓ Capture exam-oriented spirit through content structure, not explicit references
 
 ===========  BLOOM'S PROGRESSION STRUCTURE (Levels 1-7)  ===========
+IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only the topic-specific titles.
 
-### Page 1 — [Topic-Specific Memorable Title for Foundation/Remember]
+### [Topic-Specific Memorable Title for Foundation/Remember]
 **Core Knowledge Building**
 * Engaging hook ≤25 words with storytelling element
 * Essential definitions, classifications, key facts with numbers
 * Must-know mnemonics & quantitative thresholds
 * **Visual:** [Image: descriptive text] OR practical table/flowchart
-* Link 1-2 foundational chapters contextually
+* Contextually integrate 1-2 chapter names from ChaptersJSON (MUST match exactly)
 
-### Page 2 — [Topic-Specific Title for Mechanisms/Understand]
+### 2 — [Topic-Specific Title for Mechanisms/Understand]
 **How Things Actually Work**
 * Cause-effect pathways, WHY processes occur
 * Quantitative relationships and thresholds
 * **Visual:** [Image: descriptive text] OR Mermaid flowchart/mechanism table
 * Tables showing mechanism categories with numbers
-* Link mechanism-heavy chapters naturally
+* Contextually integrate relevant chapters from ChaptersJSON: mechanism-heavy chapters naturally
 
-### Page 3 — [Topic-Specific Title for Clinical Application/Apply]
+### 3 — [Topic-Specific Title for Clinical Application/Apply]
 **Real-World Pattern Recognition**
 * Clinical scenarios with specific quantitative markers
 * "What you see" vs "what it means" correlations
 * **Visual:** [Image: descriptive text] OR clinical correlation table
 * Table linking presentations to pathology with numbers
-* Link clinical chapters organically
+* Contextually integrate relevant chapters from ChaptersJSON: clinical chapters organically
 
-### Page 4 — [Topic-Specific Title for Analysis/Analyze]
+### 4 — [Topic-Specific Title for Analysis/Analyze]
 **Smart Discrimination Between Look-Alikes**
 * Detailed comparison matrices with quantitative differentiators
 * Common pitfalls and how to avoid them (not "most people ignore")
 * **Visual:** [Image: descriptive text] OR comparison table/decision tree
 * Timeline or cascade tables with specific numbers
-* Link differential diagnosis chapters
+* Contextually integrate relevant chapters from ChaptersJSON: differential diagnosis chapters
 
-### Page 5 — [Topic-Specific Title for Evaluation/Evaluate]
+### 5 — [Topic-Specific Title for Evaluation/Evaluate]
 **Treatment Logic and Decision-Making**
 * Management algorithms with quantitative decision points
 * Mermaid flowcharts (use ```mermaid code blocks for complex flows)
 * **Visual:** [Image: descriptive text] OR treatment decision table
 * Treatment tables with dosages, thresholds, timelines
-* Link management/therapy chapters
+* Contextually integrate relevant chapters from ChaptersJSON: management/therapy chapters
 
-### Page 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
+### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
 **Deep Dive into Underused High-Yield Content**
 * Pick one underutilized chapter from the JSON
 * Advanced concepts with concrete numbers
 * **Visual:** [Image: descriptive text] OR specialized concept table
 * Mnemonic ≤10 words with quantitative element
-* Link the chosen deep-dive chapter
+* Contextually integrate relevant chapters from ChaptersJSON: the chosen deep-dive chapter
 
-### Page 7 — [Topic-Specific Title for Rapid Mastery/Create]
-**Quick Reference and Mental Integration**
+### 7 — [Topic-Specific Title for High Yield Summary]
+**High Yield Summary**
 * "Essential [Topic] Arsenal" with power numbers
-* **Visual:** [Image: descriptive text] OR quick reference table
-* Pattern recognition drill instructions
+* **Visual:** [Image: quick reference wheel or summary table]
 * Key framework summary (The [Topic] Commandments)
-* Brief mention of any remaining chapter links
+* Most testable concepts with specific numbers
+* Pattern recognition quick reference
+* Critical clinical pearls for rapid recall
+* Contextually integrate any remaining chapters from ChaptersJSON not yet mentioned
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
@@ -1586,9 +1589,20 @@ def generate_lessons():
 ✓ Mermaid flowcharts where appropriate (use ```mermaid code blocks for decision trees, workflows, algorithms)
 ✓ Memory hooks and mnemonics with quantitative elements
 ✓ CRITICAL: All chapter links must use exact chapter names from ChaptersJSON - no variations or interpretations
+✓ CRITICAL: Integrate chapter names contextually throughout all sections where relevant - NOT just at the end
 ✓ Visual elements should enhance understanding, not just fill space
-✓ For images: Use format [Image: detailed description including subject, topic context, and what should be shown]
+✓ For images: Use format [Image: specific medical visual description] - be precise about what anatomical structure, pathology, chart type, or diagram is needed
+✓ End lesson with "High Yield Summary" section containing most testable concepts
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
+
+===========  IMAGE DESCRIPTION GUIDELINES  ===========
+✓ Be SPECIFIC about what medical image/diagram is needed
+✓ Include: anatomical structures, pathology type, imaging modality, or chart/diagram type
+✓ Good: "Chest X-ray showing cardiomegaly with pulmonary edema"
+✓ Good: "Anatomical diagram of cardiac conduction system with SA node, AV node, bundle branches"
+✓ Good: "ECG strip showing atrial fibrillation with irregularly irregular rhythm"
+✓ Bad: "Heart diagram" (too vague)
+✓ Bad: "Medical chart" (not specific)
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
