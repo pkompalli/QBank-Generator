@@ -968,8 +968,8 @@ generateLessonsBtn.addEventListener('click', async () => {
     console.log('Request data:', requestData);
 
     // Show loading with enhanced messages
-    loadingDiv.style.display = 'flex';
-    const loadingText = loadingDiv.querySelector('p');
+    loading.style.display = 'flex';
+    const loadingText = loading.querySelector('p');
     loadingText.textContent = '🔄 Initializing lesson generation...';
     generateLessonsBtn.disabled = true;
 
@@ -1018,7 +1018,7 @@ generateLessonsBtn.addEventListener('click', async () => {
         showToast(error.message || 'Failed to generate lessons', 'error');
     } finally {
         clearInterval(messageInterval);
-        loadingDiv.style.display = 'none';
+        loading.style.display = 'none';
         generateLessonsBtn.disabled = false;
     }
 });
