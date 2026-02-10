@@ -1577,9 +1577,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
 * TABLE with key classifications or criteria
-* 🔴 OPTIONAL: Include 1 essential clinical image ONLY if truly necessary
-  → Examples: "ECG showing STEMI in leads II, III, aVF", "Chest X-ray showing tension pneumothorax"
-  → Most topics won't need an image here - use table instead
+* **Figure 1: [Image: first essential investigation for this topic]**
+  → Cardiology example: "12-lead ECG showing ST elevation in leads II, III, aVF consistent with inferior STEMI"
+  → Respiratory example: "Chest X-ray PA view showing right middle lobe consolidation with air bronchograms"
+  → Be HIGHLY specific about findings visible in the image
 * 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
   → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
@@ -1606,9 +1607,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * ```mermaid flowchart for diagnostic algorithm (MANDATORY)
 * Table with likelihood ratios and diagnostic accuracy
 * Red flags requiring urgent action
-* 🔴 OPTIONAL: Include 1 diagnostic investigation image if pathognomonic/essential
-  → Examples: "ECG showing AF with absent P waves", "Chest X-ray showing lobar pneumonia"
-  → Only if the visual finding is critical for diagnosis
+* **Figure 2: [Image: second essential investigation for this topic]**
+  → Cardiology example: "Chest X-ray PA view showing cardiomegaly with Kerley B lines and upper lobe diversion in pulmonary edema"
+  → Respiratory example: "CT chest showing bilateral apical cavitating lesions in pulmonary tuberculosis"
+  → Show diagnostic features clearly
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
@@ -1697,13 +1699,16 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Integration points between concepts (connects to clinical thinking)
 
 ===========  MANDATORY ELEMENTS  ===========
+✓ 2-3 ESSENTIAL CLINICAL IMAGES showing investigations/pathology (MANDATORY!)
+  → Format: **Figure N: [Image: highly specific description]**
+  → Cardiology: ECG + Chest X-ray
+  → Respiratory: Chest X-ray + CT/spirometry
+  → Dermatology: 2-3 clinical photos
+  → Neurology: CT/MRI scan
+  → Don't skip images - every clinical topic has essential visuals!
 ✓ 2-3 ```mermaid flowcharts for algorithms/decision trees (MANDATORY)
 ✓ Tables with quantitative data in every section (MANDATORY)
 ✓ Concrete numbers, dosages, thresholds, percentages throughout (MANDATORY)
-✓ 1-3 [Image: ...] ONLY if truly essential clinical images (OPTIONAL - be selective!)
-  → Most topics should have 0-2 images maximum
-  → Only include if the image is absolutely necessary for understanding
-  → When in doubt, use a table or mermaid instead
 ✓ Engaging, confidence-building language
 ✓ Memory hooks and mnemonics with quantitative elements
 
@@ -1724,45 +1729,51 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
 ===========  IMAGE STRATEGY (CRITICAL - READ CAREFULLY)  ===========
-🔴 IMAGES ARE EXPENSIVE AND OFTEN FAIL - BE EXTREMELY SELECTIVE! 🔴
+🔴 YOU MUST INCLUDE 2-3 ESSENTIAL CLINICAL IMAGES - DON'T SKIP IMAGES! 🔴
 
 STEP 1: Before writing, identify 2-3 ESSENTIAL medical images for this topic
-→ Ask yourself: "What would a doctor MUST see to understand this clinically?"
-→ NOT decorative, NOT conceptual, NOT flowcharts - ONLY essential clinical images
+→ Ask: "What investigation or clinical sign is DIAGNOSTIC for this condition?"
+→ For EVERY clinical topic, there ARE essential images - find them!
 
-STEP 2: Only include images that are:
-✅ Actual medical investigations (ECG, X-ray, CT, histology, endoscopy)
-✅ Critical anatomy that's hard to explain in words
-✅ Pathognomonic clinical signs (rashes, physical findings)
-✅ Lab results that are diagnostic (blood films, cultures)
+STEP 2: TOPIC-SPECIFIC IMAGE REQUIREMENTS:
+✅ Cardiology MUST include:
+  - ECG showing key arrhythmia/infarction pattern (e.g., "ECG showing STEMI with ST elevation in V1-V4")
+  - Chest X-ray showing cardiac pathology (e.g., "CXR showing cardiomegaly with pulmonary edema")
 
-❌ NEVER include:
-❌ Calculators or interfaces (like QRISK3 calculator)
-❌ Generic charts or graphs
-❌ Flowcharts or algorithms (use ```mermaid instead)
-❌ "Overview" or "summary" diagrams
-❌ Conceptual illustrations
+✅ Respiratory MUST include:
+  - Chest X-ray showing pathology (e.g., "CXR showing right lower lobe pneumonia")
+  - Peak flow chart or spirometry trace if relevant
 
-STEP 3: Image format when essential image identified:
+✅ Gastroenterology MUST include:
+  - Endoscopy image (e.g., "Gastroscopy showing duodenal ulcer")
+  - Imaging showing pathology
+
+✅ Neurology MUST include:
+  - CT/MRI showing pathology (e.g., "CT head showing acute subdural haematoma")
+  - Clinical photograph if relevant
+
+✅ Dermatology MUST include:
+  - 2-3 clinical photographs showing lesions
+
+✅ Haematology MUST include:
+  - Blood film (e.g., "Blood film showing sickle cells")
+
+STEP 3: Image format - be HIGHLY SPECIFIC:
 **Figure N: [Image: HIGHLY SPECIFIC description]**
-Examples of GOOD descriptions:
-- "12-lead ECG showing atrial fibrillation with absent P waves and irregular RR intervals"
-- "Chest X-ray PA view showing right upper lobe consolidation with air bronchograms"
-- "Fundoscopy photograph showing papilloedema with blurred disc margins"
-- "Histopathology H&E stain showing Reed-Sternberg cells in Hodgkin lymphoma"
 
-Examples of BAD descriptions (will be rejected):
-- "QRISK3 calculator showing risk assessment"
-- "Heart failure risk stratification chart"
-- "Treatment pathway overview"
-- "Summary of cardiovascular risk factors"
+GOOD examples:
+- "12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals"
+- "Chest X-ray PA view showing cardiomegaly (cardiothoracic ratio >0.5) with upper lobe diversion"
+- "CT pulmonary angiogram showing filling defect in right pulmonary artery consistent with PE"
+- "Fundoscopy showing flame haemorrhages and cotton wool spots in diabetic retinopathy"
 
-RECOMMENDED IMAGE COUNTS:
-- Visual topics (Dermatology, Radiology): 2-3 images
-- Clinical topics (Cardiology, Respiratory): 1-2 images
-- Theoretical topics (Pharmacology): 0-1 images
+BAD examples (will be rejected):
+- "QRISK3 calculator" or any calculator/interface
+- "Treatment pathway" or "Algorithm overview"
+- "Risk chart" or generic graphs
 
-✓ MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/pathways (NOT images)
+TARGET: 2-3 images per clinical topic (don't skip!)
+✓ MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/pathways
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
@@ -1774,12 +1785,14 @@ RECOMMENDED IMAGE COUNTS:
 ✓ Stealth preparation through strategic content organization
 
 ===========  CRITICAL OUTPUT REQUIREMENTS (CHECK BEFORE SUBMITTING)  ===========
-🔴 1. IMAGES: Include 0-2 images maximum - ONLY if absolutely essential!
-     → Format: **Figure N: [Image: HIGHLY specific description]**
+🔴 1. IMAGES: Include 2-3 ESSENTIAL clinical images (MANDATORY - don't skip!)
+     → Format: **Figure N: [Image: HIGHLY specific description with visible findings]**
      → Example: **Figure 1: [Image: 12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals]**
-     → Ask: "Would a doctor NEED to see this to understand clinically?"
-     → When in doubt, use table or mermaid instead
+     → Cardiology: Must include ECG + Chest X-ray showing cardiac pathology
+     → Respiratory: Must include Chest X-ray + CT/imaging showing pathology
+     → Dermatology: Must include 2-3 clinical photos
      → NO calculators, NO generic charts, NO concept diagrams
+     → YES actual medical investigations (ECG, X-ray, CT, endoscopy, histology, clinical photos)
 
 🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks (MANDATORY)
      → Use for: diagnostic algorithms, treatment pathways, decision trees
