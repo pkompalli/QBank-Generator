@@ -1499,6 +1499,13 @@ def generate_lessons():
 - Depth Level  : Clinical practitioner level - assume medical school foundation knowledge
 ==========================================================================
 
+🔴 CRITICAL MANDATORY REQUIREMENTS (NON-NEGOTIABLE):
+1. MUST end with "### High Yield Summary" section (Key Take-Aways, Essential Numbers, Clinical Pearls, Quick Reference)
+2. MUST integrate chapter names throughout text: "...hypertension (see Hypertension diagnosis and management)..."
+3. MUST use [Image: description] format for images to be auto-fetched: **Figure 1: [Image: ECG showing STEMI]**
+4. MUST include 2-3 ```mermaid flowcharts for algorithms/pathways
+==========================================================================
+
 ===========  CLINICAL RIGOR REQUIREMENTS  ===========
 ✓ Write for qualified doctors preparing for licensing exams - NOT medical students
 ✓ Assume foundational anatomy/physiology/pathology knowledge - focus on CLINICAL APPLICATION
@@ -1539,9 +1546,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Evidence-based definitions and diagnostic criteria with specific thresholds
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
-* **Figure 1: [Image: specific clinical image or anatomical diagram]** - Include brief caption
-* Reference Figure 1 in text when discussing related concepts
-* Integrate 1-2 chapter names from ChaptersJSON in the narrative (NOT at section end)
+* **Figure 1: [Image: specific clinical image or anatomical diagram]**
+* 🔴 MANDATORY: Reference Figure 1 in text when discussing related concepts
+* 🔴 MANDATORY: Integrate 1-2 chapter names IN THE TEXT like this example:
+  → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
+  → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
 
 ### 2 — [Topic-Specific Title for Mechanisms/Understand]
 **Pathophysiology & Clinical Mechanisms**
@@ -1613,7 +1622,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Integrate the chosen deep-dive chapter prominently in narrative with NICE refs
 
 ### High Yield Summary
-**MANDATORY FINAL SECTION** - Must be included with this exact format:
+🔴🔴🔴 ABSOLUTELY MANDATORY FINAL SECTION - DO NOT SKIP THIS! 🔴🔴🔴
 
 **Key Take-Aways:**
 * 5-7 bullet points with the most critical clinical concepts
@@ -1621,8 +1630,8 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Red flags that cannot be missed
 * Evidence-based recommendations with NICE refs
 
-**Essential [Topic] Numbers:**
-* Critical thresholds for diagnosis and treatment (in table format)
+**Essential {topic_name} Numbers:**
+* Critical thresholds for diagnosis and treatment (table format)
 * Most commonly used drug dosages
 * Key timing parameters (when to treat, monitor, refer)
 
@@ -1632,11 +1641,11 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Pattern recognition tips
 
 **Quick Reference:**
-* **Figure 7: [Image: summary chart or quick reference wheel]** OR comprehensive summary table
+* **Figure 7: [Image: summary chart or quick reference algorithm]**
 * Decision rules and clinical scores
 * Safety-critical points and medicolegal considerations
 
-**Related Chapters:** Integrate any remaining chapters from ChaptersJSON not yet mentioned
+**Related Chapters:** List any remaining chapters from ChaptersJSON not yet mentioned above
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
@@ -1672,18 +1681,20 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
 
 ===========  IMAGE & FLOWCHART GUIDELINES  ===========
-✓ Use NUMBERED images: **Figure 1**, **Figure 2**, etc.
-✓ Include brief caption below each image: "Figure 1: [Brief description]"
+✓ MANDATORY FORMAT: **Figure 1: [Image: specific description]** - The [Image: ...] format is REQUIRED for auto-fetching
+  - Example: **Figure 1: [Image: ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI]**
+  - Example: **Figure 2: [Image: Chest X-ray PA view showing cardiomegaly with pulmonary edema]**
+  - The system will automatically search for and insert the actual image
 ✓ Reference figures in text: "As shown in Figure 1..." or "(Figure 2)"
 ✓ Be CLINICALLY SPECIFIC about medical images needed:
   - Good: "ECG showing ST-elevation in leads II, III, aVF indicating inferior STEMI"
   - Good: "Chest X-ray PA view showing bilateral pulmonary infiltrates with air bronchograms"
   - Good: "Anatomical diagram of nephron showing sites of diuretic action"
   - Bad: "Heart diagram" or "Medical flowchart" (too vague - will generate meaningless AI images)
-✓ Use MERMAID FLOWCHARTS instead of AI-generated flowcharts/algorithms (more useful!)
-✓ Aim for 2-3 Mermaid flowcharts throughout the lesson for decision trees, pathways, algorithms
-✓ Use real medical images/diagrams for anatomy, pathology, investigations
-✓ If image description is too vague/generic, use a TABLE or MERMAID flowchart instead
+✓ Use MERMAID FLOWCHARTS (with ```mermaid blocks) for decision trees, pathways, algorithms
+✓ MANDATORY: Include 2-3 Mermaid flowcharts throughout the lesson
+✓ Use [Image: ...] format for anatomy, pathology, investigations, NOT for flowcharts
+✓ If description is too vague/generic, use a TABLE or MERMAID flowchart instead
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
@@ -1694,25 +1705,26 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 ✓ Make learning exciting through discovery, not pressure
 ✓ Stealth preparation through strategic content organization
 
-===========  CRITICAL OUTPUT REQUIREMENTS  ===========
-✓ Total word count: 1000-1200 words
-✓ Use NUMBERED FIGURES (Figure 1, Figure 2, etc.) with brief captions
-✓ Reference figures in text: "(Figure 3)" or "As shown in Figure 5..."
-✓ Include 2-3 MERMAID FLOWCHARTS using ```mermaid code blocks
-✓ Integrate chapter names from ChaptersJSON throughout EVERY section (not at end!)
-✓ MUST end with complete "High Yield Summary" section with Key Take-Aways
-✓ Section headers should be topic-specific and memorable (NO "Page 1" etc.)
-✓ Focus on clinical application and evidence-based practice
-✓ Markdown format only, no meta commentary
+===========  CRITICAL OUTPUT REQUIREMENTS (CHECK BEFORE SUBMITTING)  ===========
+🔴 1. IMAGES: Use format **Figure N: [Image: specific description]** (brackets required!)
+     Example: **Figure 1: [Image: ECG showing inferior STEMI with ST elevation in leads II, III, aVF]**
+🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks for decision trees/algorithms
+🔴 3. CHAPTERS: Integrate chapter names IN EVERY SECTION like "(see ChapterName from list)"
+     Example: "Heart failure management (see Heart failure pharmacological therapy) involves..."
+🔴 4. HIGH YIELD SUMMARY: MUST end with "### High Yield Summary" section with all 5 subsections
+🔴 5. WORD COUNT: 1000-1200 words total
+🔴 6. NO PAGE NUMBERS in headers - use topic-specific memorable titles
+🔴 7. REFERENCE FIGURES in text: "(Figure 3)" or "As shown in Figure 5..."
 
-===========  OUTPUT: MARKDOWN ONLY, NO META COMMENTARY  ===========
-Create "stealth preparation" - inherently useful for clinical practice and assessment"""
+===========  OUTPUT FORMAT  ===========
+Markdown only. No meta commentary. No apologies. No "here's the lesson".
+Start directly with first section header."""
 
                 try:
-                    # Call Claude API
+                    # Call Claude API with increased tokens for complete lesson
                     message = client.messages.create(
                         model="claude-sonnet-4-5",
-                        max_tokens=4000,
+                        max_tokens=8000,  # Increased to ensure complete lesson with all sections
                         temperature=0.7,
                         messages=[{
                             "role": "user",
