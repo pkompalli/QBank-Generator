@@ -981,10 +981,17 @@ OUTPUT FORMAT (JSON array):
     "correct_option": "A",
     "explanation": "Detailed explanation of correct answer",
     "blooms_level": 3,
+    "course": "{course}",
     "subject": "{subject}",
-    "tags": ["{course}"]
+    "topic": "{topic}",
+    "tags": []
   }}
 ]
+
+IMPORTANT:
+- "course", "subject", and "topic" are separate fields
+- "tags" array should be empty or contain domain-specific tags (NOT course/subject/topic)
+- Do NOT include course, subject, or topic in the tags array
 
 Generate ONLY the JSON array, no additional text."""
 
