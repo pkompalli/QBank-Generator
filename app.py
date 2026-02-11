@@ -920,14 +920,26 @@ def save_generation_review(questions, course, subject, topics):
 
 def get_generic_prompt(course, subject, topic, num_questions):
     """Generate generic course-agnostic prompt for MCQ generation."""
-    # Generic Bloom's distribution: levels 3,4,5
-    per_level = num_questions // 3
-    remainder = num_questions % 3
+    # Equal Bloom's distribution across levels 1-5
+    per_level = num_questions // 5
+    remainder = num_questions % 5
 
-    distribution = {
-        3: per_level + (1 if remainder > 0 else 0),
-        4: per_level + (1 if remainder > 1 else 0),
-        5: per_level + (1 if remainder > 2 else 0),
+    bloom_distribution = {
+        1: per_level + (1 if remainder > 0 else 0),
+        2: per_level + (1 if remainder > 1 else 0),
+        3: per_level + (1 if remainder > 2 else 0),
+        4: per_level + (1 if remainder > 3 else 0),
+        5: per_level + (1 if remainder > 4 else 0),
+    }
+
+    # Equal difficulty distribution across 1, 2, 3 (Medium, Hard, Very Hard)
+    per_difficulty = num_questions // 3
+    diff_remainder = num_questions % 3
+
+    difficulty_distribution = {
+        1: per_difficulty + (1 if diff_remainder > 0 else 0),
+        2: per_difficulty + (1 if diff_remainder > 1 else 0),
+        3: per_difficulty + (1 if diff_remainder > 2 else 0),
     }
 
     # Detect domain for appropriate language
@@ -948,9 +960,16 @@ SUBJECT: {subject}
 TOPIC: {topic}
 
 BLOOM'S LEVEL DISTRIBUTION (MANDATORY - must follow exactly):
-- Bloom's Level 3 (Apply): {distribution[3]} questions
-- Bloom's Level 4 (Analyze): {distribution[4]} questions
-- Bloom's Level 5 (Evaluate): {distribution[5]} questions
+- Bloom's Level 1 (Remember): {bloom_distribution[1]} questions
+- Bloom's Level 2 (Understand): {bloom_distribution[2]} questions
+- Bloom's Level 3 (Apply): {bloom_distribution[3]} questions
+- Bloom's Level 4 (Analyze): {bloom_distribution[4]} questions
+- Bloom's Level 5 (Evaluate): {bloom_distribution[5]} questions
+
+DIFFICULTY DISTRIBUTION (MANDATORY - must follow exactly):
+- Difficulty 1 (Medium): {difficulty_distribution[1]} questions
+- Difficulty 2 (Hard): {difficulty_distribution[2]} questions
+- Difficulty 3 (Very Hard): {difficulty_distribution[3]} questions
 
 QUESTION REQUIREMENTS:
 1. Each question must have:
@@ -981,6 +1000,7 @@ OUTPUT FORMAT (JSON array):
     "correct_option": "A",
     "explanation": "Detailed explanation of correct answer",
     "blooms_level": 3,
+    "difficulty": 2,
     "course": "{course}",
     "subject": "{subject}",
     "topic": "{topic}",
@@ -989,6 +1009,9 @@ OUTPUT FORMAT (JSON array):
 ]
 
 IMPORTANT:
+- "blooms_level": Must be 1, 2, 3, 4, or 5 (Remember, Understand, Apply, Analyze, Evaluate)
+- "difficulty": Must be 1 (Medium), 2 (Hard), or 3 (Very Hard)
+- Follow the distribution requirements above for both Bloom's levels and difficulty
 - "course", "subject", and "topic" are separate fields
 - "tags" array should be empty or contain domain-specific tags (NOT course/subject/topic)
 - Do NOT include course, subject, or topic in the tags array

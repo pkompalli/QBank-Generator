@@ -41,10 +41,10 @@ function updateBloomDistribution() {
 
     perTopicLabel.style.display = 'inline';
 
-    // Generic Bloom's distribution (3-5 levels for all courses)
-    let levels = [3, 4, 5];
-    let perLevel = Math.floor(numQuestions / 3);
-    let remainder = numQuestions % 3;
+    // Equal Bloom's distribution (1-5 levels for all courses)
+    let levels = [1, 2, 3, 4, 5];
+    let perLevel = Math.floor(numQuestions / 5);
+    let remainder = numQuestions % 5;
 
     const levelNames = {
         1: 'Remember',
