@@ -920,17 +920,38 @@ def save_generation_review(questions, course, subject, topics):
 
 def get_generic_prompt(course, subject, topic, num_questions, exam_format=None):
     """Generate course-specific prompt using exam format metadata."""
-    # Equal Bloom's distribution across levels 1-5
-    per_level = num_questions // 5
-    remainder = num_questions % 5
 
-    bloom_distribution = {
-        1: per_level + (1 if remainder > 0 else 0),
-        2: per_level + (1 if remainder > 1 else 0),
-        3: per_level + (1 if remainder > 2 else 0),
-        4: per_level + (1 if remainder > 3 else 0),
-        5: per_level + (1 if remainder > 4 else 0),
-    }
+    # Get Bloom's distribution from exam_format or use equal distribution as fallback
+    if exam_format and 'blooms_distribution' in exam_format:
+        # Use course-specific percentages
+        blooms_percentages = exam_format['blooms_distribution']
+        bloom_distribution = {}
+
+        # Convert percentages to question counts
+        total_assigned = 0
+        for level in range(1, 6):
+            percentage = blooms_percentages.get(str(level), 20)  # Default 20% if missing
+            count = round(num_questions * percentage / 100)
+            bloom_distribution[level] = count
+            total_assigned += count
+
+        # Adjust for rounding errors (add/subtract from highest percentage level)
+        if total_assigned != num_questions:
+            # Find level with highest percentage and adjust it
+            max_level = max(blooms_percentages.items(), key=lambda x: x[1])[0]
+            bloom_distribution[int(max_level)] += (num_questions - total_assigned)
+    else:
+        # Fallback: Equal Bloom's distribution across levels 1-5
+        per_level = num_questions // 5
+        remainder = num_questions % 5
+
+        bloom_distribution = {
+            1: per_level + (1 if remainder > 0 else 0),
+            2: per_level + (1 if remainder > 1 else 0),
+            3: per_level + (1 if remainder > 2 else 0),
+            4: per_level + (1 if remainder > 3 else 0),
+            5: per_level + (1 if remainder > 4 else 0),
+        }
 
     # Equal difficulty distribution across 1, 2, 3 (Medium, Hard, Very Hard)
     per_difficulty = num_questions // 3
@@ -2088,7 +2109,14 @@ Provide a JSON with the following structure:
     "question_style": "Single best answer",
     "typical_length": "Medium to long clinical vignettes",
     "time_per_question": "90 seconds",
-    "emphasis": ["Clinical reasoning", "Evidence-based practice", "Patient safety"]
+    "emphasis": ["Clinical reasoning", "Evidence-based practice", "Patient safety"],
+    "blooms_distribution": {{
+      "1": 0,
+      "2": 10,
+      "3": 45,
+      "4": 30,
+      "5": 15
+    }}
   }},
   "content_characteristics": {{
     "domain": "Medical/Clinical",
@@ -2118,7 +2146,15 @@ CRITICAL REQUIREMENTS:
 1. Research the ACTUAL format of {course} - especially number of options in MCQs
 2. Understand the typical question style and length
 3. Identify key guidelines/standards used
-4. Generate appropriate subjects and topics (5-8 subjects, 8-15 topics each)
+4. **Determine Bloom's Taxonomy distribution** - What cognitive levels does this exam test?
+   - Professional/licensing exams (UKMLA, USMLE, Bar): Focus on levels 3-5 (Apply, Analyze, Evaluate)
+   - Academic exams: More balanced distribution including levels 1-2
+   - Technical certifications: May vary based on domain
+   - Example distributions (percentages that sum to 100):
+     * UKMLA/USMLE: {{"1": 0, "2": 10, "3": 45, "4": 30, "5": 15}}
+     * Academic course: {{"1": 15, "2": 20, "3": 30, "4": 20, "5": 15}}
+     * Technical cert: {{"1": 5, "2": 15, "3": 40, "4": 25, "5": 15}}
+5. Generate appropriate subjects and topics (5-8 subjects, 8-15 topics each)
 
 For well-known exams (UKMLA AKT, NEET PG, USMLE, Bar Exam, FE Exam, etc.), use accurate information.
 For less common exams, make educated inferences based on the domain and level.

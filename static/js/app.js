@@ -41,11 +41,6 @@ function updateBloomDistribution() {
 
     perTopicLabel.style.display = 'inline';
 
-    // Equal Bloom's distribution (1-5 levels for all courses)
-    let levels = [1, 2, 3, 4, 5];
-    let perLevel = Math.floor(numQuestions / 5);
-    let remainder = numQuestions % 5;
-
     const levelNames = {
         1: 'Remember',
         2: 'Understand',
@@ -55,10 +50,46 @@ function updateBloomDistribution() {
     };
 
     let html = '';
-    levels.forEach((level, idx) => {
-        const count = perLevel + (idx < remainder ? 1 : 0);
-        html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions</span></div>`;
-    });
+    let levels = [1, 2, 3, 4, 5];
+
+    // Use course-specific Bloom's distribution if available
+    if (qbankCourseStructure?.exam_format?.blooms_distribution) {
+        const bloomsPercentages = qbankCourseStructure.exam_format.blooms_distribution;
+        let totalAssigned = 0;
+        let distributions = {};
+
+        // Convert percentages to counts
+        levels.forEach(level => {
+            const percentage = bloomsPercentages[level] || 0;
+            const count = Math.round(numQuestions * percentage / 100);
+            distributions[level] = count;
+            totalAssigned += count;
+        });
+
+        // Adjust for rounding errors
+        if (totalAssigned !== numQuestions) {
+            // Find level with highest percentage and adjust
+            const maxLevel = Object.keys(bloomsPercentages).reduce((a, b) =>
+                bloomsPercentages[a] > bloomsPercentages[b] ? a : b
+            );
+            distributions[maxLevel] += (numQuestions - totalAssigned);
+        }
+
+        levels.forEach(level => {
+            const count = distributions[level];
+            const percentage = bloomsPercentages[level] || 0;
+            html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions (${percentage}%)</span></div>`;
+        });
+    } else {
+        // Fallback: Equal Bloom's distribution (1-5 levels)
+        let perLevel = Math.floor(numQuestions / 5);
+        let remainder = numQuestions % 5;
+
+        levels.forEach((level, idx) => {
+            const count = perLevel + (idx < remainder ? 1 : 0);
+            html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions</span></div>`;
+        });
+    }
 
     bloomInfo.innerHTML = html;
 
