@@ -1047,7 +1047,7 @@ OUTPUT FORMAT (JSON array):
     "course": "{course}",
     "subject": "{subject}",
     "topic": "{topic}",
-    "tags": []
+    "tags": ["{course}"]
   }}
 ]
 
@@ -1057,6 +1057,7 @@ CRITICAL REQUIREMENTS:
 - "difficulty": Must be 1 (Medium), 2 (Hard), or 3 (Very Hard)
 - Follow the distribution requirements above for both Bloom's levels and difficulty
 - "course", "subject", and "topic" are separate fields
+- "tags": Array containing ONLY the course name (e.g., ["{course}"])
 - "tags" array should be empty or contain domain-specific tags (NOT course/subject/topic)
 - correct_option must be one of: {', '.join(option_labels)}
 
