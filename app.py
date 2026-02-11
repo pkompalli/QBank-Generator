@@ -918,15 +918,81 @@ def save_generation_review(questions, course, subject, topics):
     return filename
 
 
+def get_generic_prompt(course, subject, topic, num_questions):
+    """Generate generic course-agnostic prompt for MCQ generation."""
+    # Generic Bloom's distribution: levels 3,4,5
+    per_level = num_questions // 3
+    remainder = num_questions % 3
+
+    distribution = {
+        3: per_level + (1 if remainder > 0 else 0),
+        4: per_level + (1 if remainder > 1 else 0),
+        5: per_level + (1 if remainder > 2 else 0),
+    }
+
+    # Detect domain for appropriate language
+    is_medical = any(keyword in course.lower() for keyword in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
+
+    if is_medical:
+        domain_context = "medical/clinical examination"
+        example_format = "clinical scenario-based questions"
+    else:
+        domain_context = f"{course} examination"
+        example_format = "application-focused questions"
+
+    return f"""You are an expert educator creating MCQs for {course} ({domain_context}).
+
+Generate exactly {num_questions} unique, high-quality MCQs following professional examination standards.
+
+SUBJECT: {subject}
+TOPIC: {topic}
+
+BLOOM'S LEVEL DISTRIBUTION (MANDATORY - must follow exactly):
+- Bloom's Level 3 (Apply): {distribution[3]} questions
+- Bloom's Level 4 (Analyze): {distribution[4]} questions
+- Bloom's Level 5 (Evaluate): {distribution[5]} questions
+
+QUESTION REQUIREMENTS:
+1. Each question must have:
+   - Clear, unambiguous stem
+   - 4 options (A, B, C, D)
+   - Only ONE correct answer
+   - Detailed explanation for correct answer
+   - Bloom's level specified
+
+2. Question quality standards:
+   - Professional examination level
+   - Test understanding and application, not just recall
+   - Avoid trick questions or ambiguous wording
+   - Options should be plausible distractors
+   - Explanations should be educational and comprehensive
+
+3. Content requirements:
+   - Cover different aspects of {topic}
+   - Include {example_format}
+   - Use appropriate terminology for {course}
+   - Ensure accuracy and current best practices
+
+OUTPUT FORMAT (JSON array):
+[
+  {{
+    "question": "Question text here",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_option": "A",
+    "explanation": "Detailed explanation of correct answer",
+    "blooms_level": 3,
+    "subject": "{subject}",
+    "tags": ["{course}"]
+  }}
+]
+
+Generate ONLY the JSON array, no additional text."""
+
+
 def generate_for_topic(course, subject, topic, num_questions, include_images=False):
     """Generate questions for a single topic."""
-    # Get base prompt
-    if course == 'NEET PG':
-        prompt = get_neet_prompt(subject, topic, num_questions)
-    elif course == 'USMLE':
-        prompt = get_usmle_prompt(subject, topic, num_questions)
-    else:
-        raise ValueError('Invalid course')
+    # Get base prompt - now using generic function for all courses
+    prompt = get_generic_prompt(course, subject, topic, num_questions)
 
     # Add image requirements if requested
     if include_images:
@@ -1040,8 +1106,7 @@ def generate_questions():
     if num_questions < 5 or num_questions > 50:
         return jsonify({'error': 'Number of questions must be between 5 and 50'}), 400
 
-    if course not in ['NEET PG', 'USMLE']:
-        return jsonify({'error': 'Invalid course'}), 400
+    # Course validation removed - now accepts any course
 
     try:
         all_questions = []
