@@ -1940,5 +1940,85 @@ Start directly with first section header."""
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
+@app.route('/api/generate-subjects', methods=['POST'])
+def generate_subjects():
+    """Generate course structure (subjects > topics) using Claude for any course."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not set'}), 500
+
+    data = request.json
+    course = data.get('course')
+
+    if not course:
+        return jsonify({'error': 'Course is required'}), 400
+
+    try:
+        logger.info(f"Generating subjects for course: {course}")
+
+        prompt = f"""Generate a comprehensive course structure for: {course}
+
+Create a JSON structure with subjects and topics appropriate for this course/exam.
+
+Format:
+{{
+  "Course": "{course}",
+  "subjects": [
+    {{
+      "name": "Subject Name",
+      "topics": [
+        {{"name": "Topic 1"}},
+        {{"name": "Topic 2"}},
+        {{"name": "Topic 3"}}
+      ]
+    }}
+  ]
+}}
+
+Guidelines:
+- For medical courses (UKMLA, NEET PG, USMLE): Include Medicine, Surgery, Pediatrics, Obstetrics, etc.
+- For engineering courses: Include relevant engineering domains
+- For law courses: Include relevant areas of law
+- For business courses: Include relevant business disciplines
+- For standardized tests: Include relevant subject areas
+
+Include 5-8 major subjects, each with 8-15 topics.
+Output ONLY the JSON, no additional text.
+"""
+
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
+            temperature=0.7,
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Extract JSON from response (in case Claude adds any wrapper text)
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            response_text = json_match.group(0)
+
+        course_structure = json.loads(response_text)
+        logger.info(f"✓ Generated structure for {course}: {len(course_structure.get('subjects', []))} subjects")
+
+        return jsonify(course_structure)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        logger.error(f"Response text: {response_text}")
+        return jsonify({'error': 'Failed to parse generated structure'}), 500
+    except Exception as e:
+        logger.error(f"Subject generation error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

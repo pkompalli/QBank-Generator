@@ -1,5 +1,10 @@
-// DOM Elements
-const courseSelect = document.getElementById('course');
+// DOM Elements - Question Bank
+const qbankCourseInput = document.getElementById('qbank-course');
+const qbankGenerateSubjectsBtn = document.getElementById('qbank-generate-subjects-btn');
+const qbankUploadStructureBtn = document.getElementById('qbank-upload-structure-btn');
+const qbankJsonFile = document.getElementById('qbank-json-file');
+const qbankStructureStatus = document.getElementById('qbank-structure-status');
+const qbankSubjectsContainer = document.getElementById('qbank-subjects-container');
 const subjectSelect = document.getElementById('subject');
 const topicsSelect = document.getElementById('topics');
 const includeImagesCheckbox = document.getElementById('include-images');
@@ -18,35 +23,29 @@ const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 
 let generatedQuestions = [];
+let qbankCourseStructure = null;
 
 // Update Bloom's level distribution display
 function updateBloomDistribution() {
-    const course = courseSelect.value;
+    const course = qbankCourseInput.value;
     const numQuestions = parseInt(numQuestionsInput.value);
     const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numTopics = selectedTopics.length || 1;
-    
-    if (!course) {
-        bloomInfo.innerHTML = '<p>Select a course to see distribution</p>';
+
+    if (!course || !qbankCourseStructure) {
+        bloomInfo.innerHTML = '<p>Load course structure to see distribution</p>';
         totalQuestionsInfo.innerHTML = '';
         perTopicLabel.style.display = 'none';
         return;
     }
-    
+
     perTopicLabel.style.display = 'inline';
-    
-    let levels, perLevel, remainder;
-    
-    if (course === 'NEET PG') {
-        levels = [1, 2, 3, 4, 5];
-        perLevel = Math.floor(numQuestions / 5);
-        remainder = numQuestions % 5;
-    } else {
-        levels = [3, 4, 5];
-        perLevel = Math.floor(numQuestions / 3);
-        remainder = numQuestions % 3;
-    }
-    
+
+    // Generic Bloom's distribution (3-5 levels for all courses)
+    let levels = [3, 4, 5];
+    let perLevel = Math.floor(numQuestions / 3);
+    let remainder = numQuestions % 3;
+
     const levelNames = {
         1: 'Remember',
         2: 'Understand',
@@ -54,15 +53,15 @@ function updateBloomDistribution() {
         4: 'Analyze',
         5: 'Evaluate'
     };
-    
+
     let html = '';
     levels.forEach((level, idx) => {
         const count = perLevel + (idx < remainder ? 1 : 0);
         html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions</span></div>`;
     });
-    
+
     bloomInfo.innerHTML = html;
-    
+
     // Show total questions info
     const totalQuestions = numQuestions * numTopics;
     if (numTopics > 1) {
@@ -82,63 +81,102 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Course change handler
-courseSelect.addEventListener('change', async () => {
-    const course = courseSelect.value;
-    
-    // Reset dependent selects
-    subjectSelect.innerHTML = '<option value="">Select Subject</option>';
-    topicsSelect.innerHTML = '';
-    
-    subjectSelect.disabled = !course;
-    topicsSelect.disabled = true;
-    generateBtn.disabled = true;
-    
-    updateBloomDistribution();
-    
-    if (!course) return;
-    
+// Question Bank - Generate Subjects button
+qbankGenerateSubjectsBtn.addEventListener('click', async () => {
+    const course = qbankCourseInput.value.trim();
+    if (!course) {
+        showToast('Please enter a course name', 'error');
+        return;
+    }
+
+    qbankGenerateSubjectsBtn.disabled = true;
+    qbankGenerateSubjectsBtn.textContent = '⏳ Generating...';
+
     try {
-        const response = await fetch(`/api/subjects/${encodeURIComponent(course)}`);
-        const subjects = await response.json();
-        
-        subjects.forEach(subject => {
-            const option = document.createElement('option');
-            option.value = subject;
-            option.textContent = subject;
-            subjectSelect.appendChild(option);
+        const response = await fetch('/api/generate-subjects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ course })
         });
+
+        if (!response.ok) throw new Error('Failed to generate subjects');
+
+        qbankCourseStructure = await response.json();
+        populateQBankSubjects();
+        qbankStructureStatus.textContent = `✓ Loaded structure for ${course}`;
+        qbankStructureStatus.style.color = 'var(--success)';
+        showToast('Course structure generated successfully', 'success');
     } catch (error) {
-        showToast('Error loading subjects', 'error');
+        showToast(error.message || 'Error generating subjects', 'error');
+        qbankStructureStatus.textContent = '✗ Failed to generate structure';
+        qbankStructureStatus.style.color = 'var(--error)';
+    } finally {
+        qbankGenerateSubjectsBtn.disabled = false;
+        qbankGenerateSubjectsBtn.textContent = '🤖 Generate Subjects';
     }
 });
 
-// Subject change handler
-subjectSelect.addEventListener('change', async () => {
-    const course = courseSelect.value;
-    const subject = subjectSelect.value;
-    
+// Question Bank - Upload JSON button
+qbankUploadStructureBtn.addEventListener('click', () => {
+    qbankJsonFile.click();
+});
+
+qbankJsonFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            qbankCourseStructure = JSON.parse(event.target.result);
+            populateQBankSubjects();
+            qbankStructureStatus.textContent = `✓ Loaded structure from ${file.name}`;
+            qbankStructureStatus.style.color = 'var(--success)';
+            showToast('Course structure uploaded successfully', 'success');
+        } catch (error) {
+            showToast('Invalid JSON file', 'error');
+            qbankStructureStatus.textContent = '✗ Failed to parse JSON';
+            qbankStructureStatus.style.color = 'var(--error)';
+        }
+    };
+    reader.readAsText(file);
+});
+
+// Populate subjects dropdown from loaded structure
+function populateQBankSubjects() {
+    if (!qbankCourseStructure || !qbankCourseStructure.subjects) return;
+
+    qbankSubjectsContainer.style.display = 'block';
+    subjectSelect.innerHTML = '<option value="">Select a subject...</option>';
     topicsSelect.innerHTML = '';
-    topicsSelect.disabled = !subject;
+
+    qbankCourseStructure.subjects.forEach((subject, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = subject.name;
+        subjectSelect.appendChild(option);
+    });
+}
+
+// Subject change handler - populate topics from structure
+subjectSelect.addEventListener('change', () => {
+    const subjectIdx = subjectSelect.value;
+    topicsSelect.innerHTML = '';
     generateBtn.disabled = true;
-    
+
+    if (!subjectIdx || !qbankCourseStructure) return;
+
+    const subject = qbankCourseStructure.subjects[subjectIdx];
+    if (!subject || !subject.topics) return;
+
+    subject.topics.forEach((topic, idx) => {
+        const option = document.createElement('option');
+        option.value = topic.name;
+        option.textContent = topic.name;
+        topicsSelect.appendChild(option);
+    });
+
     updateBloomDistribution();
-    
-    if (!subject) return;
-    
-    try {
-        const response = await fetch(`/api/topics/${encodeURIComponent(course)}/${encodeURIComponent(subject)}`);
-        const topics = await response.json();
-        
-        topics.forEach(topic => {
-            const option = document.createElement('option');
-            option.value = topic;
-            option.textContent = topic;
-            topicsSelect.appendChild(option);
-        });
-    } catch (error) {
-        showToast('Error loading topics', 'error');
-    }
 });
 
 // Topics change handler (multi-select)
@@ -156,15 +194,22 @@ numQuestionsInput.addEventListener('input', () => {
 
 // Generate button handler
 generateBtn.addEventListener('click', async () => {
-    const course = courseSelect.value;
-    const subject = subjectSelect.value;
+    const course = qbankCourseInput.value.trim();
+    const subjectIdx = subjectSelect.value;
     const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numQuestions = parseInt(numQuestionsInput.value);
     const includeImages = includeImagesCheckbox.checked;
-    
+
+    if (!qbankCourseStructure || !subjectIdx) {
+        showToast('Please load course structure and select a subject', 'error');
+        return;
+    }
+
+    const subject = qbankCourseStructure.subjects[subjectIdx].name;
+
     loading.style.display = 'flex';
     generateBtn.disabled = true;
-    
+
     try {
         const response = await fetch('/api/generate', {
             method: 'POST',

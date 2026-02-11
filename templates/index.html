@@ -30,26 +30,41 @@
             <div class="tab-content active" id="generate-tab">
             <section class="form-section">
                 <div class="form-group">
-                    <label for="course">Course</label>
-                    <select id="course" required>
-                        <option value="">Select Course</option>
-                        <option value="NEET PG">NEET PG</option>
-                        <option value="USMLE">USMLE</option>
-                    </select>
+                    <label for="qbank-course">Step 1: Course / Exam Name</label>
+                    <input type="text" id="qbank-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, FE Exam" required>
+                    <small>Enter the course or exam name</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="subject">Subject</label>
-                    <select id="subject" disabled required>
-                        <option value="">Select Subject</option>
-                    </select>
+                    <label>Step 2: Load Course Structure</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <button type="button" id="qbank-generate-subjects-btn" class="btn-secondary" style="width: 100%;">
+                            🤖 Generate Subjects
+                        </button>
+                        <button type="button" id="qbank-upload-structure-btn" class="btn-secondary" style="width: 100%;">
+                            📁 Upload JSON
+                        </button>
+                    </div>
+                    <input type="file" id="qbank-json-file" accept=".json" style="display: none;">
+                    <small id="qbank-structure-status" style="display: block; margin-top: 0.5rem; color: var(--text-muted);">Choose one option to load the course structure</small>
                 </div>
 
-                <div class="form-group">
-                    <label for="topics">Topics</label>
-                    <select id="topics" multiple disabled required>
-                    </select>
-                    <small>Hold Ctrl/Cmd to select multiple. Questions generated per topic.</small>
+                <div id="qbank-subjects-container" style="display: none;">
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Subject & Topics</h4>
+
+                    <div class="form-group">
+                        <label for="subject">Subject</label>
+                        <select id="subject" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                            <option value="">Select a subject...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topics">Topics</label>
+                        <select id="topics" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
+                        </select>
+                        <small>Hold Ctrl/Cmd to select multiple topics. Questions generated per topic.</small>
+                    </div>
                 </div>
 
                 <div class="form-group checkbox-group">
