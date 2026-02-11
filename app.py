@@ -918,8 +918,8 @@ def save_generation_review(questions, course, subject, topics):
     return filename
 
 
-def get_generic_prompt(course, subject, topic, num_questions):
-    """Generate generic course-agnostic prompt for MCQ generation."""
+def get_generic_prompt(course, subject, topic, num_questions, exam_format=None):
+    """Generate course-specific prompt using exam format metadata."""
     # Equal Bloom's distribution across levels 1-5
     per_level = num_questions // 5
     remainder = num_questions % 5
@@ -942,19 +942,41 @@ def get_generic_prompt(course, subject, topic, num_questions):
         3: per_difficulty + (1 if diff_remainder > 2 else 0),
     }
 
-    # Detect domain for appropriate language
-    is_medical = any(keyword in course.lower() for keyword in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
-
-    if is_medical:
-        domain_context = "medical/clinical examination"
-        example_format = "clinical scenario-based questions"
+    # Use exam format if provided, otherwise infer
+    if exam_format:
+        num_options = exam_format.get('num_options', 4)
+        question_style = exam_format.get('question_style', 'Single best answer')
+        typical_length = exam_format.get('typical_length', 'Medium length scenarios')
+        emphasis = exam_format.get('emphasis', [])
+        domain_context = exam_format.get('domain', 'professional examination')
     else:
-        domain_context = f"{course} examination"
-        example_format = "application-focused questions"
+        # Fallback defaults
+        num_options = 4
+        question_style = 'Single best answer'
+        typical_length = 'Medium length scenarios'
+        emphasis = []
+        domain_context = 'professional examination'
+
+        # Detect medical for fallback
+        is_medical = any(keyword in course.lower() for keyword in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
+        if is_medical:
+            domain_context = "medical/clinical examination"
+
+    # Generate option labels (A, B, C, D, E, etc.)
+    option_labels = [chr(65 + i) for i in range(num_options)]  # A, B, C, D, E...
+
+    # Format emphasis points
+    emphasis_text = "\n   - " + "\n   - ".join(emphasis) if emphasis else ""
 
     return f"""You are an expert educator creating MCQs for {course} ({domain_context}).
 
-Generate exactly {num_questions} unique, high-quality MCQs following professional examination standards.
+EXAM FORMAT REQUIREMENTS FOR {course}:
+- Number of options: {num_options} ({', '.join(option_labels)})
+- Question style: {question_style}
+- Typical length: {typical_length}
+- Key emphasis areas: {emphasis_text if emphasis_text else "Professional standards"}
+
+Generate exactly {num_questions} unique, high-quality MCQs following {course} examination standards.
 
 SUBJECT: {subject}
 TOPIC: {topic}
@@ -973,31 +995,31 @@ DIFFICULTY DISTRIBUTION (MANDATORY - must follow exactly):
 
 QUESTION REQUIREMENTS:
 1. Each question must have:
-   - Clear, unambiguous stem
-   - 4 options (A, B, C, D)
+   - Clear, unambiguous stem following {course} style
+   - EXACTLY {num_options} options ({', '.join(option_labels)})
    - Only ONE correct answer
    - Detailed explanation for correct answer
-   - Bloom's level specified
+   - Bloom's level and difficulty specified
 
 2. Question quality standards:
-   - Professional examination level
+   - Professional examination level matching {course}
    - Test understanding and application, not just recall
    - Avoid trick questions or ambiguous wording
-   - Options should be plausible distractors
+   - All {num_options} options should be plausible distractors
    - Explanations should be educational and comprehensive
 
 3. Content requirements:
    - Cover different aspects of {topic}
-   - Include {example_format}
-   - Use appropriate terminology for {course}
+   - Match {course} typical question length and style
+   - Use appropriate terminology and conventions for {course}
    - Ensure accuracy and current best practices
 
 OUTPUT FORMAT (JSON array):
 [
   {{
     "question": "Question text here",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_option": "A",
+    "options": [{', '.join([f'"Option {label}"' for label in option_labels])}],
+    "correct_option": "{option_labels[0]}",
     "explanation": "Detailed explanation of correct answer",
     "blooms_level": 3,
     "difficulty": 2,
@@ -1008,21 +1030,22 @@ OUTPUT FORMAT (JSON array):
   }}
 ]
 
-IMPORTANT:
+CRITICAL REQUIREMENTS:
+- MUST have EXACTLY {num_options} options per question (not more, not less)
 - "blooms_level": Must be 1, 2, 3, 4, or 5 (Remember, Understand, Apply, Analyze, Evaluate)
 - "difficulty": Must be 1 (Medium), 2 (Hard), or 3 (Very Hard)
 - Follow the distribution requirements above for both Bloom's levels and difficulty
 - "course", "subject", and "topic" are separate fields
 - "tags" array should be empty or contain domain-specific tags (NOT course/subject/topic)
-- Do NOT include course, subject, or topic in the tags array
+- correct_option must be one of: {', '.join(option_labels)}
 
 Generate ONLY the JSON array, no additional text."""
 
 
-def generate_for_topic(course, subject, topic, num_questions, include_images=False):
+def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None):
     """Generate questions for a single topic."""
-    # Get base prompt - now using generic function for all courses
-    prompt = get_generic_prompt(course, subject, topic, num_questions)
+    # Get base prompt - using course-specific exam format
+    prompt = get_generic_prompt(course, subject, topic, num_questions, exam_format)
 
     # Add image requirements if requested
     if include_images:
@@ -1128,6 +1151,7 @@ def generate_questions():
     topics = data.get('topics', [])  # Now expects array of topics
     num_questions = data.get('num_questions', 10)  # Questions per topic
     include_images = data.get('include_images', False)  # Image-based questions
+    exam_format = data.get('exam_format')  # Exam format metadata from course structure
 
     # Validate
     if not all([course, subject]) or not topics:
@@ -1140,11 +1164,13 @@ def generate_questions():
 
     try:
         all_questions = []
-        logger.info(f"Generating {num_questions} questions per topic for {len(topics)} topics (images={include_images})")
+        num_options = exam_format.get('num_options', 4) if exam_format else 4
+        logger.info(f"Generating {num_questions} questions per topic for {len(topics)} topics")
+        logger.info(f"  Format: {num_options} options, images={include_images}")
 
         # Generate questions for each topic
         for topic in topics:
-            topic_questions = generate_for_topic(course, subject, topic, num_questions, include_images)
+            topic_questions = generate_for_topic(course, subject, topic, num_questions, include_images, exam_format)
             all_questions.extend(topic_questions)
 
         # Calculate image statistics if images were requested
@@ -2049,35 +2075,54 @@ def generate_subjects():
         return jsonify({'error': 'Course is required'}), 400
 
     try:
-        logger.info(f"Generating subjects for course: {course}")
+        logger.info(f"Researching and generating structure for course: {course}")
 
-        prompt = f"""Generate a comprehensive course structure for: {course}
+        # First, research the exam format and characteristics
+        research_prompt = f"""Research and provide detailed information about the "{course}" examination.
 
-Create a JSON structure with subjects and topics appropriate for this course/exam.
-
-Format:
+Provide a JSON with the following structure:
 {{
   "Course": "{course}",
+  "exam_format": {{
+    "num_options": 5,
+    "question_style": "Single best answer",
+    "typical_length": "Medium to long clinical vignettes",
+    "time_per_question": "90 seconds",
+    "emphasis": ["Clinical reasoning", "Evidence-based practice", "Patient safety"]
+  }},
+  "content_characteristics": {{
+    "domain": "Medical/Clinical",
+    "level": "Postgraduate medical licensing",
+    "geographic_focus": "UK",
+    "key_guidelines": ["NICE", "GMC", "SIGN"],
+    "clinical_focus": ["Diagnosis", "Management", "Ethics", "Communication"]
+  }},
+  "question_requirements": {{
+    "format_notes": "Must present realistic clinical scenarios",
+    "option_style": "All options should be plausible",
+    "explanation_depth": "Should reference evidence and guidelines",
+    "image_types": ["X-rays", "ECGs", "Clinical photos", "Histopathology"]
+  }},
   "subjects": [
     {{
       "name": "Subject Name",
       "topics": [
         {{"name": "Topic 1"}},
-        {{"name": "Topic 2"}},
-        {{"name": "Topic 3"}}
+        {{"name": "Topic 2"}}
       ]
     }}
   ]
 }}
 
-Guidelines:
-- For medical courses (UKMLA, NEET PG, USMLE): Include Medicine, Surgery, Pediatrics, Obstetrics, etc.
-- For engineering courses: Include relevant engineering domains
-- For law courses: Include relevant areas of law
-- For business courses: Include relevant business disciplines
-- For standardized tests: Include relevant subject areas
+CRITICAL REQUIREMENTS:
+1. Research the ACTUAL format of {course} - especially number of options in MCQs
+2. Understand the typical question style and length
+3. Identify key guidelines/standards used
+4. Generate appropriate subjects and topics (5-8 subjects, 8-15 topics each)
 
-Include 5-8 major subjects, each with 8-15 topics.
+For well-known exams (UKMLA AKT, NEET PG, USMLE, Bar Exam, FE Exam, etc.), use accurate information.
+For less common exams, make educated inferences based on the domain and level.
+
 Output ONLY the JSON, no additional text.
 """
 
@@ -2087,7 +2132,7 @@ Output ONLY the JSON, no additional text.
             temperature=0.7,
             messages=[{
                 "role": "user",
-                "content": prompt
+                "content": research_prompt
             }]
         )
 
@@ -2100,7 +2145,13 @@ Output ONLY the JSON, no additional text.
             response_text = json_match.group(0)
 
         course_structure = json.loads(response_text)
-        logger.info(f"✓ Generated structure for {course}: {len(course_structure.get('subjects', []))} subjects")
+
+        # Log the exam format details
+        exam_format = course_structure.get('exam_format', {})
+        logger.info(f"✓ Researched {course}:")
+        logger.info(f"  - MCQ Options: {exam_format.get('num_options', 'Unknown')}")
+        logger.info(f"  - Question Style: {exam_format.get('question_style', 'Unknown')}")
+        logger.info(f"  - Subjects: {len(course_structure.get('subjects', []))}")
 
         return jsonify(course_structure)
 

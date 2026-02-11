@@ -219,7 +219,8 @@ generateBtn.addEventListener('click', async () => {
                 subject,
                 topics,
                 num_questions: numQuestions,
-                include_images: includeImages
+                include_images: includeImages,
+                exam_format: qbankCourseStructure?.exam_format
             })
         });
         
