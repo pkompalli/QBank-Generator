@@ -133,6 +133,11 @@ qbankGenerateSubjectsBtn.addEventListener('click', async () => {
         if (!response.ok) throw new Error('Failed to generate subjects');
 
         qbankCourseStructure = await response.json();
+
+        // Debug logging
+        console.log('Received course structure:', qbankCourseStructure);
+        console.log('exam_format in structure:', qbankCourseStructure.exam_format);
+
         populateQBankSubjects();
         qbankStructureStatus.textContent = `✓ Loaded structure for ${course}`;
         qbankStructureStatus.style.color = 'var(--success)';
@@ -152,14 +157,44 @@ qbankUploadStructureBtn.addEventListener('click', () => {
     qbankJsonFile.click();
 });
 
-qbankJsonFile.addEventListener('change', (e) => {
+qbankJsonFile.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
         try {
-            qbankCourseStructure = JSON.parse(event.target.result);
+            const uploadedStructure = JSON.parse(event.target.result);
+
+            // If exam_format is missing, research it based on course name
+            if (!uploadedStructure.exam_format) {
+                const courseName = qbankCourseInput.value.trim() || uploadedStructure.Course || 'Unknown';
+
+                if (courseName && courseName !== 'Unknown') {
+                    showToast('Researching exam format...', 'info');
+
+                    try {
+                        const response = await fetch('/api/generate-subjects', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ course: courseName })
+                        });
+
+                        if (response.ok) {
+                            const researchData = await response.json();
+                            // Merge exam_format from research into uploaded structure
+                            uploadedStructure.exam_format = researchData.exam_format;
+                            uploadedStructure.Course = courseName;
+                            console.log('Added exam_format to uploaded structure:', uploadedStructure.exam_format);
+                        }
+                    } catch (err) {
+                        console.error('Failed to research exam format:', err);
+                        showToast('Warning: Could not research exam format, using defaults', 'warning');
+                    }
+                }
+            }
+
+            qbankCourseStructure = uploadedStructure;
             populateQBankSubjects();
             qbankStructureStatus.textContent = `✓ Loaded structure from ${file.name}`;
             qbankStructureStatus.style.color = 'var(--success)';
@@ -237,6 +272,10 @@ generateBtn.addEventListener('click', async () => {
     }
 
     const subject = qbankCourseStructure.subjects[subjectIdx].name;
+
+    // Debug logging
+    console.log('qbankCourseStructure:', qbankCourseStructure);
+    console.log('exam_format being sent:', qbankCourseStructure?.exam_format);
 
     loading.style.display = 'flex';
     generateBtn.disabled = true;

@@ -1174,6 +1174,11 @@ def generate_questions():
     include_images = data.get('include_images', False)  # Image-based questions
     exam_format = data.get('exam_format')  # Exam format metadata from course structure
 
+    # Debug logging
+    logger.info(f"Received exam_format: {exam_format}")
+    if exam_format:
+        logger.info(f"  num_options in exam_format: {exam_format.get('num_options', 'NOT FOUND')}")
+
     # Validate
     if not all([course, subject]) or not topics:
         return jsonify({'error': 'Missing required fields'}), 400
