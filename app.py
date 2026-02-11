@@ -1395,6 +1395,68 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
     return lesson_content
 
 
+def _get_domain_specific_requirements(course, is_medical, chapter_list):
+    """Generate domain-specific requirements based on course type."""
+    if is_medical:
+        # Check if chapters have NICE refs
+        has_nice_refs = any('nice_refs' in ch for ch in chapter_list if isinstance(ch, dict))
+
+        requirements = """===========  DOMAIN-SPECIFIC: MEDICAL/CLINICAL  ===========
+✓ Include evidence-based medicine with specific clinical guidelines (NICE, ESC, AHA where applicable)
+✓ Specific drug dosages, timing, monitoring parameters, contraindications
+✓ Diagnostic thresholds with sensitivity/specificity where relevant
+✓ Clinical decision-making with patient safety considerations
+✓ Red flags, complications, and when to escalate/refer
+✓ Medicolegal considerations where relevant (consent, capacity)
+"""
+        if has_nice_refs:
+            requirements += """✓ When chapters have 'nice_refs', cite specific guideline numbers (e.g., "NICE NG136 recommends...")
+✓ Include guideline-specific thresholds, algorithms, and recommendations
+"""
+        return requirements
+
+    elif 'engineering' in course.lower() or 'cs' in course.lower() or 'computer' in course.lower():
+        return """===========  DOMAIN-SPECIFIC: ENGINEERING/CS  ===========
+✓ Include design patterns, algorithms, and industry best practices
+✓ Specific time/space complexity, Big-O notation where relevant
+✓ Code examples and pseudocode for key algorithms
+✓ Trade-offs between different approaches (performance vs maintainability)
+✓ Common bugs, edge cases, and debugging strategies
+✓ Standards and specifications (IEEE, ISO, RFC where applicable)
+"""
+
+    elif 'law' in course.lower() or 'legal' in course.lower():
+        return """===========  DOMAIN-SPECIFIC: LAW/LEGAL  ===========
+✓ Cite specific statutes, cases, and legal precedents
+✓ Jurisdiction-specific considerations
+✓ Legal tests, standards of proof, and burden allocation
+✓ Exceptions, defenses, and procedural nuances
+✓ Recent developments and ongoing controversies
+✓ Practical application to hypothetical fact patterns
+"""
+
+    elif 'business' in course.lower() or 'mba' in course.lower() or 'finance' in course.lower():
+        return """===========  DOMAIN-SPECIFIC: BUSINESS/FINANCE  ===========
+✓ Include specific formulas, ratios, and financial metrics
+✓ Real-world case studies and industry examples
+✓ Regulatory frameworks and compliance requirements
+✓ Risk analysis and mitigation strategies
+✓ Quantitative models and their assumptions
+✓ Market context and macroeconomic considerations
+"""
+
+    else:
+        # Generic for any other course
+        return """===========  DOMAIN-SPECIFIC: GENERAL  ===========
+✓ Include authoritative sources and established frameworks in this field
+✓ Specific formulas, equations, or key quantitative relationships
+✓ Domain standards, conventions, and best practices
+✓ Real-world applications and practical examples
+✓ Common mistakes and how to avoid them
+✓ Current developments and recent research where relevant
+"""
+
+
 @app.route('/api/generate-lessons', methods=['POST'])
 def generate_lessons():
     """Generate review lessons for topics and chapters."""
@@ -1514,57 +1576,61 @@ def generate_lessons():
 
                 chapter_list_json = json.dumps(chapter_list, indent=2)
 
-                # Generate topic-level lesson using Claude
-                logger.info(f"Generating lesson for {subject} > {topic_name}")
+                # Detect course type and customize prompt
+                is_medical = any(keyword in course.lower() for keyword in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
 
-                lesson_prompt = f"""====================  ONCOURSE LESSON PROMPT  ====================
+                # Generate topic-level lesson using Claude
+                logger.info(f"Generating lesson for {course} > {subject} > {topic_name}")
+
+                # Build audience and depth description based on course
+                if is_medical:
+                    audience_desc = "Medical licensing exam candidates"
+                    depth_desc = "Clinical practitioner level - assume medical school foundation knowledge"
+                else:
+                    audience_desc = f"{course} exam candidates or advanced learners"
+                    depth_desc = "Advanced professional level - assume foundational knowledge"
+
+                lesson_prompt = f"""====================  LESSON GENERATOR (COURSE-AGNOSTIC)  ====================
+- Course       : {course}
 - Subject      : {subject}
 - Topic        : {topic_name}
 - ChaptersJSON : {chapter_list_json}
 - WordTarget   : 1000-1200 words max | 7 pages max
-- Audience     : Medical licensing exam candidates (UKMLA/NEET PG/USMLE level)
-- Depth Level  : Clinical practitioner level - assume medical school foundation knowledge
+- Audience     : {audience_desc}
+- Depth Level  : {depth_desc}
 ==========================================================================
 
 🔴 CRITICAL MANDATORY REQUIREMENTS (NON-NEGOTIABLE):
-1. MUST end with "### High Yield Summary" section (Key Take-Aways, Essential Numbers, Clinical Pearls, Quick Reference)
+1. MUST end with "### High Yield Summary" section (Key Take-Aways, Essential Numbers/Formulas, Key Principles, Quick Reference)
 2. MUST integrate chapter names INSIDE sentences throughout ALL sections - NOT as a list at the end!
-   ✅ CORRECT: "Acute coronary syndromes (see Acute coronary syndrome management) present with chest pain..."
+   ✅ CORRECT: "Topic X (see Chapter Name) involves..." or "Concept Y (see Related Chapter) demonstrates..."
    ❌ WRONG: Having a "Related Chapters:" list at the end of sections
-   → Weave chapter names naturally when discussing each clinical concept
-3. MUST use [Image: description] format: **Figure 1: [Image: ECG showing STEMI]**
-4. MUST include 2-3 ```mermaid flowcharts for algorithms/pathways
+   → Weave chapter names naturally when discussing each concept
+3. MUST use [Image: description] format: **Figure 1: [Image: specific description]**
+4. MUST include 2-3 ```mermaid flowcharts for algorithms/workflows/processes
 ==========================================================================
 
-===========  CLINICAL RIGOR REQUIREMENTS  ===========
-✓ Write for qualified doctors preparing for licensing exams - NOT medical students
-✓ Assume foundational anatomy/physiology/pathology knowledge - focus on CLINICAL APPLICATION
-✓ Include evidence-based medicine with specific guidelines (NICE, ESC, AHA where applicable)
-✓ Specific drug dosages, timing, monitoring parameters, contraindications
-✓ Specific diagnostic thresholds with sensitivity/specificity where relevant
-✓ Clinical decision-making with real-world trade-offs and nuances
-✓ Red flags, complications, and when to escalate/refer
-✓ Medicolegal considerations where relevant (consent, capacity, safeguarding)
-✓ Cost-effectiveness and resource allocation awareness (especially for UK candidates)
+===========  DEPTH & RIGOR REQUIREMENTS  ===========
+✓ Write for advanced learners preparing for professional exams - NOT beginners
+✓ Assume foundational knowledge - focus on ADVANCED APPLICATION
+✓ Include domain-specific standards, best practices, and authoritative sources where applicable
+✓ Specific numbers, formulas, thresholds, parameters, and quantitative details
+✓ Decision-making frameworks with real-world trade-offs and nuances
+✓ Common pitfalls, edge cases, and when to escalate/consult experts
 ✓ Depth over breadth - better to cover fewer concepts thoroughly than many superficially
+==========================================================================
 
-===========  NICE GUIDELINE & EVIDENCE INTEGRATION  ===========
-✓ When chapters have 'nice_refs' in ChaptersJSON, reference these guidelines naturally
-✓ Cite specific guideline numbers (e.g., "NICE NG136 recommends clinic BP <140/90 for treatment")
-✓ Include guideline-specific thresholds, algorithms, and recommendations
-✓ Mention updates or controversies in guidelines where clinically important
-✓ Reference other evidence (landmark trials, meta-analyses) where relevant for depth
-✓ UK-specific practice points for UKMLA (e.g., NHS pathways, formulary restrictions)
+{self._get_domain_specific_requirements(course, is_medical, chapter_list)}
 
-===========  ONCOURSE BRAND VOICE  ===========
-✓ Professional yet engaging - authoritative clinical voice with narrative flow
-✓ Conversational but clinically sophisticated
+===========  WRITING VOICE & STYLE  ===========
+✓ Professional yet engaging - authoritative voice with narrative flow
+✓ Conversational but sophisticated
 ✓ Evidence-based explanations with mechanistic depth
-✓ Concrete clinical scenarios over abstract theory
-✓ Specific numbers, thresholds, dosages, timings throughout
-✓ Confidence-building through mastery of clinical nuance
+✓ Concrete scenarios over abstract theory
+✓ Specific numbers, formulas, thresholds, timings throughout
+✓ Confidence-building through mastery of nuance
 ✓ NO explicit mentions of "exams", "examiners", "toppers", "candidates", "test", "assessment"
-✓ Capture clinical excellence through depth and precision, not exam rhetoric
+✓ Capture excellence through depth and precision, not exam rhetoric
 
 ===========  BLOOM'S PROGRESSION STRUCTURE (Levels 1-7)  ===========
 IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only the topic-specific titles.
@@ -1661,26 +1727,26 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 🔴🔴🔴 ABSOLUTELY MANDATORY FINAL SECTION - DO NOT SKIP THIS! 🔴🔴🔴
 
 **Key Take-Aways:**
-* 5-7 bullet points with the most critical clinical concepts
-* Include specific numbers, thresholds, and dosages
-* Red flags that cannot be missed
-* Evidence-based recommendations with NICE refs
+* 5-7 bullet points with the most critical concepts for this topic
+* Include specific numbers, formulas, thresholds, and key parameters
+* Critical points that cannot be missed
+* Domain-specific recommendations and best practices
 
-**Essential {topic_name} Numbers:**
-* Critical thresholds for diagnosis and treatment (table format)
-* Most commonly used drug dosages
-* Key timing parameters (when to treat, monitor, refer)
+**Essential {topic_name} Numbers/Formulas:**
+* Critical values, thresholds, or key equations (table format)
+* Most commonly used formulas or parameters
+* Key quantitative relationships and their significance
 
-**Clinical Pearls:**
-* 3-5 practical pearls from clinical experience
-* Common pitfalls and how to avoid them
-* Pattern recognition tips
+**Key Principles/Pearls:**
+* 3-5 practical insights from expert practice
+* Common mistakes and how to avoid them
+* Pattern recognition tips and heuristics
 
 **Quick Reference:**
-* SUMMARY TABLE with key numbers/thresholds (MANDATORY)
+* SUMMARY TABLE with key numbers/formulas/thresholds (MANDATORY)
 * ```mermaid flowchart for quick reference algorithm if needed (OPTIONAL)
-* Decision rules and clinical scores
-* Safety-critical points and medicolegal considerations
+* Decision rules, frameworks, or scoring systems
+* Critical points and important caveats
 * 🔴 NO images needed in summary - tables and mermaid only
 
 **Related Chapters:**
@@ -1700,84 +1766,91 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 
 ===========  MANDATORY ELEMENTS  ===========
 ✓ IMAGES (Topic-dependent - use strategic judgment):
-  → Format: **Figure N: [Image: highly specific description with visible findings]**
-  → Include 0-3 images based on what's diagnostically essential for THIS topic
-  → If topic has key investigations (ECG, X-ray, histology) → Include them
-  → If topic is theoretical/clinical without essential images → Skip images, use mermaid/tables
-  → Quality over quantity - only essential diagnostic images
+  → Format: **Figure N: [Image: highly specific description with visible features]**
+  → Include 0-3 images based on what's visually essential for THIS topic
+  → If topic has key visual elements (domain-specific diagrams, patterns, structures) → Include them
+  → If topic is theoretical/conceptual without essential images → Skip images, use mermaid/tables
+  → Quality over quantity - only essential visual aids
 
-✓ 2-3 ```mermaid flowcharts for algorithms/decision trees (MANDATORY)
+✓ 2-3 ```mermaid flowcharts for algorithms/workflows/processes (MANDATORY)
 ✓ Tables with quantitative data in every section (MANDATORY)
-✓ Concrete numbers, dosages, thresholds, percentages throughout (MANDATORY)
+✓ Concrete numbers, formulas, parameters, thresholds throughout (MANDATORY)
 ✓ Engaging, confidence-building language
 ✓ Memory hooks and mnemonics with quantitative elements
 
 🔴🔴🔴 CHAPTER INTEGRATION RULES (CRITICAL - DO NOT VIOLATE): 🔴🔴🔴
 ✓ All chapter names must use EXACT names from ChaptersJSON - no variations
 ✓ Integrate chapter names INSIDE sentences when discussing each concept
-✓ Format: "Clinical concept (see Chapter Name) explanation continues..."
-  - Example: "Hypertension diagnosis (see Hypertension diagnosis and management) requires..."
-  - Example: "Risk stratification (see Cardiovascular risk assessment) uses QRISK3..."
-  - Example: "Atrial fibrillation (see Atrial fibrillation and anticoagulation) management depends on..."
+✓ Format: "Concept/topic (see Chapter Name) explanation continues..."
+  - Example: "Topic X (see Related Chapter Name) demonstrates..."
+  - Example: "Concept Y (see Chapter on Y Details) involves..."
+  - Example: "Process Z (see Advanced Z Techniques) requires..."
 ✓ Each section MUST integrate 1-3 chapter names naturally in flowing text
 ✓ NEVER create separate "Related Chapters:" lists within sections
 ✓ NEVER list chapters as bullet points at section ends
 ✓ Chapters should feel like natural cross-references, not forced insertions
 ✓ Visual elements should enhance understanding, not just fill space
-✓ For images: Use format [Image: specific medical visual description] - be precise about what anatomical structure, pathology, chart type, or diagram is needed
-✓ End lesson with "High Yield Summary" section containing most testable concepts
-✓ Prioritize diagrams, anatomical illustrations, flowcharts, and reference wheels over decorative images
+✓ For images: Use format [Image: specific description] - be precise about what structures, patterns, features, or relationships are shown
+✓ End lesson with "High Yield Summary" section containing most important concepts
+✓ Prioritize clear, informative visuals over decorative images
 
-===========  IMAGE STRATEGY (GENERIC PRINCIPLE-BASED APPROACH)  ===========
+===========  IMAGE STRATEGY (COURSE-AGNOSTIC PRINCIPLE-BASED)  ===========
 
 STEP 1: Strategic Image Identification
 Before writing, ask yourself these questions about THIS SPECIFIC TOPIC:
 
-1. "What are the KEY DIAGNOSTIC INVESTIGATIONS for this condition?"
-   → If there are ECGs, X-rays, scans, histology that clinicians MUST recognize → Include them
+1. "What are the KEY VISUAL ELEMENTS that define or illustrate this concept?"
+   → Medical: ECGs, X-rays, scans, histology, clinical photos
+   → Engineering: Circuit diagrams, waveforms, stress-strain curves, system architectures
+   → Science: Molecular structures, experimental setups, microscopy images, spectra
+   → Mathematics: Graphs of functions, geometric constructions, visual proofs
+   → Other fields: Domain-specific diagrams, photographs, visualizations
 
-2. "Are there PATHOGNOMONIC visual findings that define this condition?"
-   → Skin lesions, fundoscopy findings, characteristic imaging → Include them
+2. "Are there CHARACTERISTIC visual patterns/features that learners MUST recognize?"
+   → If YES and the visual is diagnostic/definitional → Include it
 
-3. "Would a doctor be unable to diagnose/manage this without seeing certain images?"
+3. "Would a learner be unable to understand/apply this concept without seeing certain images?"
    → If YES → That image is essential, include it
    → If NO → Skip the image, use table/mermaid instead
 
-STEP 2: Apply the Generic Rules
+STEP 2: Apply Domain-Specific Rules
 
-✅ INCLUDE images for:
-- Diagnostic investigations with characteristic findings (ECG patterns, X-ray signs, CT/MRI lesions)
-- Pathognomonic clinical signs (dermatology rashes, fundoscopy, physical exam findings)
-- Histopathology that defines the diagnosis (malignancy, infections)
-- Endoscopy showing lesions
-- Lab results with visual diagnostic features (blood films, microscopy)
+✅ INCLUDE images for (adapt to your course domain):
+- **Medical**: Diagnostic imaging (ECG, X-ray, CT/MRI), histopathology, clinical photos, lab results
+- **Engineering**: Circuit diagrams, oscilloscope traces, CAD drawings, system diagrams, equipment photos
+- **Science**: Molecular structures, experimental apparatus, microscopy, chromatograms, spectra
+- **Mathematics**: Graphs of key functions, geometric diagrams, visual proofs
+- **Law**: Flowcharts of legal processes (but use mermaid instead)
+- **Business**: Real charts/data (not generic icons), organizational structures
+- **Other**: Domain-appropriate visualizations that aid understanding
 
-❌ NEVER include images for:
-- Calculators, interfaces, apps (e.g., QRISK3 calculator)
-- Generic charts, graphs, or data visualizations
-- Flowcharts, algorithms, pathways (use ```mermaid instead)
-- Conceptual diagrams, overview illustrations
-- Risk stratification graphics
+❌ NEVER include images for (universal across all courses):
+- Calculators, interfaces, software screenshots (unless demonstrating specific UI functionality)
+- Generic charts, graphs, or icon-based visualizations
+- Flowcharts, algorithms, process diagrams (use ```mermaid instead)
+- Conceptual illustrations that don't show specific detail
+- Decorative or motivational graphics
 
 STEP 3: Image Count Decision (Topic-Dependent)
-- If topic has 2-3 essential diagnostic investigations → Include 2-3 images
-- If topic has 1 key investigation → Include 1 image
-- If topic is primarily clinical/theoretical with no essential images → Include 0 images, use mermaid/tables
+- If topic has 2-3 essential visual elements → Include 2-3 images
+- If topic has 1 key visual element → Include 1 image
+- If topic is primarily conceptual/theoretical with no essential images → 0 images, use mermaid/tables
 
-STEP 4: Image Format - Be ULTRA-SPECIFIC about visible findings:
-**Figure N: [Image: Investigation type + specific visible diagnostic features]**
+STEP 4: Image Format - Be ULTRA-SPECIFIC about visible features:
+**Figure N: [Image: Type + specific visible features/details]**
 
-GOOD examples (highly specific):
-- "12-lead ECG showing atrial fibrillation with absent P waves, irregularly irregular RR intervals, and rapid ventricular response"
-- "Chest X-ray PA view showing cardiomegaly (CTR >0.5), upper lobe diversion, and Kerley B lines in pulmonary edema"
-- "Histopathology H&E stain showing Reed-Sternberg cells with mirror-image nuclei in Hodgkin lymphoma"
+GOOD examples (highly specific, domain-adapted):
+- Medical: "12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals"
+- Engineering: "Bode plot showing -20dB/decade roll-off with phase margin of 45° at unity gain frequency"
+- Chemistry: "Mass spectrum showing molecular ion peak at m/z 180 with base peak at m/z 107"
+- Physics: "Double-slit interference pattern showing bright fringes at d·sinθ = nλ intervals"
 
-BAD examples (will be rejected):
-- "Heart disease overview diagram"
-- "QRISK3 calculator interface"
-- "Treatment algorithm illustration" (use mermaid)
+BAD examples (will be rejected, universal):
+- "System overview diagram" (too vague, use mermaid)
+- "Calculator interface" (not useful)
+- "Concept illustration" (use mermaid/table)
 
-✓ ALSO MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/pathways
+✓ ALSO MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/workflows/processes
 
 ===========  WRITING STYLE REQUIREMENTS  ===========
 ✓ Storytelling hooks that paint visual scenarios
