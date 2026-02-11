@@ -250,6 +250,11 @@ generateBtn.addEventListener('click', async () => {
 function displayResults(questions, course, imageStats = null) {
     resultsSection.style.display = 'block';
 
+    // Scroll to results section
+    setTimeout(() => {
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
     // Calculate stats
     const bloomCounts = {};
     const difficultyCounts = { 1: 0, 2: 0, 3: 0 };
@@ -340,15 +345,16 @@ function displayResults(questions, course, imageStats = null) {
 // Download button
 downloadBtn.addEventListener('click', () => {
     if (!generatedQuestions.length) return;
-    
+
+    const course = qbankCourseInput.value.trim() || 'questions';
     const blob = new Blob([JSON.stringify(generatedQuestions, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `qbank_${courseSelect.value.replace(' ', '_')}_${Date.now()}.json`;
+    a.download = `qbank_${course.replace(/\s+/g, '_')}_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     showToast('Downloaded successfully!', 'success');
 });
 
@@ -376,8 +382,9 @@ copyBtn.addEventListener('click', async () => {
     try {
         showToast('Generating markdown with embedded images...', 'info');
 
-        const course = courseSelect.value;
-        const subject = subjectSelect.value;
+        const course = qbankCourseInput.value.trim() || 'Unknown Course';
+        const subjectIdx = subjectSelect.value;
+        const subject = qbankCourseStructure && subjectIdx ? qbankCourseStructure.subjects[subjectIdx].name : 'Unknown Subject';
         const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 
