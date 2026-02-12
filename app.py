@@ -2210,3 +2210,113 @@ Output ONLY the JSON, no additional text.
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
+@app.route('/api/refine-structure', methods=['POST'])
+def refine_structure():
+    """Refine course structure based on user chat input and optional reference documents."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not set'}), 500
+
+    try:
+        course = request.form.get('course', '')
+        user_message = request.form.get('message', '')
+        current_structure_json = request.form.get('current_structure', '{}')
+        current_structure = json.loads(current_structure_json)
+
+        # Handle reference document if uploaded
+        ref_doc_content = ""
+        if 'reference_doc' in request.files:
+            ref_doc = request.files['reference_doc']
+            if ref_doc.filename:
+                logger.info(f"Processing reference document: {ref_doc.filename}")
+
+                # Read file content based on type
+                filename = ref_doc.filename.lower()
+                if filename.endswith('.txt'):
+                    ref_doc_content = ref_doc.read().decode('utf-8', errors='ignore')
+                elif filename.endswith('.json'):
+                    ref_doc_content = ref_doc.read().decode('utf-8', errors='ignore')
+                elif filename.endswith('.pdf'):
+                    # For PDF, use basic text extraction or just note it's a PDF
+                    ref_doc_content = f"[PDF document uploaded: {ref_doc.filename}. User expects structure aligned with this curriculum.]"
+                else:
+                    ref_doc_content = ref_doc.read().decode('utf-8', errors='ignore')[:5000]  # Limit size
+
+        # Build prompt for Claude to understand the request and refine structure
+        refine_prompt = f"""You are helping to refine a course structure for "{course}".
+
+CURRENT STRUCTURE:
+{json.dumps(current_structure, indent=2)}
+
+USER REQUEST:
+{user_message}
+
+{f'''REFERENCE DOCUMENT CONTENT:
+{ref_doc_content[:3000]}
+''' if ref_doc_content else ''}
+
+Your task:
+1. Understand what the user wants to change (add subjects/topics, remove items, modify exam format, etc.)
+2. If a reference document is provided, extract relevant subjects/topics from it
+3. Modify the structure accordingly
+4. Respond with:
+   - A friendly message explaining what you changed
+   - The updated structure in the same JSON format
+
+Output format:
+{{
+  "response": "I've added the Pharmacology subject with 5 topics as requested...",
+  "updated_structure": {{
+    "Course": "{course}",
+    "exam_format": {{ ... }},
+    "subjects": [ ... ]
+  }},
+  "modified": true
+}}
+
+If no changes are needed (e.g., user just asking a question), set "modified": false and don't include "updated_structure".
+
+IMPORTANT: Maintain the exact JSON structure format with "Course", "exam_format", and "subjects" fields.
+Output ONLY the JSON, no additional text.
+"""
+
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
+            temperature=0.7,
+            messages=[{
+                "role": "user",
+                "content": refine_prompt
+            }]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Extract JSON from response
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            response_text = json_match.group(0)
+
+        result = json.loads(response_text)
+
+        logger.info(f"Structure refinement: modified={result.get('modified', False)}")
+
+        return jsonify(result)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in refine_structure: {e}")
+        return jsonify({
+            'response': "I understood your request, but encountered an error updating the structure. Please try rephrasing.",
+            'modified': False
+        })
+    except Exception as e:
+        logger.error(f"Error in refine_structure: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'response': f"Error processing request: {str(e)}",
+            'modified': False
+        }), 500

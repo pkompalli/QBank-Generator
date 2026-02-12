@@ -22,8 +22,21 @@ const copyBtn = document.getElementById('copy-btn');
 const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 
+// Review Panel Elements
+const structureReview = document.getElementById('structure-review');
+const examFormatDisplay = document.getElementById('exam-format-display');
+const subjectsTopicsDisplay = document.getElementById('subjects-topics-display');
+const approveStructureBtn = document.getElementById('approve-structure-btn');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendChatBtn = document.getElementById('send-chat-btn');
+const attachDocBtn = document.getElementById('attach-doc-btn');
+const refDocUpload = document.getElementById('ref-doc-upload');
+const attachedFileName = document.getElementById('attached-file-name');
+
 let generatedQuestions = [];
 let qbankCourseStructure = null;
+let attachedFile = null;
 
 // Update Bloom's level distribution display
 function updateBloomDistribution() {
@@ -112,6 +125,93 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
+// Display Structure Review Panel
+function displayStructureReview() {
+    if (!qbankCourseStructure) return;
+
+    // Show review panel, hide form container temporarily
+    structureReview.style.display = 'block';
+    qbankSubjectsContainer.style.display = 'none';
+    generateBtn.style.display = 'none';
+
+    // Display Exam Format
+    const examFormat = qbankCourseStructure.exam_format || {};
+    const bloomsDist = examFormat.blooms_distribution || {};
+
+    examFormatDisplay.innerHTML = `
+        <div class="format-item">
+            <div class="label">MCQ Options</div>
+            <div class="value">${examFormat.num_options || 4} options (${Array.from({length: examFormat.num_options || 4}, (_, i) => String.fromCharCode(65 + i)).join(', ')})</div>
+        </div>
+        <div class="format-item">
+            <div class="label">Question Style</div>
+            <div class="value">${examFormat.question_style || 'Single best answer'}</div>
+        </div>
+        <div class="format-item">
+            <div class="label">Typical Length</div>
+            <div class="value">${examFormat.typical_length || 'Medium'}</div>
+        </div>
+        <div class="format-item">
+            <div class="label">Bloom's Distribution</div>
+            <div class="value">
+                L1:${bloomsDist['1'] || 20}%,
+                L2:${bloomsDist['2'] || 20}%,
+                L3:${bloomsDist['3'] || 20}%,
+                L4:${bloomsDist['4'] || 20}%,
+                L5:${bloomsDist['5'] || 20}%
+            </div>
+        </div>
+        ${examFormat.emphasis ? `
+        <div class="format-item" style="grid-column: 1 / -1;">
+            <div class="label">Key Emphasis Areas</div>
+            <div class="value">${examFormat.emphasis.join(', ')}</div>
+        </div>
+        ` : ''}
+    `;
+
+    // Display Subjects & Topics
+    const subjects = qbankCourseStructure.subjects || [];
+    subjectsTopicsDisplay.innerHTML = subjects.map(subject => `
+        <div class="subject-item">
+            <h4>${subject.name}</h4>
+            <div class="topics-list">
+                ${subject.topics.map(topic => `
+                    <span class="topic-chip">${topic.name}</span>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    // Clear chat messages
+    chatMessages.innerHTML = '<div class="chat-message assistant"><div class="sender">AI Assistant</div><div class="content">The course structure is ready for review. You can request changes like adding/removing subjects or topics, or upload a reference document for guidance.</div></div>';
+
+    // Scroll to review panel
+    setTimeout(() => {
+        structureReview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+}
+
+// Add message to chat
+function addChatMessage(content, sender = 'user') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    messageDiv.innerHTML = `
+        <div class="sender">${sender === 'user' ? 'You' : 'AI Assistant'}</div>
+        <div class="content">${content}</div>
+    `;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Approve structure and show subject selection
+function approveStructure() {
+    structureReview.style.display = 'none';
+    qbankSubjectsContainer.style.display = 'block';
+    generateBtn.style.display = 'block';
+    populateQBankSubjects();
+    showToast('Structure approved! Select subjects and topics to generate questions.', 'success');
+}
+
 // Question Bank - Generate Subjects button
 qbankGenerateSubjectsBtn.addEventListener('click', async () => {
     const course = qbankCourseInput.value.trim();
@@ -138,10 +238,11 @@ qbankGenerateSubjectsBtn.addEventListener('click', async () => {
         console.log('Received course structure:', qbankCourseStructure);
         console.log('exam_format in structure:', qbankCourseStructure.exam_format);
 
-        populateQBankSubjects();
+        // Show review panel instead of directly populating
+        displayStructureReview();
         qbankStructureStatus.textContent = `✓ Loaded structure for ${course}`;
         qbankStructureStatus.style.color = 'var(--success)';
-        showToast('Course structure generated successfully', 'success');
+        showToast('Course structure generated - please review', 'success');
     } catch (error) {
         showToast(error.message || 'Error generating subjects', 'error');
         qbankStructureStatus.textContent = '✗ Failed to generate structure';
@@ -195,10 +296,10 @@ qbankJsonFile.addEventListener('change', async (e) => {
             }
 
             qbankCourseStructure = uploadedStructure;
-            populateQBankSubjects();
+            displayStructureReview();
             qbankStructureStatus.textContent = `✓ Loaded structure from ${file.name}`;
             qbankStructureStatus.style.color = 'var(--success)';
-            showToast('Course structure uploaded successfully', 'success');
+            showToast('Course structure uploaded - please review', 'success');
         } catch (error) {
             showToast('Invalid JSON file', 'error');
             qbankStructureStatus.textContent = '✗ Failed to parse JSON';
@@ -1322,5 +1423,97 @@ downloadLessonsMdBtn.addEventListener('click', () => {
     } catch (error) {
         console.error('Error generating markdown:', error);
         showToast('Failed to generate markdown', 'error');
+    }
+});
+
+// ============================================
+// STRUCTURE REVIEW PANEL EVENT HANDLERS
+// ============================================
+
+// Approve structure button
+approveStructureBtn.addEventListener('click', approveStructure);
+
+// Attach document button
+attachDocBtn.addEventListener('click', () => {
+    refDocUpload.click();
+});
+
+// File upload handler
+refDocUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        attachedFile = file;
+        attachedFileName.textContent = `📎 ${file.name}`;
+        showToast(`Attached: ${file.name}`, 'info');
+    }
+});
+
+// Send chat message
+sendChatBtn.addEventListener('click', async () => {
+    const message = chatInput.value.trim();
+    if (!message && !attachedFile) {
+        showToast('Please enter a message or attach a document', 'error');
+        return;
+    }
+
+    // Add user message to chat
+    if (message) {
+        addChatMessage(message, 'user');
+        chatInput.value = '';
+    }
+
+    // Prepare request
+    const formData = new FormData();
+    formData.append('course', qbankCourseInput.value.trim());
+    formData.append('message', message);
+    formData.append('current_structure', JSON.stringify(qbankCourseStructure));
+
+    if (attachedFile) {
+        formData.append('reference_doc', attachedFile);
+        addChatMessage(`Uploaded: ${attachedFile.name}`, 'user');
+    }
+
+    sendChatBtn.disabled = true;
+    sendChatBtn.textContent = '⏳';
+
+    try {
+        const response = await fetch('/api/refine-structure', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('Failed to process request');
+
+        const data = await response.json();
+
+        // Add AI response to chat
+        addChatMessage(data.response, 'assistant');
+
+        // Update structure if modified
+        if (data.updated_structure) {
+            qbankCourseStructure = data.updated_structure;
+            displayStructureReview();
+            showToast('Structure updated!', 'success');
+        }
+
+        // Clear attached file
+        attachedFile = null;
+        attachedFileName.textContent = '';
+        refDocUpload.value = '';
+
+    } catch (error) {
+        addChatMessage('Sorry, I encountered an error processing your request. Please try again.', 'assistant');
+        showToast(error.message || 'Error processing request', 'error');
+    } finally {
+        sendChatBtn.disabled = false;
+        sendChatBtn.textContent = 'Send';
+    }
+});
+
+// Allow Enter to send (Shift+Enter for new line)
+chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatBtn.click();
     }
 });

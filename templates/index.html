@@ -92,6 +92,48 @@
                 </button>
             </section>
 
+            <!-- Course Structure Review Panel -->
+            <section class="review-panel" id="structure-review" style="display: none;">
+                <div class="review-header">
+                    <h2>📋 Course Structure Review</h2>
+                    <button id="approve-structure-btn" class="btn-secondary">✓ Approve & Continue</button>
+                </div>
+
+                <!-- Exam Format Section -->
+                <div class="review-section">
+                    <h3>🎯 Exam Format</h3>
+                    <div id="exam-format-display" class="format-grid"></div>
+                </div>
+
+                <!-- Subjects & Topics Section -->
+                <div class="review-section">
+                    <h3>📚 Subjects & Topics</h3>
+                    <div id="subjects-topics-display" class="subjects-tree"></div>
+                </div>
+
+                <!-- Chat Interface for Refinement -->
+                <div class="review-section chat-section">
+                    <h3>💬 Refine Structure</h3>
+                    <p class="chat-help">Ask me to modify subjects, topics, or exam format. You can also upload reference documents.</p>
+
+                    <div class="chat-messages" id="chat-messages"></div>
+
+                    <div class="chat-input-area">
+                        <div class="attachment-area">
+                            <input type="file" id="ref-doc-upload" accept=".pdf,.doc,.docx,.txt,.json" style="display: none;">
+                            <button type="button" id="attach-doc-btn" class="btn-icon" title="Attach reference document">
+                                📎
+                            </button>
+                            <span id="attached-file-name" class="attached-file"></span>
+                        </div>
+                        <div class="chat-input-row">
+                            <textarea id="chat-input" placeholder="e.g., Add 'Pharmacology' subject with topics on antibiotics, or upload a curriculum document..." rows="2"></textarea>
+                            <button id="send-chat-btn" class="btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="results-section" id="results" style="display: none;">
                 <div class="results-header">
                     <h2>Generated Questions</h2>
