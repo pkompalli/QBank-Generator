@@ -1901,6 +1901,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * ONLY list chapters from ChaptersJSON that were NOT already integrated into the text above
 * If all chapters were already mentioned in the lesson, write "All chapters covered above"
 * Do NOT repeat chapters that were already woven into the narrative
+* Note: "For rapid revision of individual chapters, refer to the dedicated chapter-level notes included with this topic."
 
 ===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
 ✓ High-yield concept prioritization (without labeling as "high-yield")
@@ -2064,14 +2065,114 @@ Start directly with first section header."""
                     logger.error(f"Error generating lesson for {topic_name}: {e}")
                     topic_lesson = f"Error generating lesson: {str(e)}"
 
+                # Generate chapter-level rapid revision notes
+                chapter_lessons = []
+                for chapter in chapter_list:
+                    chapter_name = chapter.get('name') if isinstance(chapter, dict) else chapter
+                    nice_refs = chapter.get('nice_refs', []) if isinstance(chapter, dict) else []
+
+                    logger.info(f"Generating chapter lesson for {chapter_name}...")
+
+                    chapter_prompt = f"""====================  CHAPTER RAPID REVISION GENERATOR  ====================
+- Course   : {course}
+- Subject  : {subject}
+- Topic    : {topic_name}
+- Chapter  : {chapter_name}
+- Target   : 1-2 pages | 300-500 words | RAPID REVISION FORMAT
+- Audience : {audience_desc} preparing for rapid review
+==========================================================================
+
+🎯 PURPOSE: Create a concise, high-density rapid revision note for this chapter.
+Think of this as a "cheat sheet" or "quick reference card" for rapid review before exams.
+
+🔴 MANDATORY STRUCTURE:
+
+### {chapter_name}
+
+**Quick Overview** (2-3 sentences max)
+Brief context and why this chapter matters clinically/practically.
+
+**Core Facts & Concepts**
+• Key definitions with specific thresholds/values
+• Essential classifications (use table if >3 items)
+• Critical formulas, equations, or calculations
+• Must-know numbers, percentages, timeframes
+
+**Problem-Solving Approach**
+• Step-by-step clinical/analytical framework (numbered list)
+• Decision points with specific criteria
+• "When to..." and "How to..." guidelines
+• Red flags or warning signs
+
+**Analysis Framework**
+• Differential diagnosis approach OR comparison framework
+• Key discriminating features (table format)
+• Quick decision rules or scoring systems
+
+**Visual Aid** (Choose ONE based on chapter needs):
+- ```mermaid flowchart for algorithm/workflow (if chapter has process/algorithm)
+- TABLE for classifications/differentials/comparisons (if chapter has categories)
+- **Figure: [Image: specific diagnostic finding]** (if chapter has key visual element)
+
+**Key Points Summary** (MANDATORY - End section)
+✓ Top 5-7 bullet points capturing absolute essentials
+✓ Include specific numbers, ranges, thresholds
+✓ Mnemonics if helpful (≤10 words with context)
+✓ "Can't miss" clinical pearls or concepts
+✓ Common pitfalls to avoid
+
+==========================================================================
+
+🔴 STYLE REQUIREMENTS:
+✓ Bullet points and tables - NOT paragraphs
+✓ Specific numbers, not vague terms ("60%" not "most")
+✓ Action-oriented language ("Measure X when...", "Consider Y if...")
+✓ NO fluff - every word must add value
+✓ Clinical pearls and memory aids embedded naturally
+✓ Professional but concise - assume advanced learner
+
+🔴 LENGTH: 300-500 words total (strict limit for rapid review)
+🔴 FORMAT: Markdown only. Start directly with "### {chapter_name}"
+🔴 MUST END WITH: "**Key Points Summary**" section
+"""
+
+                    try:
+                        chapter_message = client.messages.create(
+                            model="claude-sonnet-4-5",
+                            max_tokens=2000,
+                            temperature=0.7,
+                            messages=[{
+                                "role": "user",
+                                "content": chapter_prompt
+                            }]
+                        )
+
+                        chapter_lesson = chapter_message.content[0].text.strip()
+                        logger.info(f"✓ Generated chapter lesson for {chapter_name} ({len(chapter_lesson)} chars)")
+
+                        # Integrate images if any
+                        chapter_lesson = integrate_images_into_lesson(chapter_lesson, subject, chapter_name)
+
+                        chapter_lessons.append({
+                            'name': chapter_name,
+                            'nice_refs': nice_refs,
+                            'chapter_lesson': chapter_lesson
+                        })
+
+                    except Exception as e:
+                        logger.error(f"Error generating chapter lesson for {chapter_name}: {e}")
+                        chapter_lessons.append({
+                            'name': chapter_name,
+                            'nice_refs': nice_refs,
+                            'chapter_lesson': f"Error generating lesson: {str(e)}"
+                        })
+
                 # Store lesson with metadata
                 all_lessons.append({
                     'topic': topic_name,
                     'high_yield': high_yield,
                     'topic_lesson': topic_lesson,
-                    'chapters': [{'name': ch.get('name') if isinstance(ch, dict) else ch,
-                                  'nice_refs': ch.get('nice_refs', []) if isinstance(ch, dict) else []}
-                                 for ch in chapters],
+                    'chapters': chapter_lessons,
                     'subject': subject
                 })
 
