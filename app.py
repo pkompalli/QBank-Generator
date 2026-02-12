@@ -1768,7 +1768,7 @@ def generate_lessons():
 ✓ Depth over breadth - better to cover fewer concepts thoroughly than many superficially
 ==========================================================================
 
-{self._get_domain_specific_requirements(course, is_medical, chapter_list)}
+{_get_domain_specific_requirements(course, is_medical, chapter_list)}
 
 ===========  WRITING VOICE & STYLE  ===========
 ✓ Professional yet engaging - authoritative voice with narrative flow
