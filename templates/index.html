@@ -20,8 +20,9 @@
 
         <!-- Tab Navigation -->
         <div class="tabs">
-            <button class="tab-button active" data-tab="generate">Generate Content</button>
+            <button class="tab-button active" data-tab="generate">Generate Questions</button>
             <button class="tab-button" data-tab="add-image">Add Image to Question</button>
+            <button class="tab-button" data-tab="lessons">Generate Lessons</button>
         </div>
 
         <main>
@@ -49,7 +50,7 @@
                 </div>
 
                 <div id="qbank-subjects-container" style="display: none;">
-                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Content Scope</h4>
+                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Subject & Topics</h4>
 
                     <div class="form-group">
                         <label for="subject">Subject</label>
@@ -59,64 +60,36 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="topics">Topics (Optional - leave empty for all)</label>
+                        <label for="topics">Topics</label>
                         <select id="topics" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
                         </select>
-                        <small>Hold Ctrl/Cmd to select multiple topics</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="chapters">Chapters (Optional)</label>
-                        <select id="chapters" multiple size="4" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
-                        </select>
-                        <small>Hold Ctrl/Cmd to select specific chapters. Leave empty for all chapters.</small>
-                    </div>
-
-                    <div class="form-group checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="generate-all-content">
-                            <span>Generate All (All Subjects, Topics & Chapters)</span>
-                        </label>
-                        <small>Generates content for entire course structure</small>
+                        <small>Hold Ctrl/Cmd to select multiple topics. Questions generated per topic.</small>
                     </div>
                 </div>
 
-                <div class="form-group checkbox-group" id="questions-options" style="display: none;">
-                    <h4 style="margin-bottom: 0.75rem; color: var(--primary);">Questions Options</h4>
-
+                <div class="form-group checkbox-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="include-images">
                         <span>Include Image-Based Questions</span>
                     </label>
-                    <small>Adds questions with X-rays, ECGs, histopathology, etc.</small>
-
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label for="num-questions">Number of Questions per Topic</label>
-                        <input type="range" id="num-questions" min="5" max="50" value="10" step="5">
-                        <span id="num-display">10</span>
-                    </div>
-
-                    <div class="info-box" id="bloom-info">
-                        <h4>Bloom's Level Distribution <span id="per-topic-label">(per topic)</span></h4>
-                        <div id="bloom-distribution"></div>
-                        <div id="total-questions-info"></div>
-                    </div>
+                    <small>Adds questions with X-rays, ECGs, histopathology, etc. from public sources</small>
                 </div>
 
-                <div class="generation-buttons" style="display: none;">
-                    <h4 style="margin-bottom: 0.75rem; color: var(--primary);">Step 4: Generate Content</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <button id="generate-questions-btn" class="btn-primary" disabled>
-                            📝 Generate Questions
-                        </button>
-                        <button id="generate-lessons-btn" class="btn-primary" disabled>
-                            📖 Generate Lessons
-                        </button>
-                    </div>
-                    <small style="display: block; margin-top: 0.5rem; color: var(--text-muted); text-align: center;">
-                        Generate practice questions or comprehensive review lessons
-                    </small>
+                <div class="form-group">
+                    <label for="num-questions">Number of Questions</label>
+                    <input type="range" id="num-questions" min="5" max="50" value="10" step="5">
+                    <span id="num-display">10</span>
                 </div>
+
+                <div class="info-box" id="bloom-info">
+                    <h4>Bloom's Level Distribution <span id="per-topic-label">(per topic)</span></h4>
+                    <div id="bloom-distribution"></div>
+                    <div id="total-questions-info"></div>
+                </div>
+
+                <button id="generate-btn" class="btn-primary" disabled>
+                    Generate Questions
+                </button>
             </section>
 
             <!-- Course Structure Review Panel -->
@@ -171,18 +144,6 @@
                 </div>
                 <div class="stats" id="stats"></div>
                 <div id="questions-container"></div>
-            </section>
-
-            <section class="results-section" id="lessons-result" style="display: none;">
-                <div class="results-header">
-                    <h2>Generated Lessons</h2>
-                    <div class="action-buttons">
-                        <button id="download-lessons-json-btn" class="btn-secondary">Download JSON</button>
-                        <button id="download-lessons-md-btn" class="btn-secondary">📄 Download Markdown</button>
-                    </div>
-                </div>
-                <div class="stats" id="lessons-stats"></div>
-                <div id="lessons-container"></div>
             </section>
             </div>
 
@@ -251,6 +212,88 @@
                 </section>
             </div>
 
+            <!-- Generate Lessons Tab -->
+            <div class="tab-content" id="lessons-tab">
+                <section class="form-section">
+                    <div class="info-box">
+                        <h3>📚 Generate Review Lessons</h3>
+                        <p>Create comprehensive review materials at chapter and topic levels.</p>
+                        <ul style="font-size: 0.85rem; margin: 0.5rem 0 0 1.25rem; color: var(--text-muted);">
+                            <li><strong>Chapter-level:</strong> 1-2 pages, rapid revision</li>
+                            <li><strong>Topic-level:</strong> 7-8 pages, detailed concepts</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lesson-course">Step 1: Course / Exam Name</label>
+                        <input type="text" id="lesson-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, UPSC" required>
+                        <small>Enter the course or exam name</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Step 2: Load Course Structure</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <button type="button" id="generate-subjects-btn" class="btn-secondary" style="width: 100%;">
+                                🤖 Generate Subjects
+                            </button>
+                            <button type="button" id="upload-structure-btn" class="btn-secondary" style="width: 100%;">
+                                📁 Upload JSON
+                            </button>
+                        </div>
+                        <input type="file" id="lesson-json-file" accept=".json" style="display: none;">
+                        <small id="structure-status" style="display: block; margin-top: 0.5rem; color: var(--text-muted);">Choose one option to load the course structure</small>
+                    </div>
+
+                    <div id="subjects-container" style="display: none;">
+                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Subject & Topics</h4>
+
+                        <div class="form-group">
+                            <label for="subject-select">Subject</label>
+                            <select id="subject-select" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                                <option value="">Select a subject...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="topics-select">Topics (Optional - leave empty for all)</label>
+                            <select id="topics-select" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
+                            </select>
+                            <small>Hold Ctrl/Cmd to select multiple topics</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="chapters-select">Chapters (Optional)</label>
+                            <select id="chapters-select" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
+                            </select>
+                            <small>Hold Ctrl/Cmd to select specific chapters. Leave empty for all chapters.</small>
+                        </div>
+
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="generate-all-checkbox">
+                                <span>Generate All (All Subjects, Topics & Chapters)</span>
+                            </label>
+                            <small>Generates lessons for entire course structure</small>
+                        </div>
+                    </div>
+
+                    <button id="generate-lessons-btn" class="btn-primary" disabled>
+                        📖 Generate Lessons
+                    </button>
+                </section>
+
+                <section class="results-section" id="lessons-result" style="display: none;">
+                    <div class="results-header">
+                        <h2>Generated Lessons</h2>
+                        <div class="action-buttons">
+                            <button id="download-lessons-json-btn" class="btn-secondary">Download JSON</button>
+                            <button id="download-lessons-md-btn" class="btn-secondary">📄 Download Markdown</button>
+                        </div>
+                    </div>
+                    <div class="stats" id="lessons-stats"></div>
+                    <div id="lessons-container"></div>
+                </section>
+            </div>
         </main>
 
         <div class="loading" id="loading" style="display: none;">

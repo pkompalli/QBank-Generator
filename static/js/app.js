@@ -13,22 +13,12 @@ const numDisplay = document.getElementById('num-display');
 const bloomInfo = document.getElementById('bloom-distribution');
 const totalQuestionsInfo = document.getElementById('total-questions-info');
 const perTopicLabel = document.getElementById('per-topic-label');
-const chaptersSelect = document.getElementById('chapters');
-const generateAllContent = document.getElementById('generate-all-content');
-const questionsOptions = document.getElementById('questions-options');
-const generationButtons = document.querySelector('.generation-buttons');
-const generateQuestionsBtn = document.getElementById('generate-questions-btn');
-const generateLessonsBtn = document.getElementById('generate-lessons-btn');
+const generateBtn = document.getElementById('generate-btn');
 const resultsSection = document.getElementById('results');
 const questionsContainer = document.getElementById('questions-container');
 const statsContainer = document.getElementById('stats');
 const downloadBtn = document.getElementById('download-btn');
 const copyBtn = document.getElementById('copy-btn');
-const lessonsResult = document.getElementById('lessons-result');
-const lessonsContainer = document.getElementById('lessons-container');
-const lessonsStats = document.getElementById('lessons-stats');
-const downloadLessonsJsonBtn = document.getElementById('download-lessons-json-btn');
-const downloadLessonsMdBtn = document.getElementById('download-lessons-md-btn');
 const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 
@@ -142,7 +132,7 @@ function displayStructureReview() {
     // Show review panel, hide form container temporarily
     structureReview.style.display = 'block';
     qbankSubjectsContainer.style.display = 'none';
-    generationButtons.style.display = 'none';
+    generateBtn.style.display = 'none';
 
     // Display Exam Format
     const examFormat = qbankCourseStructure.exam_format || {};
@@ -217,9 +207,9 @@ function addChatMessage(content, sender = 'user') {
 function approveStructure() {
     structureReview.style.display = 'none';
     qbankSubjectsContainer.style.display = 'block';
-    generationButtons.style.display = 'block';
+    generateBtn.style.display = 'block';
     populateQBankSubjects();
-    showToast('Structure approved! Select subjects and topics to generate content.', 'success');
+    showToast('Structure approved! Select subjects and topics to generate questions.', 'success');
 }
 
 // Question Bank - Generate Subjects button
@@ -335,75 +325,33 @@ function populateQBankSubjects() {
     });
 }
 
-// Subject change handler - populate topics and chapters from structure
+// Subject change handler - populate topics from structure
 subjectSelect.addEventListener('change', () => {
     const subjectIdx = subjectSelect.value;
     topicsSelect.innerHTML = '';
-    chaptersSelect.innerHTML = '';
-    generateQuestionsBtn.disabled = true;
-    generateLessonsBtn.disabled = true;
+    generateBtn.disabled = true;
 
     if (!subjectIdx || !qbankCourseStructure) return;
 
     const subject = qbankCourseStructure.subjects[subjectIdx];
     if (!subject || !subject.topics) return;
 
-    // Populate topics
-    subject.topics.forEach((topic) => {
+    subject.topics.forEach((topic, idx) => {
         const option = document.createElement('option');
         option.value = topic.name;
         option.textContent = topic.name;
         topicsSelect.appendChild(option);
-
-        // Populate chapters from topics if they exist
-        if (topic.chapters) {
-            topic.chapters.forEach((chapter) => {
-                const chapterOption = document.createElement('option');
-                chapterOption.value = chapter.name;
-                chapterOption.textContent = `${topic.name} - ${chapter.name}`;
-                chaptersSelect.appendChild(chapterOption);
-            });
-        }
     });
 
-    enableGenerationButtons();
     updateBloomDistribution();
 });
 
 // Topics change handler (multi-select)
 topicsSelect.addEventListener('change', () => {
-    enableGenerationButtons();
+    const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
+    generateBtn.disabled = selectedTopics.length === 0;
     updateBloomDistribution();
 });
-
-// Chapters change handler
-chaptersSelect.addEventListener('change', () => {
-    enableGenerationButtons();
-});
-
-// Generate All checkbox handler
-generateAllContent.addEventListener('change', () => {
-    if (generateAllContent.checked) {
-        subjectSelect.disabled = true;
-        topicsSelect.disabled = true;
-        chaptersSelect.disabled = true;
-        generateQuestionsBtn.disabled = false;
-        generateLessonsBtn.disabled = false;
-    } else {
-        subjectSelect.disabled = false;
-        topicsSelect.disabled = false;
-        chaptersSelect.disabled = false;
-        enableGenerationButtons();
-    }
-});
-
-// Helper function to enable generation buttons based on selection
-function enableGenerationButtons() {
-    const hasSubject = subjectSelect.value !== '';
-    const hasSelection = hasSubject || generateAllContent.checked;
-    generateQuestionsBtn.disabled = !hasSelection;
-    generateLessonsBtn.disabled = !hasSelection;
-}
 
 // Number of questions slider
 numQuestionsInput.addEventListener('input', () => {
@@ -411,37 +359,27 @@ numQuestionsInput.addEventListener('input', () => {
     updateBloomDistribution();
 });
 
-// Show questions options when clicking generate questions
-generateQuestionsBtn.addEventListener('click', () => {
-    if (questionsOptions.style.display === 'none' || !questionsOptions.style.display) {
-        questionsOptions.style.display = 'block';
-        lessonsResult.style.display = 'none';
-        setTimeout(() => {
-            questionsOptions.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-    } else {
-        // Already showing options, proceed with generation
-        generateQuestions();
-    }
-});
-
-// Generate Questions handler
-async function generateQuestions() {
+// Generate button handler
+generateBtn.addEventListener('click', async () => {
     const course = qbankCourseInput.value.trim();
     const subjectIdx = subjectSelect.value;
     const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numQuestions = parseInt(numQuestionsInput.value);
     const includeImages = includeImagesCheckbox.checked;
 
-    if (!qbankCourseStructure || (!subjectIdx && !generateAllContent.checked)) {
+    if (!qbankCourseStructure || !subjectIdx) {
         showToast('Please load course structure and select a subject', 'error');
         return;
     }
 
-    const subject = generateAllContent.checked ? 'All' : qbankCourseStructure.subjects[subjectIdx].name;
+    const subject = qbankCourseStructure.subjects[subjectIdx].name;
+
+    // Debug logging
+    console.log('qbankCourseStructure:', qbankCourseStructure);
+    console.log('exam_format being sent:', qbankCourseStructure?.exam_format);
 
     loading.style.display = 'flex';
-    generateQuestionsBtn.disabled = true;
+    generateBtn.disabled = true;
 
     try {
         const response = await fetch('/api/generate', {
@@ -456,29 +394,29 @@ async function generateQuestions() {
                 exam_format: qbankCourseStructure?.exam_format
             })
         });
-
+        
         const data = await response.json();
-
+        
         if (data.error) {
             throw new Error(data.error);
         }
-
+        
         generatedQuestions = data.questions;
         displayResults(data.questions, course, data.image_stats);
 
-        let message = `Generated ${data.count} questions across ${topics.length || 'all'} topic(s)!`;
+        let message = `Generated ${data.count} questions across ${topics.length} topic(s)!`;
         if (data.image_stats) {
             message += ` | Images: ${data.image_stats.images_found}/${data.image_stats.total_image_questions} (${data.image_stats.success_rate})`;
         }
         showToast(message, 'success');
-
+        
     } catch (error) {
         showToast(error.message || 'Error generating questions', 'error');
     } finally {
         loading.style.display = 'none';
-        generateQuestionsBtn.disabled = false;
+        generateBtn.disabled = false;
     }
-}
+});
 
 // Display results
 function displayResults(questions, course, imageStats = null) {
@@ -997,6 +935,498 @@ downloadImageMdBtn.addEventListener('click', async () => {
     }
 });
 
+// ============================================
+// LESSON GENERATION FUNCTIONALITY
+// ============================================
+
+const generateLessonsBtn = document.getElementById('generate-lessons-btn');
+const lessonCourse = document.getElementById('lesson-course');
+const lessonJsonFile = document.getElementById('lesson-json-file');
+const generateSubjectsBtn = document.getElementById('generate-subjects-btn');
+const uploadStructureBtn = document.getElementById('upload-structure-btn');
+const structureStatus = document.getElementById('structure-status');
+const lessonSubjectsContainer = document.getElementById('subjects-container');
+const lessonSubjectSelect = document.getElementById('subject-select');
+const lessonTopicsSelect = document.getElementById('topics-select');
+const lessonChaptersSelect = document.getElementById('chapters-select');
+const generateAllCheckbox = document.getElementById('generate-all-checkbox');
+const lessonsResultSection = document.getElementById('lessons-result');
+const lessonsContainer = document.getElementById('lessons-container');
+const lessonsStatsContainer = document.getElementById('lessons-stats');
+const downloadLessonsJsonBtn = document.getElementById('download-lessons-json-btn');
+const downloadLessonsMdBtn = document.getElementById('download-lessons-md-btn');
+
+let lessonsData = null;
+let courseStructure = null;  // Stores the full course structure
+
+// Generate Subjects button handler
+generateSubjectsBtn.addEventListener('click', async () => {
+    const course = lessonCourse.value.trim();
+    if (!course) {
+        showToast('Please enter a course/exam name', 'error');
+        lessonCourse.focus();
+        return;
+    }
+
+    structureStatus.textContent = '⏳ Generating course structure...';
+    generateSubjectsBtn.disabled = true;
+
+    try {
+        // TODO: This will call Claude to generate structure
+        // For now, show placeholder
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Placeholder structure
+        courseStructure = {
+            Course: course,
+            subjects: [
+                {
+                    name: "Core Medicine",
+                    topics: [
+                        { name: "Cardiology", high_yield: true, chapters: [{ name: "Heart Failure" }, { name: "Arrhythmias" }] },
+                        { name: "Respiratory", chapters: [{ name: "Asthma" }, { name: "COPD" }] }
+                    ]
+                },
+                {
+                    name: "Surgery",
+                    topics: [
+                        { name: "General Surgery", chapters: [{ name: "Appendicitis" }] }
+                    ]
+                }
+            ]
+        };
+
+        populateSubjects(courseStructure);
+        structureStatus.textContent = `✓ Generated ${courseStructure.subjects.length} subjects`;
+        showToast('Course structure generated!', 'success');
+    } catch (error) {
+        structureStatus.textContent = '✗ Failed to generate structure';
+        showToast('Failed to generate structure', 'error');
+    } finally {
+        generateSubjectsBtn.disabled = false;
+    }
+});
+
+// Upload JSON button handler
+uploadStructureBtn.addEventListener('click', () => {
+    lessonJsonFile.click();
+});
+
+// File selection handler for lessons
+lessonJsonFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+
+        // Store the full JSON
+        courseStructure = json;
+
+        // Auto-fill course field
+        if (json.Course) {
+            lessonCourse.value = json.Course;
+        }
+
+        // Populate subjects dropdown
+        populateSubjects(json);
+
+        // Display info
+        if (json.subjects) {
+            const totalTopics = json.subjects.reduce((sum, subj) =>
+                sum + (subj.topics?.length || 0), 0);
+            structureStatus.textContent = `✓ Loaded: ${json.subjects.length} subjects, ${totalTopics} topics`;
+            showToast(`JSON loaded: ${file.name}`, 'success');
+        } else {
+            showToast('JSON file loaded successfully', 'success');
+        }
+    } catch (error) {
+        console.error('Error parsing JSON:', error);
+        showToast('Invalid JSON file', 'error');
+        structureStatus.textContent = '✗ Invalid JSON file';
+        courseStructure = null;
+    }
+});
+
+function populateSubjects(structure) {
+    if (!structure || !structure.subjects) return;
+
+    lessonSubjectsContainer.style.display = 'block';
+    lessonSubjectSelect.innerHTML = '<option value="">Select a subject...</option>';
+    lessonTopicsSelect.innerHTML = '';
+    lessonChaptersSelect.innerHTML = '';
+
+    // Populate subjects
+    structure.subjects.forEach((subject, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = subject.name;
+        lessonSubjectSelect.appendChild(option);
+    });
+
+    // Enable generate button
+    generateLessonsBtn.disabled = false;
+    console.log('✓ Generate Lessons button enabled');
+    console.log('Course structure loaded:', structure);
+}
+
+function updateTopics() {
+    if (!courseStructure || !courseStructure.subjects) return;
+
+    const selectedSubjectIdx = lessonSubjectSelect.value;
+    lessonTopicsSelect.innerHTML = '';
+    lessonChaptersSelect.innerHTML = '';
+
+    if (selectedSubjectIdx === '') return;
+
+    const subject = courseStructure.subjects[selectedSubjectIdx];
+
+    subject.topics.forEach((topic, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        const highYieldMarker = topic.high_yield ? ' ⭐' : '';
+        option.textContent = `${topic.name}${highYieldMarker}`;
+        lessonTopicsSelect.appendChild(option);
+    });
+}
+
+function updateChapters() {
+    if (!courseStructure || !courseStructure.subjects) return;
+
+    const selectedSubjectIdx = lessonSubjectSelect.value;
+    if (selectedSubjectIdx === '') return;
+
+    const subject = courseStructure.subjects[selectedSubjectIdx];
+    const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    lessonChaptersSelect.innerHTML = '';
+
+    // If no topics selected, don't show chapters
+    if (selectedTopicIndices.length === 0) return;
+
+    // Collect chapters from selected topics
+    selectedTopicIndices.forEach(topicIdx => {
+        const topic = subject.topics[topicIdx];
+        if (topic.chapters && topic.chapters.length > 0) {
+            topic.chapters.forEach((chapter, chIdx) => {
+                const option = document.createElement('option');
+                option.value = `${topicIdx}-${chIdx}`;
+                const chapterName = typeof chapter === 'string' ? chapter : chapter.name;
+                option.textContent = `${topic.name} > ${chapterName}`;
+                lessonChaptersSelect.appendChild(option);
+            });
+        }
+    });
+}
+
+// Update topics when subject changes
+lessonSubjectSelect.addEventListener('change', updateTopics);
+
+// Update chapters when topics change
+lessonTopicsSelect.addEventListener('change', updateChapters);
+
+// Handle "Generate All" checkbox
+generateAllCheckbox.addEventListener('change', (e) => {
+    const isChecked = e.target.checked;
+    lessonSubjectSelect.disabled = isChecked;
+    lessonTopicsSelect.disabled = isChecked;
+    lessonChaptersSelect.disabled = isChecked;
+
+    if (isChecked) {
+        structureStatus.textContent = '✓ Will generate lessons for entire course';
+    } else {
+        structureStatus.textContent = structureStatus.textContent.replace('Will generate lessons for entire course', '');
+    }
+});
+
+// Generate lessons button handler
+generateLessonsBtn.addEventListener('click', async () => {
+    console.log('Generate Lessons button clicked');
+
+    const course = lessonCourse.value.trim();
+
+    // Validation
+    if (!course) {
+        showToast('Please enter a course name', 'error');
+        lessonCourse.focus();
+        return;
+    }
+
+    if (!courseStructure) {
+        showToast('Please click "Generate Subjects" or "Upload JSON" first!', 'error');
+        return;
+    }
+
+    const generateAll = generateAllCheckbox.checked;
+
+    // Prepare request data
+    const requestData = {
+        course: course,
+        uploaded_json: courseStructure,
+        generate_all: generateAll
+    };
+
+    if (!generateAll) {
+        const selectedSubjectIdx = lessonSubjectSelect.value;
+        if (selectedSubjectIdx === '') {
+            showToast('Please select a subject', 'error');
+            return;
+        }
+
+        requestData.selected_subject_idx = parseInt(selectedSubjectIdx);
+
+        // Get selected topics (empty means all topics in subject)
+        const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
+        if (selectedTopicIndices.length > 0) {
+            requestData.selected_topic_indices = selectedTopicIndices;
+        }
+
+        // Get selected chapters (optional)
+        const selectedChapters = Array.from(lessonChaptersSelect.selectedOptions).map(opt => opt.value);
+        if (selectedChapters.length > 0) {
+            requestData.selected_chapters = selectedChapters;
+        }
+    }
+
+    console.log('Request data:', requestData);
+
+    // Show loading with enhanced messages
+    loading.style.display = 'flex';
+    const loadingText = loading.querySelector('p');
+    loadingText.textContent = '🔄 Initializing lesson generation...';
+    generateLessonsBtn.disabled = true;
+
+    // Update loading messages periodically
+    let messageIndex = 0;
+    const messages = [
+        '📝 Generating lesson content with Claude...',
+        '🔍 Searching for medical images...',
+        '🎨 Integrating visuals and flowcharts...',
+        '✨ Finalizing lesson format...'
+    ];
+    const messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % messages.length;
+        loadingText.textContent = messages[messageIndex];
+    }, 3000);
+
+    try {
+        console.log('Sending request to /api/generate-lessons...');
+        const response = await fetch('/api/generate-lessons', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Server error:', error);
+            throw new Error(error.error || 'Failed to generate lessons');
+        }
+
+        const data = await response.json();
+        console.log('Lessons data received:', data);
+        lessonsData = data;
+
+        // Display results
+        displayLessons(data);
+        lessonsResultSection.style.display = 'block';
+
+        showToast(`✓ Generated ${data.lessons.length} lessons!`, 'success');
+    } catch (error) {
+        console.error('Error generating lessons:', error);
+        showToast(error.message || 'Failed to generate lessons', 'error');
+    } finally {
+        clearInterval(messageInterval);
+        loading.style.display = 'none';
+        generateLessonsBtn.disabled = false;
+    }
+});
+
+function displayLessons(data) {
+    // Display stats
+    const stats = {
+        'Course': data.course,
+        'Subject': data.subject,
+        'Total Topics': data.lessons.length,
+        'Total Chapters': data.lessons.reduce((sum, lesson) => sum + (lesson.chapters?.length || 0), 0)
+    };
+
+    lessonsStatsContainer.innerHTML = Object.entries(stats)
+        .map(([label, value]) => `
+            <div class="stat-item">
+                <div class="label">${label}</div>
+                <div class="value">${value}</div>
+            </div>
+        `).join('');
+
+    // Display lessons
+    lessonsContainer.innerHTML = data.lessons.map((lesson, idx) => `
+        <div class="lesson-card">
+            <div class="lesson-header">
+                <h3>Topic ${idx + 1}: ${lesson.topic}</h3>
+                <div class="lesson-tags">
+                    ${lesson.high_yield ? '<span class="tag tag-success">High Yield</span>' : ''}
+                    <span class="tag tag-info">${lesson.chapters?.length || 0} Chapters</span>
+                </div>
+            </div>
+
+            <div class="lesson-content">
+                <h4>📖 Topic-Level Lesson (Detailed)</h4>
+                <div class="lesson-text">${formatLessonContent(lesson.topic_lesson)}</div>
+            </div>
+
+            ${lesson.chapters && lesson.chapters.length > 0 ? `
+                <div class="chapters-section">
+                    <h4>📝 Chapter-Level Lessons (Rapid Revision)</h4>
+                    ${lesson.chapters.map((chapter, chIdx) => `
+                        <div class="chapter-card">
+                            <div class="chapter-header">
+                                <h5>Chapter ${chIdx + 1}: ${chapter.name}</h5>
+                                ${chapter.nice_refs && chapter.nice_refs.length > 0 ? `
+                                    <span class="chapter-refs">📋 ${chapter.nice_refs.join(', ')}</span>
+                                ` : ''}
+                            </div>
+                            <div class="lesson-text">${formatLessonContent(chapter.lesson)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function formatLessonContent(content) {
+    if (!content) return '<p class="text-muted">No content available</p>';
+
+    let html = content;
+
+    // Extract and process Mermaid code blocks
+    const mermaidBlocks = [];
+    html = html.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        mermaidBlocks.push({ id, code: code.trim() });
+        return `<div class="mermaid-container"><pre class="mermaid" id="${id}">${code.trim()}</pre></div>`;
+    });
+
+    // Convert markdown headings
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Convert markdown images
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 1rem 0;">');
+
+    // Convert bold and italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Convert bullet lists
+    html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Convert tables (simple markdown tables)
+    const tableRegex = /(\|.+\|\n)+/g;
+    html = html.replace(tableRegex, (table) => {
+        const rows = table.trim().split('\n');
+        let tableHtml = '<table class="lesson-table">';
+        rows.forEach((row, idx) => {
+            if (idx === 1 && row.includes('---')) return; // Skip separator row
+            const cells = row.split('|').filter(c => c.trim());
+            const tag = idx === 0 ? 'th' : 'td';
+            tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
+        });
+        tableHtml += '</table>';
+        return tableHtml;
+    });
+
+    // Convert paragraphs
+    html = html.split('\n\n').map(para => {
+        if (para.startsWith('<')) return para; // Already HTML
+        return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+
+    // Initialize Mermaid rendering after content is added to DOM
+    setTimeout(() => {
+        if (window.mermaid) {
+            window.mermaid.run({
+                querySelector: '.mermaid'
+            });
+        }
+    }, 100);
+
+    return html;
+}
+
+// Download lessons as JSON
+downloadLessonsJsonBtn.addEventListener('click', () => {
+    if (!lessonsData) {
+        showToast('No lessons to download', 'error');
+        return;
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(lessonsData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lessons_${lessonsData.course}_${timestamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast('Lessons downloaded!', 'success');
+});
+
+// Download lessons as Markdown
+downloadLessonsMdBtn.addEventListener('click', () => {
+    if (!lessonsData) {
+        showToast('No lessons to download', 'error');
+        return;
+    }
+
+    try {
+        const timestamp = new Date().toISOString().slice(0, 10);
+        let markdown = `# ${lessonsData.course} - ${lessonsData.subject}\n\n`;
+        markdown += `Generated on: ${new Date().toLocaleDateString()}\n\n`;
+        markdown += `---\n\n`;
+
+        lessonsData.lessons.forEach((lesson, idx) => {
+            markdown += `## Topic ${idx + 1}: ${lesson.topic}\n\n`;
+
+            markdown += `### 📖 Detailed Lesson\n\n`;
+            markdown += `${lesson.topic_lesson}\n\n`;
+
+            if (lesson.chapters && lesson.chapters.length > 0) {
+                markdown += `### 📝 Chapter-Level Rapid Revision\n\n`;
+                lesson.chapters.forEach((chapter, chIdx) => {
+                    markdown += `#### ${chIdx + 1}. ${chapter.name}\n\n`;
+                    markdown += `${chapter.lesson}\n\n`;
+                });
+            }
+
+            markdown += `---\n\n`;
+        });
+
+        const blob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lessons_${lessonsData.course}_${timestamp}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('Markdown downloaded!', 'success');
+    } catch (error) {
+        console.error('Error generating markdown:', error);
+        showToast('Failed to generate markdown', 'error');
+    }
+});
+
+// ============================================
 // STRUCTURE REVIEW PANEL EVENT HANDLERS
 // ============================================
 
