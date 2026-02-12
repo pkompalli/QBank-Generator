@@ -142,7 +142,7 @@ function displayStructureReview() {
     // Show review panel, hide form container temporarily
     structureReview.style.display = 'block';
     qbankSubjectsContainer.style.display = 'none';
-    generateBtn.style.display = 'none';
+    generationButtons.style.display = 'none';
 
     // Display Exam Format
     const examFormat = qbankCourseStructure.exam_format || {};
