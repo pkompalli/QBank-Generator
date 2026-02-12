@@ -13,12 +13,22 @@ const numDisplay = document.getElementById('num-display');
 const bloomInfo = document.getElementById('bloom-distribution');
 const totalQuestionsInfo = document.getElementById('total-questions-info');
 const perTopicLabel = document.getElementById('per-topic-label');
-const generateBtn = document.getElementById('generate-btn');
+const chaptersSelect = document.getElementById('chapters');
+const generateAllContent = document.getElementById('generate-all-content');
+const questionsOptions = document.getElementById('questions-options');
+const generationButtons = document.querySelector('.generation-buttons');
+const generateQuestionsBtn = document.getElementById('generate-questions-btn');
+const generateLessonsBtn = document.getElementById('generate-lessons-btn');
 const resultsSection = document.getElementById('results');
 const questionsContainer = document.getElementById('questions-container');
 const statsContainer = document.getElementById('stats');
 const downloadBtn = document.getElementById('download-btn');
 const copyBtn = document.getElementById('copy-btn');
+const lessonsResult = document.getElementById('lessons-result');
+const lessonsContainer = document.getElementById('lessons-container');
+const lessonsStats = document.getElementById('lessons-stats');
+const downloadLessonsJsonBtn = document.getElementById('download-lessons-json-btn');
+const downloadLessonsMdBtn = document.getElementById('download-lessons-md-btn');
 const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 
@@ -207,9 +217,9 @@ function addChatMessage(content, sender = 'user') {
 function approveStructure() {
     structureReview.style.display = 'none';
     qbankSubjectsContainer.style.display = 'block';
-    generateBtn.style.display = 'block';
+    generationButtons.style.display = 'block';
     populateQBankSubjects();
-    showToast('Structure approved! Select subjects and topics to generate questions.', 'success');
+    showToast('Structure approved! Select subjects and topics to generate content.', 'success');
 }
 
 // Question Bank - Generate Subjects button
@@ -325,33 +335,75 @@ function populateQBankSubjects() {
     });
 }
 
-// Subject change handler - populate topics from structure
+// Subject change handler - populate topics and chapters from structure
 subjectSelect.addEventListener('change', () => {
     const subjectIdx = subjectSelect.value;
     topicsSelect.innerHTML = '';
-    generateBtn.disabled = true;
+    chaptersSelect.innerHTML = '';
+    generateQuestionsBtn.disabled = true;
+    generateLessonsBtn.disabled = true;
 
     if (!subjectIdx || !qbankCourseStructure) return;
 
     const subject = qbankCourseStructure.subjects[subjectIdx];
     if (!subject || !subject.topics) return;
 
-    subject.topics.forEach((topic, idx) => {
+    // Populate topics
+    subject.topics.forEach((topic) => {
         const option = document.createElement('option');
         option.value = topic.name;
         option.textContent = topic.name;
         topicsSelect.appendChild(option);
+
+        // Populate chapters from topics if they exist
+        if (topic.chapters) {
+            topic.chapters.forEach((chapter) => {
+                const chapterOption = document.createElement('option');
+                chapterOption.value = chapter.name;
+                chapterOption.textContent = `${topic.name} - ${chapter.name}`;
+                chaptersSelect.appendChild(chapterOption);
+            });
+        }
     });
 
+    enableGenerationButtons();
     updateBloomDistribution();
 });
 
 // Topics change handler (multi-select)
 topicsSelect.addEventListener('change', () => {
-    const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
-    generateBtn.disabled = selectedTopics.length === 0;
+    enableGenerationButtons();
     updateBloomDistribution();
 });
+
+// Chapters change handler
+chaptersSelect.addEventListener('change', () => {
+    enableGenerationButtons();
+});
+
+// Generate All checkbox handler
+generateAllContent.addEventListener('change', () => {
+    if (generateAllContent.checked) {
+        subjectSelect.disabled = true;
+        topicsSelect.disabled = true;
+        chaptersSelect.disabled = true;
+        generateQuestionsBtn.disabled = false;
+        generateLessonsBtn.disabled = false;
+    } else {
+        subjectSelect.disabled = false;
+        topicsSelect.disabled = false;
+        chaptersSelect.disabled = false;
+        enableGenerationButtons();
+    }
+});
+
+// Helper function to enable generation buttons based on selection
+function enableGenerationButtons() {
+    const hasSubject = subjectSelect.value !== '';
+    const hasSelection = hasSubject || generateAllContent.checked;
+    generateQuestionsBtn.disabled = !hasSelection;
+    generateLessonsBtn.disabled = !hasSelection;
+}
 
 // Number of questions slider
 numQuestionsInput.addEventListener('input', () => {
@@ -359,27 +411,37 @@ numQuestionsInput.addEventListener('input', () => {
     updateBloomDistribution();
 });
 
-// Generate button handler
-generateBtn.addEventListener('click', async () => {
+// Show questions options when clicking generate questions
+generateQuestionsBtn.addEventListener('click', () => {
+    if (questionsOptions.style.display === 'none' || !questionsOptions.style.display) {
+        questionsOptions.style.display = 'block';
+        lessonsResult.style.display = 'none';
+        setTimeout(() => {
+            questionsOptions.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    } else {
+        // Already showing options, proceed with generation
+        generateQuestions();
+    }
+});
+
+// Generate Questions handler
+async function generateQuestions() {
     const course = qbankCourseInput.value.trim();
     const subjectIdx = subjectSelect.value;
     const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numQuestions = parseInt(numQuestionsInput.value);
     const includeImages = includeImagesCheckbox.checked;
 
-    if (!qbankCourseStructure || !subjectIdx) {
+    if (!qbankCourseStructure || (!subjectIdx && !generateAllContent.checked)) {
         showToast('Please load course structure and select a subject', 'error');
         return;
     }
 
-    const subject = qbankCourseStructure.subjects[subjectIdx].name;
-
-    // Debug logging
-    console.log('qbankCourseStructure:', qbankCourseStructure);
-    console.log('exam_format being sent:', qbankCourseStructure?.exam_format);
+    const subject = generateAllContent.checked ? 'All' : qbankCourseStructure.subjects[subjectIdx].name;
 
     loading.style.display = 'flex';
-    generateBtn.disabled = true;
+    generateQuestionsBtn.disabled = true;
 
     try {
         const response = await fetch('/api/generate', {
@@ -394,29 +456,29 @@ generateBtn.addEventListener('click', async () => {
                 exam_format: qbankCourseStructure?.exam_format
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.error) {
             throw new Error(data.error);
         }
-        
+
         generatedQuestions = data.questions;
         displayResults(data.questions, course, data.image_stats);
 
-        let message = `Generated ${data.count} questions across ${topics.length} topic(s)!`;
+        let message = `Generated ${data.count} questions across ${topics.length || 'all'} topic(s)!`;
         if (data.image_stats) {
             message += ` | Images: ${data.image_stats.images_found}/${data.image_stats.total_image_questions} (${data.image_stats.success_rate})`;
         }
         showToast(message, 'success');
-        
+
     } catch (error) {
         showToast(error.message || 'Error generating questions', 'error');
     } finally {
         loading.style.display = 'none';
-        generateBtn.disabled = false;
+        generateQuestionsBtn.disabled = false;
     }
-});
+}
 
 // Display results
 function displayResults(questions, course, imageStats = null) {
