@@ -1264,40 +1264,108 @@ function displayLessons(data) {
             </div>
         `).join('');
 
-    // Display lessons
-    lessonsContainer.innerHTML = data.lessons.map((lesson, idx) => `
+    // Display lessons with tabbed interface
+    lessonsContainer.innerHTML = data.lessons.map((lesson, lessonIdx) => {
+        const topicId = `topic-${lessonIdx}`;
+        const hasChapters = lesson.chapters && lesson.chapters.length > 0;
+
+        return `
         <div class="lesson-card">
             <div class="lesson-header">
-                <h3>Topic ${idx + 1}: ${lesson.topic}</h3>
+                <h3>${lesson.topic}</h3>
                 <div class="lesson-tags">
                     ${lesson.high_yield ? '<span class="tag tag-success">High Yield</span>' : ''}
                     <span class="tag tag-info">${lesson.chapters?.length || 0} Chapters</span>
                 </div>
             </div>
 
-            <div class="lesson-content">
-                <h4>📖 Topic-Level Lesson (Detailed)</h4>
+            <!-- Lesson Tabs -->
+            <div class="lesson-tabs">
+                <button class="lesson-tab-btn active" data-lesson="${topicId}" data-tab="topic">
+                    📖 ${lesson.topic}
+                </button>
+                ${hasChapters ? `
+                <button class="lesson-tab-btn" data-lesson="${topicId}" data-tab="chapters">
+                    🎯 Deep Dive
+                </button>
+                ` : ''}
+            </div>
+
+            <!-- Topic Tab Content -->
+            <div class="lesson-tab-content active" id="${topicId}-topic">
                 <div class="lesson-text">${formatLessonContent(lesson.topic_lesson)}</div>
             </div>
 
-            ${lesson.chapters && lesson.chapters.length > 0 ? `
-                <div class="chapters-section">
-                    <h4>📝 Chapter-Level Lessons (Rapid Revision)</h4>
+            <!-- Chapters Tab Content -->
+            ${hasChapters ? `
+            <div class="lesson-tab-content" id="${topicId}-chapters">
+                <!-- Chapter Links (Horizontal) -->
+                <div class="chapter-links">
                     ${lesson.chapters.map((chapter, chIdx) => `
-                        <div class="chapter-card">
-                            <div class="chapter-header">
-                                <h5>Chapter ${chIdx + 1}: ${chapter.name}</h5>
-                                ${chapter.nice_refs && chapter.nice_refs.length > 0 ? `
-                                    <span class="chapter-refs">📋 ${chapter.nice_refs.join(', ')}</span>
-                                ` : ''}
-                            </div>
-                            <div class="lesson-text">${formatLessonContent(chapter.lesson)}</div>
+                        <button class="chapter-link-btn ${chIdx === 0 ? 'active' : ''}"
+                                data-lesson="${topicId}"
+                                data-chapter="${chIdx}">
+                            ${chapter.name}
+                        </button>
+                    `).join('')}
+                </div>
+
+                <!-- Chapter Content -->
+                <div class="chapter-content-area">
+                    ${lesson.chapters.map((chapter, chIdx) => `
+                        <div class="chapter-content ${chIdx === 0 ? 'active' : ''}"
+                             id="${topicId}-chapter-${chIdx}">
+                            <h4>${chapter.name}</h4>
+                            ${chapter.nice_refs && chapter.nice_refs.length > 0 ? `
+                                <p class="chapter-refs">📋 NICE References: ${chapter.nice_refs.join(', ')}</p>
+                            ` : ''}
+                            <div class="lesson-text">${formatLessonContent(chapter.chapter_lesson || chapter.lesson)}</div>
                         </div>
                     `).join('')}
                 </div>
+            </div>
             ` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
+
+    // Add event listeners for lesson tabs
+    document.querySelectorAll('.lesson-tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const lessonId = e.target.dataset.lesson;
+            const tabName = e.target.dataset.tab;
+
+            // Update tab buttons
+            document.querySelectorAll(`[data-lesson="${lessonId}"]`).forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll(`[id^="${lessonId}-"]`).forEach(content => {
+                if (!content.id.includes('chapter-')) {
+                    content.classList.remove('active');
+                }
+            });
+            document.getElementById(`${lessonId}-${tabName}`).classList.add('active');
+        });
+    });
+
+    // Add event listeners for chapter links
+    document.querySelectorAll('.chapter-link-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const lessonId = e.target.dataset.lesson;
+            const chapterIdx = e.target.dataset.chapter;
+
+            // Update chapter link buttons
+            document.querySelectorAll(`.chapter-link-btn[data-lesson="${lessonId}"]`).forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+
+            // Update chapter content
+            document.querySelectorAll(`.chapter-content[id^="${lessonId}-chapter-"]`).forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${lessonId}-chapter-${chapterIdx}`).classList.add('active');
+        });
+    });
 }
 
 function formatLessonContent(content) {

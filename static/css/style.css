@@ -1080,3 +1080,115 @@ main {
     padding: 0.75rem 1.5rem;
     white-space: nowrap;
 }
+
+/* ============================================
+   LESSON TABS
+   ============================================ */
+
+.lesson-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.lesson-tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -2px;
+}
+
+.lesson-tab-btn:hover {
+    color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.lesson-tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.lesson-tab-content {
+    display: none;
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.lesson-tab-content.active {
+    display: block;
+}
+
+/* ============================================
+   CHAPTER LINKS (Horizontal)
+   ============================================ */
+
+.chapter-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #f0f9ff;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.chapter-link-btn {
+    padding: 0.5rem 1rem;
+    background: var(--card-bg);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.chapter-link-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.chapter-link-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.chapter-content-area {
+    position: relative;
+}
+
+.chapter-content {
+    display: none;
+}
+
+.chapter-content.active {
+    display: block;
+}
+
+.chapter-content h4 {
+    color: var(--primary);
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+}
+
+.chapter-refs {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f0f9ff;
+    border-left: 3px solid var(--primary);
+    border-radius: 0 4px 4px 0;
+}
