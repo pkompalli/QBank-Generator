@@ -1,0 +1,1019 @@
+{
+  "Course": "UKMLA AKT",
+  "exam_format": {
+    "type": "single_best_answer",
+    "num_options": 5,
+    "avg_stem_words": 75,
+    "uses_vignettes": true,
+    "image_questions_percentage": 15
+  },
+  "blooms_distribution": {
+    "1_remember": 10,
+    "2_understand": 15,
+    "3_apply": 35,
+    "4_analyze": 25,
+    "5_evaluate": 10,
+    "6_create": 0,
+    "7_integrate": 5
+  },
+  "content_characteristics": {
+    "domain": "medical",
+    "domain_description": "The UK Medical Licensing Assessment (UKMLA) Applied Knowledge Test is a comprehensive medical examination assessing clinical knowledge across all medical specialties, emphasizing clinical reasoning, evidence-based practice, patient safety, professional ethics, and integrated care across primary and secondary settings. It focuses on common presentations, differential diagnosis, investigation interpretation, management principles, and prescribing safety.",
+    "key_features": [
+      "clinical_vignettes_with_patient_demographics",
+      "investigation_results_interpretation",
+      "differential_diagnosis_scenarios",
+      "prescribing_safety_questions",
+      "evidence_based_management_decisions",
+      "professional_ethics_dilemmas",
+      "patient_safety_priorities",
+      "integrated_care_pathways",
+      "common_presentations_focus",
+      "primary_secondary_care_interface"
+    ]
+  },
+  "question_requirements": {
+    "format_notes": "Standard format for medical exams",
+    "visual_elements": "medium"
+  },
+  "subjects": [
+    {
+      "name": "Medicine (Cardiology, Respiratory, Gastroenterology, Nephrology, Endocrinology, Rheumatology, Neurology)",
+      "description": "Comprehensive coverage of adult internal medicine across all major organ systems",
+      "topics": [
+        {
+          "name": "Cardiology - Ischemic Heart Disease",
+          "chapters": []
+        },
+        {
+          "name": "Cardiology - Heart Failure and Cardiomyopathy",
+          "chapters": []
+        },
+        {
+          "name": "Cardiology - Arrhythmias and Conduction Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Cardiology - Valvular Heart Disease",
+          "chapters": []
+        },
+        {
+          "name": "Cardiology - Hypertension and Vascular Disease",
+          "chapters": []
+        },
+        {
+          "name": "Cardiology - Pericardial and Myocardial Disease",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Obstructive Airway Disease",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Respiratory Infections",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Interstitial Lung Disease",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Pulmonary Vascular Disease",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Pleural Disease and Lung Cancer",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory - Respiratory Failure and Sleep Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Upper GI Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Inflammatory Bowel Disease",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Liver Disease",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Pancreatic and Biliary Disease",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Lower GI Disorders and Colorectal Disease",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology - Malabsorption and Nutritional Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology - Acute Kidney Injury",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology - Chronic Kidney Disease",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology - Glomerular Disease",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology - Electrolyte and Acid-Base Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology - Tubulointerstitial Disease and Renal Replacement Therapy",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology - Diabetes Mellitus",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology - Thyroid Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology - Pituitary and Adrenal Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology - Calcium and Bone Metabolism",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology - Reproductive Endocrinology and Lipid Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Rheumatology - Inflammatory Arthritis",
+          "chapters": []
+        },
+        {
+          "name": "Rheumatology - Connective Tissue Diseases",
+          "chapters": []
+        },
+        {
+          "name": "Rheumatology - Crystal Arthropathy and Degenerative Joint Disease",
+          "chapters": []
+        },
+        {
+          "name": "Rheumatology - Vasculitis and Systemic Inflammatory Conditions",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Stroke and Cerebrovascular Disease",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Epilepsy and Seizure Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Movement Disorders and Neurodegenerative Disease",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Demyelinating Disease and Neuroimmunology",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Headache and Pain Syndromes",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - Neuromuscular Disorders and Peripheral Neuropathy",
+          "chapters": []
+        },
+        {
+          "name": "Neurology - CNS Infections and Neuro-oncology",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Surgery (General Surgery, Trauma & Orthopedics, Urology, ENT, Ophthalmology)",
+      "description": "Surgical principles, perioperative care, and management across all surgical specialties",
+      "topics": [
+        {
+          "name": "General Surgery - Acute Abdomen and Emergency Surgery",
+          "chapters": []
+        },
+        {
+          "name": "General Surgery - Gastrointestinal Surgery",
+          "chapters": []
+        },
+        {
+          "name": "General Surgery - Hepatobiliary and Pancreatic Surgery",
+          "chapters": []
+        },
+        {
+          "name": "General Surgery - Breast and Endocrine Surgery",
+          "chapters": []
+        },
+        {
+          "name": "General Surgery - Hernias and Abdominal Wall",
+          "chapters": []
+        },
+        {
+          "name": "General Surgery - Vascular Surgery",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Fracture Management and Trauma Principles",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Upper Limb Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Lower Limb and Hip Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Spinal Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Pediatric Orthopedics and Sports Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics - Bone and Joint Infections",
+          "chapters": []
+        },
+        {
+          "name": "Urology - Urological Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Urology - Prostate Disease",
+          "chapters": []
+        },
+        {
+          "name": "Urology - Bladder and Renal Tract Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Urology - Male Reproductive Health and Scrotal Pathology",
+          "chapters": []
+        },
+        {
+          "name": "Urology - Urological Oncology",
+          "chapters": []
+        },
+        {
+          "name": "ENT - Ear Disorders",
+          "chapters": []
+        },
+        {
+          "name": "ENT - Nose and Sinus Disorders",
+          "chapters": []
+        },
+        {
+          "name": "ENT - Throat and Neck Disorders",
+          "chapters": []
+        },
+        {
+          "name": "ENT - Head and Neck Oncology",
+          "chapters": []
+        },
+        {
+          "name": "ENT - Airway Management and ENT Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology - Red Eye and Ocular Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology - Glaucoma and Cataracts",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology - Retinal and Vitreous Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology - Neuro-ophthalmology and Visual Pathway Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology - External Eye Disease and Refractive Disorders",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Pediatrics & Child Health",
+      "description": "Child development, pediatric diseases, and management from neonatal period through adolescence",
+      "topics": [
+        {
+          "name": "Neonatology - Neonatal Resuscitation and Birth Complications",
+          "chapters": []
+        },
+        {
+          "name": "Neonatology - Prematurity and Low Birth Weight",
+          "chapters": []
+        },
+        {
+          "name": "Neonatology - Neonatal Jaundice and Metabolic Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Neonatology - Neonatal Infections and Congenital Abnormalities",
+          "chapters": []
+        },
+        {
+          "name": "Child Development and Developmental Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Cardiology and Congenital Heart Disease",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Respiratory Disease",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Gastroenterology and Nutrition",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Nephrology and Urology",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Endocrinology and Growth Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Neurology and Seizures",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Infectious Diseases and Immunization",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Hematology and Oncology",
+          "chapters": []
+        },
+        {
+          "name": "Child Safeguarding and Social Pediatrics",
+          "chapters": []
+        },
+        {
+          "name": "Adolescent Health and Behavioral Problems",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Obstetrics & Gynecology",
+      "description": "Pregnancy care, childbirth, gynecological conditions, and reproductive health",
+      "topics": [
+        {
+          "name": "Antenatal Care and Normal Pregnancy",
+          "chapters": []
+        },
+        {
+          "name": "Complications of Early Pregnancy",
+          "chapters": []
+        },
+        {
+          "name": "Medical Disorders in Pregnancy",
+          "chapters": []
+        },
+        {
+          "name": "Obstetric Complications and High-Risk Pregnancy",
+          "chapters": []
+        },
+        {
+          "name": "Labor and Delivery Management",
+          "chapters": []
+        },
+        {
+          "name": "Postpartum Care and Complications",
+          "chapters": []
+        },
+        {
+          "name": "Gynecological Infections and Pelvic Inflammatory Disease",
+          "chapters": []
+        },
+        {
+          "name": "Menstrual Disorders and Abnormal Uterine Bleeding",
+          "chapters": []
+        },
+        {
+          "name": "Contraception and Family Planning",
+          "chapters": []
+        },
+        {
+          "name": "Infertility and Reproductive Endocrinology",
+          "chapters": []
+        },
+        {
+          "name": "Menopause and Hormone Replacement Therapy",
+          "chapters": []
+        },
+        {
+          "name": "Gynecological Oncology",
+          "chapters": []
+        },
+        {
+          "name": "Urogynecology and Pelvic Floor Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Benign Gynecological Conditions",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Psychiatry & Mental Health",
+      "description": "Mental health disorders, psychological treatments, and psychiatric emergencies",
+      "topics": [
+        {
+          "name": "Psychiatric Assessment and Mental State Examination",
+          "chapters": []
+        },
+        {
+          "name": "Mood Disorders - Depression and Bipolar Disorder",
+          "chapters": []
+        },
+        {
+          "name": "Anxiety Disorders and Stress-Related Conditions",
+          "chapters": []
+        },
+        {
+          "name": "Psychotic Disorders and Schizophrenia",
+          "chapters": []
+        },
+        {
+          "name": "Personality Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Substance Misuse and Addiction",
+          "chapters": []
+        },
+        {
+          "name": "Eating Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Organic Psychiatric Disorders and Dementia",
+          "chapters": []
+        },
+        {
+          "name": "Child and Adolescent Psychiatry",
+          "chapters": []
+        },
+        {
+          "name": "Perinatal and Reproductive Psychiatry",
+          "chapters": []
+        },
+        {
+          "name": "Self-Harm, Suicide Risk and Psychiatric Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Psychopharmacology and Physical Treatments",
+          "chapters": []
+        },
+        {
+          "name": "Mental Health Legislation and Capacity",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "General Practice & Primary Care",
+      "description": "Community-based care, chronic disease management, and holistic patient care",
+      "topics": [
+        {
+          "name": "Consultation Skills and Patient-Centered Care",
+          "chapters": []
+        },
+        {
+          "name": "Prevention and Health Promotion",
+          "chapters": []
+        },
+        {
+          "name": "Chronic Disease Management in Primary Care",
+          "chapters": []
+        },
+        {
+          "name": "Common Presentations in General Practice",
+          "chapters": []
+        },
+        {
+          "name": "Minor Illness and Self-Limiting Conditions",
+          "chapters": []
+        },
+        {
+          "name": "Musculoskeletal Problems in Primary Care",
+          "chapters": []
+        },
+        {
+          "name": "Dermatology in Primary Care",
+          "chapters": []
+        },
+        {
+          "name": "Women's Health in General Practice",
+          "chapters": []
+        },
+        {
+          "name": "Men's Health in General Practice",
+          "chapters": []
+        },
+        {
+          "name": "Elderly Care and Frailty",
+          "chapters": []
+        },
+        {
+          "name": "Palliative and End-of-Life Care",
+          "chapters": []
+        },
+        {
+          "name": "Mental Health in Primary Care",
+          "chapters": []
+        },
+        {
+          "name": "Practice Management and Quality Improvement",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Emergency Medicine & Acute Care",
+      "description": "Recognition and management of acute medical emergencies and critical illness",
+      "topics": [
+        {
+          "name": "Resuscitation and Advanced Life Support",
+          "chapters": []
+        },
+        {
+          "name": "Shock and Circulatory Failure",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Cardiac Emergencies and Acute Coronary Syndromes",
+          "chapters": []
+        },
+        {
+          "name": "Neurological Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Acute Abdomen and Gastrointestinal Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Trauma Management and Major Injuries",
+          "chapters": []
+        },
+        {
+          "name": "Toxicology and Poisoning",
+          "chapters": []
+        },
+        {
+          "name": "Environmental Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Metabolic and Endocrine Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Sepsis and Severe Infections",
+          "chapters": []
+        },
+        {
+          "name": "Obstetric and Gynecological Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Emergencies",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Ethics, Law & Communication",
+      "description": "Medical ethics, legal frameworks, professional conduct, and effective communication",
+      "topics": [
+        {
+          "name": "Medical Ethics Principles and Frameworks",
+          "chapters": []
+        },
+        {
+          "name": "Consent and Capacity",
+          "chapters": []
+        },
+        {
+          "name": "Confidentiality and Information Sharing",
+          "chapters": []
+        },
+        {
+          "name": "Mental Capacity Act and Deprivation of Liberty",
+          "chapters": []
+        },
+        {
+          "name": "End-of-Life Decision Making and DNACPR",
+          "chapters": []
+        },
+        {
+          "name": "Safeguarding Children and Vulnerable Adults",
+          "chapters": []
+        },
+        {
+          "name": "Medical Negligence and Clinical Governance",
+          "chapters": []
+        },
+        {
+          "name": "GMC Guidance and Professional Standards",
+          "chapters": []
+        },
+        {
+          "name": "Breaking Bad News and Difficult Conversations",
+          "chapters": []
+        },
+        {
+          "name": "Shared Decision Making and Patient Involvement",
+          "chapters": []
+        },
+        {
+          "name": "Cultural Competence and Diversity",
+          "chapters": []
+        },
+        {
+          "name": "Complaints and Patient Safety Incidents",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Public Health & Epidemiology",
+      "description": "Population health, disease prevention, health promotion, and epidemiological principles",
+      "topics": [
+        {
+          "name": "Epidemiological Methods and Study Design",
+          "chapters": []
+        },
+        {
+          "name": "Screening and Early Detection",
+          "chapters": []
+        },
+        {
+          "name": "Health Promotion and Disease Prevention",
+          "chapters": []
+        },
+        {
+          "name": "Vaccination and Immunization Programs",
+          "chapters": []
+        },
+        {
+          "name": "Communicable Disease Control",
+          "chapters": []
+        },
+        {
+          "name": "Environmental and Occupational Health",
+          "chapters": []
+        },
+        {
+          "name": "Health Inequalities and Social Determinants",
+          "chapters": []
+        },
+        {
+          "name": "Healthcare Systems and NHS Organization",
+          "chapters": []
+        },
+        {
+          "name": "Evidence-Based Medicine and Critical Appraisal",
+          "chapters": []
+        },
+        {
+          "name": "Statistics and Data Interpretation",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Clinical Pharmacology & Therapeutics",
+      "description": "Drug mechanisms, prescribing principles, adverse effects, and therapeutic management",
+      "topics": [
+        {
+          "name": "Pharmacokinetics and Pharmacodynamics",
+          "chapters": []
+        },
+        {
+          "name": "Prescribing Principles and Safe Prescribing",
+          "chapters": []
+        },
+        {
+          "name": "Adverse Drug Reactions and Drug Interactions",
+          "chapters": []
+        },
+        {
+          "name": "Cardiovascular Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Gastrointestinal Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Central Nervous System Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Antimicrobial Therapy and Stewardship",
+          "chapters": []
+        },
+        {
+          "name": "Endocrine Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Analgesics and Pain Management",
+          "chapters": []
+        },
+        {
+          "name": "Prescribing in Special Populations",
+          "chapters": []
+        },
+        {
+          "name": "Emergency Drugs and Antidotes",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Pathology & Laboratory Medicine",
+      "description": "Disease mechanisms, laboratory investigations, and interpretation of pathology results",
+      "topics": [
+        {
+          "name": "General Pathology Principles",
+          "chapters": []
+        },
+        {
+          "name": "Cellular Injury and Adaptation",
+          "chapters": []
+        },
+        {
+          "name": "Inflammation and Repair",
+          "chapters": []
+        },
+        {
+          "name": "Neoplasia and Cancer Biology",
+          "chapters": []
+        },
+        {
+          "name": "Hematology - Red Blood Cell Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Hematology - White Blood Cell Disorders and Leukemia",
+          "chapters": []
+        },
+        {
+          "name": "Hemostasis and Coagulation Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Transfusion Medicine and Blood Products",
+          "chapters": []
+        },
+        {
+          "name": "Clinical Chemistry and Biochemistry",
+          "chapters": []
+        },
+        {
+          "name": "Immunology and Immunopathology",
+          "chapters": []
+        },
+        {
+          "name": "Histopathology and Cytopathology",
+          "chapters": []
+        },
+        {
+          "name": "Molecular Diagnostics and Genetics",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Microbiology & Infectious Diseases",
+      "description": "Infectious agents, antimicrobial therapy, infection control, and infectious disease management",
+      "topics": [
+        {
+          "name": "Bacteriology and Bacterial Infections",
+          "chapters": []
+        },
+        {
+          "name": "Virology and Viral Infections",
+          "chapters": []
+        },
+        {
+          "name": "Mycology and Fungal Infections",
+          "chapters": []
+        },
+        {
+          "name": "Parasitology and Parasitic Infections",
+          "chapters": []
+        },
+        {
+          "name": "Antimicrobial Agents and Resistance",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory Tract Infections",
+          "chapters": []
+        },
+        {
+          "name": "Gastrointestinal Infections",
+          "chapters": []
+        },
+        {
+          "name": "Urinary Tract and Genital Infections",
+          "chapters": []
+        },
+        {
+          "name": "Skin and Soft Tissue Infections",
+          "chapters": []
+        },
+        {
+          "name": "Central Nervous System Infections",
+          "chapters": []
+        },
+        {
+          "name": "Bloodstream Infections and Sepsis",
+          "chapters": []
+        },
+        {
+          "name": "HIV and Immunocompromised Host Infections",
+          "chapters": []
+        },
+        {
+          "name": "Healthcare-Associated Infections and Infection Control",
+          "chapters": []
+        },
+        {
+          "name": "Tropical and Travel-Related Infections",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Radiology & Imaging",
+      "description": "Imaging modalities, radiological interpretation, and investigation selection",
+      "topics": [
+        {
+          "name": "Imaging Modalities and Radiation Safety",
+          "chapters": []
+        },
+        {
+          "name": "Chest Radiology",
+          "chapters": []
+        },
+        {
+          "name": "Abdominal and Gastrointestinal Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Musculoskeletal Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Neuroimaging and Spinal Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Cardiovascular Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Genitourinary Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Emergency and Trauma Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Interventional Radiology",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Anesthesia & Perioperative Care",
+      "description": "Anesthetic principles, perioperative management, and pain control",
+      "topics": [
+        {
+          "name": "Preoperative Assessment and Risk Stratification",
+          "chapters": []
+        },
+        {
+          "name": "Anesthetic Agents and Techniques",
+          "chapters": []
+        },
+        {
+          "name": "Airway Management",
+          "chapters": []
+        },
+        {
+          "name": "Regional Anesthesia and Nerve Blocks",
+          "chapters": []
+        },
+        {
+          "name": "Perioperative Monitoring and Safety",
+          "chapters": []
+        },
+        {
+          "name": "Postoperative Care and Complications",
+          "chapters": []
+        },
+        {
+          "name": "Acute and Chronic Pain Management",
+          "chapters": []
+        },
+        {
+          "name": "Critical Care and Intensive Care Medicine",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Dermatology",
+      "description": "Skin diseases, dermatological presentations, and management of skin conditions",
+      "topics": [
+        {
+          "name": "Dermatological Examination and Lesion Description",
+          "chapters": []
+        },
+        {
+          "name": "Eczema and Dermatitis",
+          "chapters": []
+        },
+        {
+          "name": "Psoriasis and Papulosquamous Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Acne and Rosacea",
+          "chapters": []
+        },
+        {
+          "name": "Skin Infections - Bacterial, Viral, and Fungal",
+          "chapters": []
+        },
+        {
+          "name": "Urticaria and Allergic Skin Reactions",
+          "chapters": []
+        },
+        {
+          "name": "Autoimmune and Bullous Skin Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Skin Cancer and Premalignant Lesions",
+          "chapters": []
+        },
+        {
+          "name": "Hair and Nail Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Pigmentation Disorders and Vascular Lesions",
+          "chapters": []
+        }
+      ]
+    }
+  ]
+}

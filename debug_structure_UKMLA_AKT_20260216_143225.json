@@ -1,0 +1,597 @@
+{
+  "Course": "UKMLA AKT",
+  "exam_format": {
+    "question_format": {
+      "type": "single_best_answer",
+      "num_options": 5,
+      "avg_stem_words": 70,
+      "uses_vignettes": true,
+      "image_questions_percentage": 35
+    },
+    "blooms_distribution": {
+      "1_remember": 10,
+      "2_understand": 15,
+      "3_apply": 35,
+      "4_analyze": 25,
+      "5_evaluate": 10,
+      "6_create": 0,
+      "7_integrate": 5
+    },
+    "difficulty_distribution": {
+      "easy": 15,
+      "medium": 55,
+      "hard": 30
+    },
+    "image_percentage_by_subject": {
+      "Internal Medicine - Adult": 40,
+      "Surgery": 45,
+      "Pediatrics & Child Health": 35,
+      "Obstetrics & Gynecology": 30,
+      "Psychiatry & Mental Health": 15,
+      "General Practice & Primary Care": 35,
+      "Emergency Medicine & Acute Care": 50,
+      "Clinical Pharmacology & Therapeutics": 10,
+      "Microbiology & Infectious Diseases": 25,
+      "Pathology & Laboratory Medicine": 60
+    },
+    "domain_characteristics": {
+      "key_features": [
+        "clinical_scenario_based",
+        "patient_safety_focused",
+        "evidence_based_medicine",
+        "integrated_across_specialties",
+        "gmc_good_medical_practice_aligned",
+        "common_presentations_emphasis",
+        "emergency_management",
+        "ethical_decision_making",
+        "multisystem_integration",
+        "age_group_variation"
+      ],
+      "memory_aids": "mnemonics|clinical_algorithms|diagnostic_criteria|management_protocols",
+      "visual_elements": "high"
+    }
+  },
+  "blooms_distribution": {
+    "1_remember": 10,
+    "2_understand": 15,
+    "3_apply": 35,
+    "4_analyze": 25,
+    "5_evaluate": 10,
+    "6_create": 0,
+    "7_integrate": 5
+  },
+  "content_characteristics": {
+    "domain": "medical",
+    "domain_description": "The UKMLA Applied Knowledge Test assesses the knowledge, skills and professional attributes required for safe practice as a newly qualified doctor in the UK. It emphasizes clinical application, evidence-based practice, patient safety, and professional behavior across all medical specialties. The exam tests integrated knowledge across systems, age groups, and clinical contexts with focus on common presentations, emergency management, and ethical decision-making aligned with GMC Good Medical Practice.",
+    "key_features": [
+      "clinical_scenario_based",
+      "patient_safety_focused",
+      "evidence_based_medicine",
+      "integrated_across_specialties",
+      "gmc_good_medical_practice_aligned",
+      "common_presentations_emphasis",
+      "emergency_management",
+      "ethical_decision_making",
+      "multisystem_integration",
+      "age_group_variation"
+    ]
+  },
+  "question_requirements": {
+    "format_notes": "Standard format for medical exams",
+    "visual_elements": "high"
+  },
+  "subjects": [
+    {
+      "name": "Internal Medicine - Adult",
+      "description": "System-based adult medicine covering cardiovascular, respiratory, gastrointestinal, renal, endocrine, rheumatological, neurological, and hematological conditions",
+      "topics": [
+        {
+          "name": "Cardiology",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Gastroenterology & Hepatology",
+          "chapters": []
+        },
+        {
+          "name": "Nephrology & Urology",
+          "chapters": []
+        },
+        {
+          "name": "Endocrinology & Diabetes",
+          "chapters": []
+        },
+        {
+          "name": "Rheumatology & Musculoskeletal Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Neurology",
+          "chapters": []
+        },
+        {
+          "name": "Hematology",
+          "chapters": []
+        },
+        {
+          "name": "Oncology & Palliative Care",
+          "chapters": []
+        },
+        {
+          "name": "Dermatology",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Surgery",
+      "description": "Surgical specialties including general surgery, trauma & orthopedics, urology, ENT, ophthalmology, and perioperative care",
+      "topics": [
+        {
+          "name": "General Surgery",
+          "chapters": []
+        },
+        {
+          "name": "Trauma & Orthopedics",
+          "chapters": []
+        },
+        {
+          "name": "Urology",
+          "chapters": []
+        },
+        {
+          "name": "Ear, Nose & Throat (ENT)",
+          "chapters": []
+        },
+        {
+          "name": "Ophthalmology",
+          "chapters": []
+        },
+        {
+          "name": "Vascular Surgery",
+          "chapters": []
+        },
+        {
+          "name": "Breast & Endocrine Surgery",
+          "chapters": []
+        },
+        {
+          "name": "Perioperative Care & Anesthesia",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Pediatrics & Child Health",
+      "description": "Comprehensive child health covering neonatology, growth & development, pediatric diseases, and safeguarding children",
+      "topics": [
+        {
+          "name": "Neonatology & Perinatal Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Growth, Development & Nutrition",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Cardiology",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Respiratory Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Gastroenterology",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Neurology & Neurodevelopment",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Infectious Diseases & Immunology",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Endocrinology & Metabolic Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Child Safeguarding & Social Pediatrics",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Obstetrics & Gynecology",
+      "description": "Women's health including antenatal care, labor & delivery, postnatal care, gynecological conditions, and reproductive health",
+      "topics": [
+        {
+          "name": "Antenatal Care & Maternal Medicine",
+          "chapters": []
+        },
+        {
+          "name": "Labor, Delivery & Intrapartum Care",
+          "chapters": []
+        },
+        {
+          "name": "Postnatal Care & Lactation",
+          "chapters": []
+        },
+        {
+          "name": "Medical Disorders in Pregnancy",
+          "chapters": []
+        },
+        {
+          "name": "Gynecological Conditions",
+          "chapters": []
+        },
+        {
+          "name": "Reproductive Health & Contraception",
+          "chapters": []
+        },
+        {
+          "name": "Gynecological Oncology",
+          "chapters": []
+        },
+        {
+          "name": "Urogynaecology & Pelvic Floor Disorders",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Psychiatry & Mental Health",
+      "description": "Mental health disorders, psychiatric emergencies, substance misuse, liaison psychiatry, and mental health legislation",
+      "topics": [
+        {
+          "name": "Mood Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Psychotic Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Anxiety & Stress-Related Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Personality Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Substance Misuse & Addiction",
+          "chapters": []
+        },
+        {
+          "name": "Eating Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Child & Adolescent Psychiatry",
+          "chapters": []
+        },
+        {
+          "name": "Old Age Psychiatry & Cognitive Disorders",
+          "chapters": []
+        },
+        {
+          "name": "Liaison Psychiatry & Medically Unexplained Symptoms",
+          "chapters": []
+        },
+        {
+          "name": "Psychiatric Emergencies & Mental Health Legislation",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "General Practice & Primary Care",
+      "description": "Community-based care, chronic disease management, preventive medicine, health promotion, and multimorbidity management",
+      "topics": [
+        {
+          "name": "Chronic Disease Management",
+          "chapters": []
+        },
+        {
+          "name": "Preventive Medicine & Health Promotion",
+          "chapters": []
+        },
+        {
+          "name": "Multimorbidity & Frailty",
+          "chapters": []
+        },
+        {
+          "name": "Women's Health in Primary Care",
+          "chapters": []
+        },
+        {
+          "name": "Men's Health",
+          "chapters": []
+        },
+        {
+          "name": "Minor Illness & Self-Limiting Conditions",
+          "chapters": []
+        },
+        {
+          "name": "Care of Older Adults",
+          "chapters": []
+        },
+        {
+          "name": "End of Life Care",
+          "chapters": []
+        },
+        {
+          "name": "Health Inequalities & Social Determinants",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Emergency Medicine & Acute Care",
+      "description": "Emergency presentations, resuscitation, trauma management, acute medical emergencies, and critical care principles",
+      "topics": [
+        {
+          "name": "Resuscitation & Life Support",
+          "chapters": []
+        },
+        {
+          "name": "Trauma Management",
+          "chapters": []
+        },
+        {
+          "name": "Acute Cardiovascular Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Acute Respiratory Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Acute Neurological Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Acute Gastrointestinal Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Poisoning & Overdose",
+          "chapters": []
+        },
+        {
+          "name": "Environmental Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Pediatric Emergencies",
+          "chapters": []
+        },
+        {
+          "name": "Critical Care Principles",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Clinical Pharmacology & Therapeutics",
+      "description": "Principles of prescribing, drug mechanisms, adverse effects, drug interactions, and evidence-based therapeutics",
+      "topics": [
+        {
+          "name": "Principles of Prescribing & Medication Safety",
+          "chapters": []
+        },
+        {
+          "name": "Cardiovascular Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Respiratory Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Central Nervous System Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Antimicrobial Therapy & Stewardship",
+          "chapters": []
+        },
+        {
+          "name": "Endocrine Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Gastrointestinal Pharmacology",
+          "chapters": []
+        },
+        {
+          "name": "Analgesics & Pain Management",
+          "chapters": []
+        },
+        {
+          "name": "Immunosuppressants & Biologics",
+          "chapters": []
+        },
+        {
+          "name": "Adverse Drug Reactions & Drug Interactions",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Microbiology & Infectious Diseases",
+      "description": "Bacterial, viral, fungal, and parasitic infections, infection control, antimicrobial resistance, and travel medicine",
+      "topics": [
+        {
+          "name": "Bacterial Infections",
+          "chapters": []
+        },
+        {
+          "name": "Viral Infections",
+          "chapters": []
+        },
+        {
+          "name": "Fungal Infections",
+          "chapters": []
+        },
+        {
+          "name": "Parasitic Infections",
+          "chapters": []
+        },
+        {
+          "name": "Sexually Transmitted Infections",
+          "chapters": []
+        },
+        {
+          "name": "HIV & AIDS",
+          "chapters": []
+        },
+        {
+          "name": "Infection Prevention & Control",
+          "chapters": []
+        },
+        {
+          "name": "Antimicrobial Resistance",
+          "chapters": []
+        },
+        {
+          "name": "Immunization & Vaccination",
+          "chapters": []
+        },
+        {
+          "name": "Travel Medicine & Tropical Diseases",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Pathology & Laboratory Medicine",
+      "description": "Interpretation of laboratory investigations, diagnostic pathology, clinical biochemistry, hematology, and immunology",
+      "topics": [
+        {
+          "name": "Clinical Biochemistry",
+          "chapters": []
+        },
+        {
+          "name": "Hematology & Blood Transfusion",
+          "chapters": []
+        },
+        {
+          "name": "Clinical Immunology",
+          "chapters": []
+        },
+        {
+          "name": "Histopathology & Cytopathology",
+          "chapters": []
+        },
+        {
+          "name": "Medical Microbiology Laboratory",
+          "chapters": []
+        },
+        {
+          "name": "Genetics & Molecular Diagnostics",
+          "chapters": []
+        },
+        {
+          "name": "Interpretation of Imaging",
+          "chapters": []
+        },
+        {
+          "name": "Point-of-Care Testing",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Public Health & Epidemiology",
+      "description": "Population health, screening programs, health promotion, epidemiological principles, and healthcare systems",
+      "topics": [
+        {
+          "name": "Epidemiological Principles & Study Design",
+          "chapters": []
+        },
+        {
+          "name": "Screening & Early Detection",
+          "chapters": []
+        },
+        {
+          "name": "Health Promotion & Disease Prevention",
+          "chapters": []
+        },
+        {
+          "name": "Communicable Disease Control",
+          "chapters": []
+        },
+        {
+          "name": "Environmental & Occupational Health",
+          "chapters": []
+        },
+        {
+          "name": "Healthcare Systems & Organization",
+          "chapters": []
+        },
+        {
+          "name": "Health Economics & Resource Allocation",
+          "chapters": []
+        },
+        {
+          "name": "Global Health",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Ethics, Law & Professionalism",
+      "description": "Medical ethics, consent, capacity, confidentiality, professional conduct, communication skills, and medical law",
+      "topics": [
+        {
+          "name": "Ethical Principles & Frameworks",
+          "chapters": []
+        },
+        {
+          "name": "Consent & Capacity",
+          "chapters": []
+        },
+        {
+          "name": "Confidentiality & Information Governance",
+          "chapters": []
+        },
+        {
+          "name": "End of Life Decision-Making",
+          "chapters": []
+        },
+        {
+          "name": "Safeguarding Vulnerable Adults & Children",
+          "chapters": []
+        },
+        {
+          "name": "Medical Law & Regulation",
+          "chapters": []
+        },
+        {
+          "name": "Professionalism & Good Medical Practice",
+          "chapters": []
+        },
+        {
+          "name": "Communication Skills & Breaking Bad News",
+          "chapters": []
+        },
+        {
+          "name": "Teamwork & Leadership",
+          "chapters": []
+        },
+        {
+          "name": "Patient Safety & Clinical Governance",
+          "chapters": []
+        }
+      ]
+    }
+  ]
+}

@@ -3346,5 +3346,323 @@ Output ONLY the JSON, no additional text.
         }), 500
 
 
+# ============================================================================
+# COUNCIL OF MODELS VALIDATION SYSTEM
+# ============================================================================
+
+def get_validator_prompt(content_type, domain="medical education"):
+    """
+    Generate domain-agnostic validator prompt
+    Args:
+        content_type: 'lesson' or 'qbank'
+        domain: e.g., 'medical education', 'engineering', 'business', etc.
+    """
+    if content_type == 'lesson':
+        return f"""You are a senior {domain} content validation agent.
+
+Your role is to verify scientific correctness, internal consistency, and safety of the lesson below.
+
+You must be precise, conservative, and evidence-aligned.
+
+Evaluate:
+1. Factual correctness
+2. Alignment with current standard {domain} understanding
+3. Internal logical consistency
+4. Missing critical contraindications or exceptions
+5. Safety implications
+6. Conceptual clarity
+7. Over-simplification that may mislead learners
+
+Do NOT attempt adversarial breaking.
+Do NOT rewrite unless needed to show correction.
+
+Scoring guidance:
+• 9–10 → accurate and safe
+• 7–8 → minor refinements needed
+• ≤6 → material factual issue
+
+If any major_error exists → needs_revision = true
+
+Respond in JSON format with this structure:
+{{
+    "overall_accuracy_score": <number 0-10>,
+    "needs_revision": <boolean>,
+    "factual_errors": [<list of errors>],
+    "missing_critical_info": [<list of missing info>],
+    "safety_concerns": [<list of concerns>],
+    "clarity_issues": [<list of clarity issues>],
+    "recommendations": [<list of recommendations>],
+    "summary": "<brief summary of validation>"
+}}"""
+
+    elif content_type == 'qbank':
+        return f"""You are a senior {domain} exam item validation agent.
+
+Your task is to verify that:
+1. The marked correct answer is truly correct.
+2. All distractors are clearly incorrect.
+3. The explanation logically proves the correct answer.
+4. The vignette contains sufficient data to reach the answer.
+5. There are no factual inaccuracies.
+6. Lab values and details are realistic.
+7. The question tests the stated learning objective.
+
+You must independently reason through the case before judging it.
+
+Do NOT attempt adversarial ambiguity testing.
+Only validate correctness and structural integrity.
+
+Scoring:
+• overall_accuracy_score ≥ 8 AND correct_answer_verified = true → acceptable
+• Any factual_errors OR incorrect answer → needs_revision = true
+
+Respond in JSON format with this structure:
+{{
+    "overall_accuracy_score": <number 0-10>,
+    "correct_answer_verified": <boolean>,
+    "needs_revision": <boolean>,
+    "factual_errors": [<list of errors>],
+    "distractor_issues": [<list of distractor problems>],
+    "vignette_issues": [<list of vignette problems>],
+    "explanation_issues": [<list of explanation problems>],
+    "recommendations": [<list of recommendations>],
+    "summary": "<brief summary of validation>"
+}}"""
+
+
+def get_adversarial_prompt(content_type, domain="medical education"):
+    """
+    Generate domain-agnostic adversarial review prompt
+    Args:
+        content_type: 'lesson' or 'qbank'
+        domain: e.g., 'medical education', 'engineering', 'business', etc.
+    """
+    if content_type == 'lesson':
+        return f"""You are an adversarial {domain} content reviewer.
+
+Your role is to aggressively identify weaknesses, ambiguity, outdated guidance, logical gaps, unsafe claims, misleading simplifications, or learning traps in the lesson below.
+
+Assume the content may be flawed. Try to disprove, challenge, or break it.
+
+Focus on:
+• Factual inaccuracies
+• Overgeneralizations
+• Missing contraindications or exceptions
+• Outdated guideline risk
+• Internal contradictions
+• Cognitive overload or unclear flow
+• Potential misinterpretation
+
+Scoring rule:
+0 = unbreakable
+10 = fundamentally unsafe or misleading
+
+Respond in JSON format with this structure:
+{{
+    "adversarial_score": <number 0-10>,
+    "breakability_rating": "<unbreakable|minor issues|moderate issues|severely flawed>",
+    "identified_weaknesses": [<list of weaknesses>],
+    "ambiguities": [<list of ambiguities>],
+    "overgeneralizations": [<list of overgeneralizations>],
+    "logical_gaps": [<list of logical gaps>],
+    "safety_risks": [<list of safety risks>],
+    "recommendations": [<list of recommendations>],
+    "summary": "<brief summary of adversarial review>"
+}}"""
+
+    elif content_type == 'qbank':
+        return f"""You are an adversarial {domain} exam item reviewer.
+
+Your job is to break this question.
+
+Assume:
+• The correct answer may be wrong.
+• A distractor may be defensible.
+• The stem may be ambiguous.
+• The explanation may contradict the stem.
+
+Aggressively test for:
+1. More than one defensible correct answer
+2. Missing critical data in vignette
+3. Ambiguous phrasing
+4. Lab values inconsistent with diagnosis
+5. Distractors that are not truly incorrect
+6. Explanation that does not logically prove the answer
+7. Clues that make question trivial
+8. Unrealistic scenario
+9. Misalignment between learning objective and tested concept
+
+If you can construct a reasonable argument for an alternative answer, you must report it.
+
+Scoring:
+0 = airtight
+10 = easily broken
+
+Respond in JSON format with this structure:
+{{
+    "adversarial_score": <number 0-10>,
+    "breakability_rating": "<airtight|minor flaws|moderate flaws|easily broken>",
+    "alternative_answers": [<list of alternative defensible answers>],
+    "ambiguities": [<list of ambiguities>],
+    "missing_data": [<list of missing critical data>],
+    "distractor_defenses": [<list of defensible distractors>],
+    "explanation_contradictions": [<list of contradictions>],
+    "triviality_clues": [<list of trivializing clues>],
+    "unrealistic_elements": [<list of unrealistic elements>],
+    "recommendations": [<list of recommendations>],
+    "summary": "<brief summary of adversarial review>"
+}}"""
+
+
+@app.route('/api/validate-content', methods=['POST'])
+def validate_content():
+    """
+    Council of Models validation: Sequential Validator → Adversarial Reviewer
+    Works for both Lessons and QBank content
+    """
+    try:
+        data = request.json
+        content_type = data.get('content_type')  # 'lesson' or 'qbank'
+        content = data.get('content')  # The actual content to validate
+        domain = data.get('domain', 'medical education')  # Domain parameter
+        course = data.get('course', 'Unknown')
+
+        logger.info(f"🔍 Starting Council of Models validation for {content_type}")
+        logger.info(f"   Domain: {domain}")
+        logger.info(f"   Course: {course}")
+
+        # Initialize Claude
+        client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+
+        # Prepare content for validation
+        if content_type == 'lesson':
+            content_str = json.dumps(content, indent=2)
+        elif content_type == 'qbank':
+            # Format question nicely for validation
+            content_str = f"""
+Question: {content.get('question', '')}
+
+Options:
+{chr(10).join([f"{i+1}. {opt}" for i, opt in enumerate(content.get('options', []))])}
+
+Correct Answer: {content.get('correct_option', '')}
+
+Explanation: {content.get('explanation', '')}
+
+Learning Tags: {', '.join(content.get('tags', []))}
+Bloom's Level: {content.get('blooms_level', '')}
+Difficulty: {content.get('difficulty', '')}
+"""
+        else:
+            return jsonify({'error': 'Invalid content_type. Must be "lesson" or "qbank"'}), 400
+
+        # STEP 1: Validator Agent
+        logger.info("   📋 Step 1: Running Validator Agent...")
+        validator_prompt = get_validator_prompt(content_type, domain)
+
+        validator_response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            temperature=0.3,
+            messages=[{
+                "role": "user",
+                "content": f"{validator_prompt}\n\nContent to validate:\n{content_str}"
+            }]
+        )
+
+        validator_text = validator_response.content[0].text
+        logger.info(f"   ✓ Validator completed")
+
+        # Parse validator JSON response
+        try:
+            # Try to extract JSON from the response
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', validator_text)
+            if json_match:
+                validator_result = json.loads(json_match.group())
+            else:
+                validator_result = {"summary": validator_text, "error": "Could not parse JSON"}
+        except:
+            validator_result = {"summary": validator_text, "error": "Could not parse JSON"}
+
+        # STEP 2: Adversarial Reviewer Agent
+        logger.info("   ⚔️  Step 2: Running Adversarial Reviewer Agent...")
+        adversarial_prompt = get_adversarial_prompt(content_type, domain)
+
+        adversarial_response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            temperature=0.5,
+            messages=[{
+                "role": "user",
+                "content": f"{adversarial_prompt}\n\nContent to review:\n{content_str}"
+            }]
+        )
+
+        adversarial_text = adversarial_response.content[0].text
+        logger.info(f"   ✓ Adversarial review completed")
+
+        # Parse adversarial JSON response
+        try:
+            json_match = re.search(r'\{[\s\S]*\}', adversarial_text)
+            if json_match:
+                adversarial_result = json.loads(json_match.group())
+            else:
+                adversarial_result = {"summary": adversarial_text, "error": "Could not parse JSON"}
+        except:
+            adversarial_result = {"summary": adversarial_text, "error": "Could not parse JSON"}
+
+        # Generate combined report
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "content_type": content_type,
+            "domain": domain,
+            "course": course,
+            "validator": validator_result,
+            "adversarial": adversarial_result,
+            "overall_assessment": generate_overall_assessment(validator_result, adversarial_result, content_type)
+        }
+
+        logger.info("   ✅ Council of Models validation completed")
+
+        return jsonify(report)
+
+    except Exception as e:
+        logger.error(f"Error in validate_content: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+
+def generate_overall_assessment(validator_result, adversarial_result, content_type):
+    """Generate a combined assessment from both agents"""
+
+    validator_score = validator_result.get('overall_accuracy_score', 0)
+    adversarial_score = adversarial_result.get('adversarial_score', 0)
+    needs_revision = validator_result.get('needs_revision', False)
+
+    # Calculate overall quality score (inverse of adversarial score)
+    quality_score = (validator_score + (10 - adversarial_score)) / 2
+
+    if quality_score >= 8 and not needs_revision:
+        status = "✅ Approved"
+        recommendation = "Content is of high quality and safe to use."
+    elif quality_score >= 6:
+        status = "⚠️ Conditional"
+        recommendation = "Content has minor issues. Review recommendations and consider revisions."
+    else:
+        status = "❌ Needs Revision"
+        recommendation = "Content has significant issues and requires revision before use."
+
+    return {
+        "status": status,
+        "quality_score": round(quality_score, 2),
+        "validator_score": validator_score,
+        "adversarial_score": adversarial_score,
+        "needs_revision": needs_revision,
+        "recommendation": recommendation
+    }
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

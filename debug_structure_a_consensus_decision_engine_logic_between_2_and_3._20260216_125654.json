@@ -1,0 +1,581 @@
+{
+  "Course": "a consensus decision engine logic between 2 and 3.",
+  "exam_format": {
+    "question_format": {
+      "type": "single_best_answer",
+      "num_options": 4,
+      "avg_stem_words": 65,
+      "uses_vignettes": true,
+      "image_questions_percentage": 35
+    },
+    "blooms_distribution": {
+      "1_remember": 10,
+      "2_understand": 20,
+      "3_apply": 35,
+      "4_analyze": 25,
+      "5_evaluate": 8,
+      "6_create": 2,
+      "7_integrate": 0
+    },
+    "difficulty_distribution": {
+      "easy": 15,
+      "medium": 55,
+      "hard": 30
+    },
+    "image_percentage_by_subject": {
+      "Fundamentals of Distributed Systems": 25,
+      "Consensus Theory and Algorithms": 40,
+      "Two-Agent Consensus Mechanisms": 45,
+      "Three-Agent Consensus Mechanisms": 50,
+      "Voting and Decision Aggregation": 35,
+      "Byzantine Fault Tolerance": 30,
+      "State Machine Replication": 40,
+      "Synchronization and Coordination": 35,
+      "Practical Implementation Patterns": 20,
+      "Performance and Optimization": 30
+    },
+    "domain_characteristics": {
+      "key_features": [
+        "algorithm_pseudocode_analysis",
+        "distributed_system_diagrams",
+        "state_transition_visualization",
+        "network_topology_scenarios",
+        "timing_diagrams",
+        "fault_scenario_analysis",
+        "consensus_protocol_flowcharts",
+        "performance_metric_interpretation"
+      ],
+      "memory_aids": "acronyms|formulas|frameworks",
+      "visual_elements": "high"
+    }
+  },
+  "blooms_distribution": {
+    "1_remember": 10,
+    "2_understand": 20,
+    "3_apply": 35,
+    "4_analyze": 25,
+    "5_evaluate": 8,
+    "6_create": 2,
+    "7_integrate": 0
+  },
+  "content_characteristics": {
+    "domain": "certification",
+    "domain_description": "This advanced technical certification covers distributed systems, consensus algorithms, multi-agent decision-making, and fault-tolerant computing. Focus areas include Byzantine fault tolerance, voting protocols, quorum systems, state machine replication, and practical implementation of 2-3 agent consensus mechanisms in distributed architectures.",
+    "key_features": [
+      "algorithm_pseudocode_analysis",
+      "distributed_system_diagrams",
+      "state_transition_visualization",
+      "network_topology_scenarios",
+      "timing_diagrams",
+      "fault_scenario_analysis",
+      "consensus_protocol_flowcharts",
+      "performance_metric_interpretation"
+    ]
+  },
+  "question_requirements": {
+    "format_notes": "Standard format for certification exams",
+    "visual_elements": "high"
+  },
+  "subjects": [
+    {
+      "name": "Fundamentals of Distributed Systems",
+      "description": "Core principles of distributed computing, system models, and communication paradigms",
+      "topics": [
+        {
+          "name": "Distributed System Models",
+          "chapters": []
+        },
+        {
+          "name": "Communication Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Time and Ordering",
+          "chapters": []
+        },
+        {
+          "name": "Failure Models",
+          "chapters": []
+        },
+        {
+          "name": "Synchrony Assumptions",
+          "chapters": []
+        },
+        {
+          "name": "Network Partitions",
+          "chapters": []
+        },
+        {
+          "name": "Process Communication Patterns",
+          "chapters": []
+        },
+        {
+          "name": "Distributed State Management",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Consensus Theory and Algorithms",
+      "description": "Theoretical foundations of consensus problems and classical algorithms",
+      "topics": [
+        {
+          "name": "Consensus Problem Definition",
+          "chapters": []
+        },
+        {
+          "name": "FLP Impossibility Theorem",
+          "chapters": []
+        },
+        {
+          "name": "Paxos Algorithm Family",
+          "chapters": []
+        },
+        {
+          "name": "Raft Consensus Algorithm",
+          "chapters": []
+        },
+        {
+          "name": "Byzantine Agreement",
+          "chapters": []
+        },
+        {
+          "name": "Atomic Broadcast",
+          "chapters": []
+        },
+        {
+          "name": "Leader Election",
+          "chapters": []
+        },
+        {
+          "name": "Termination Detection",
+          "chapters": []
+        },
+        {
+          "name": "Consensus Complexity Analysis",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Two-Agent Consensus Mechanisms",
+      "description": "Specialized protocols and decision logic for two-agent systems",
+      "topics": [
+        {
+          "name": "Binary Consensus Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Tie-Breaking Mechanisms",
+          "chapters": []
+        },
+        {
+          "name": "Coordinator-Based Approaches",
+          "chapters": []
+        },
+        {
+          "name": "Two-Phase Commit (2PC)",
+          "chapters": []
+        },
+        {
+          "name": "Deadlock Resolution",
+          "chapters": []
+        },
+        {
+          "name": "Symmetric vs Asymmetric Roles",
+          "chapters": []
+        },
+        {
+          "name": "External Arbitration",
+          "chapters": []
+        },
+        {
+          "name": "Priority-Based Decision Making",
+          "chapters": []
+        },
+        {
+          "name": "Two-Agent Failure Scenarios",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Three-Agent Consensus Mechanisms",
+      "description": "Quorum-based protocols and majority voting for three-agent systems",
+      "topics": [
+        {
+          "name": "Majority Voting Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Quorum Systems",
+          "chapters": []
+        },
+        {
+          "name": "Three-Phase Commit (3PC)",
+          "chapters": []
+        },
+        {
+          "name": "Rotating Coordinator Patterns",
+          "chapters": []
+        },
+        {
+          "name": "Fault Tolerance with Three Agents",
+          "chapters": []
+        },
+        {
+          "name": "Byzantine Fault Tolerance (3f+1)",
+          "chapters": []
+        },
+        {
+          "name": "View Change Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Consistency Guarantees",
+          "chapters": []
+        },
+        {
+          "name": "Performance Optimization",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Voting and Decision Aggregation",
+      "description": "Mathematical frameworks for combining agent votes and preferences",
+      "topics": [
+        {
+          "name": "Voting Theory Fundamentals",
+          "chapters": []
+        },
+        {
+          "name": "Simple Majority Rules",
+          "chapters": []
+        },
+        {
+          "name": "Weighted Voting Systems",
+          "chapters": []
+        },
+        {
+          "name": "Approval Voting",
+          "chapters": []
+        },
+        {
+          "name": "Ranked Choice Methods",
+          "chapters": []
+        },
+        {
+          "name": "Condorcet Methods",
+          "chapters": []
+        },
+        {
+          "name": "Arrow's Impossibility Theorem",
+          "chapters": []
+        },
+        {
+          "name": "Strategic Voting Prevention",
+          "chapters": []
+        },
+        {
+          "name": "Vote Aggregation Algorithms",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Byzantine Fault Tolerance",
+      "description": "Handling malicious or arbitrary failures in consensus systems",
+      "topics": [
+        {
+          "name": "Byzantine Generals Problem",
+          "chapters": []
+        },
+        {
+          "name": "PBFT (Practical Byzantine Fault Tolerance)",
+          "chapters": []
+        },
+        {
+          "name": "Byzantine Agreement Bounds",
+          "chapters": []
+        },
+        {
+          "name": "Authentication and Signatures",
+          "chapters": []
+        },
+        {
+          "name": "Accountability Mechanisms",
+          "chapters": []
+        },
+        {
+          "name": "Sybil Attack Prevention",
+          "chapters": []
+        },
+        {
+          "name": "Collusion Detection",
+          "chapters": []
+        },
+        {
+          "name": "Recovery from Byzantine Failures",
+          "chapters": []
+        },
+        {
+          "name": "BFT Performance Trade-offs",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "State Machine Replication",
+      "description": "Maintaining consistent replicated state across consensus participants",
+      "topics": [
+        {
+          "name": "Replicated State Machine Model",
+          "chapters": []
+        },
+        {
+          "name": "Deterministic Execution",
+          "chapters": []
+        },
+        {
+          "name": "Log Replication",
+          "chapters": []
+        },
+        {
+          "name": "Snapshot and Recovery",
+          "chapters": []
+        },
+        {
+          "name": "Command Ordering",
+          "chapters": []
+        },
+        {
+          "name": "State Transfer Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Consistency Models",
+          "chapters": []
+        },
+        {
+          "name": "Linearizability",
+          "chapters": []
+        },
+        {
+          "name": "Sequential Consistency",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Synchronization and Coordination",
+      "description": "Mechanisms for coordinating actions and maintaining synchronization",
+      "topics": [
+        {
+          "name": "Mutual Exclusion",
+          "chapters": []
+        },
+        {
+          "name": "Distributed Locks",
+          "chapters": []
+        },
+        {
+          "name": "Barriers and Rendezvous",
+          "chapters": []
+        },
+        {
+          "name": "Logical Clocks",
+          "chapters": []
+        },
+        {
+          "name": "Vector Clocks",
+          "chapters": []
+        },
+        {
+          "name": "Causal Ordering",
+          "chapters": []
+        },
+        {
+          "name": "Synchronization Primitives",
+          "chapters": []
+        },
+        {
+          "name": "Coordination Services",
+          "chapters": []
+        },
+        {
+          "name": "Group Communication",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Practical Implementation Patterns",
+      "description": "Software engineering practices for building consensus systems",
+      "topics": [
+        {
+          "name": "Architecture Design Patterns",
+          "chapters": []
+        },
+        {
+          "name": "Message Passing Infrastructure",
+          "chapters": []
+        },
+        {
+          "name": "Timeout and Retry Logic",
+          "chapters": []
+        },
+        {
+          "name": "Persistent Storage Design",
+          "chapters": []
+        },
+        {
+          "name": "Network Protocol Selection",
+          "chapters": []
+        },
+        {
+          "name": "Configuration Management",
+          "chapters": []
+        },
+        {
+          "name": "Monitoring and Observability",
+          "chapters": []
+        },
+        {
+          "name": "Testing Distributed Systems",
+          "chapters": []
+        },
+        {
+          "name": "Deployment Strategies",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Performance and Optimization",
+      "description": "Techniques for improving consensus system efficiency and throughput",
+      "topics": [
+        {
+          "name": "Latency Optimization",
+          "chapters": []
+        },
+        {
+          "name": "Throughput Maximization",
+          "chapters": []
+        },
+        {
+          "name": "Batching Strategies",
+          "chapters": []
+        },
+        {
+          "name": "Pipelining Techniques",
+          "chapters": []
+        },
+        {
+          "name": "Network Optimization",
+          "chapters": []
+        },
+        {
+          "name": "Caching Mechanisms",
+          "chapters": []
+        },
+        {
+          "name": "Load Balancing",
+          "chapters": []
+        },
+        {
+          "name": "Resource Management",
+          "chapters": []
+        },
+        {
+          "name": "Scalability Patterns",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Security and Cryptography",
+      "description": "Cryptographic primitives and security considerations for consensus",
+      "topics": [
+        {
+          "name": "Digital Signatures",
+          "chapters": []
+        },
+        {
+          "name": "Hash Functions",
+          "chapters": []
+        },
+        {
+          "name": "Public Key Infrastructure",
+          "chapters": []
+        },
+        {
+          "name": "Authentication Protocols",
+          "chapters": []
+        },
+        {
+          "name": "Secure Channels",
+          "chapters": []
+        },
+        {
+          "name": "Threshold Cryptography",
+          "chapters": []
+        },
+        {
+          "name": "Zero-Knowledge Proofs",
+          "chapters": []
+        },
+        {
+          "name": "Attack Vectors and Mitigation",
+          "chapters": []
+        },
+        {
+          "name": "Cryptographic Protocol Design",
+          "chapters": []
+        }
+      ]
+    },
+    {
+      "name": "Real-World Applications and Case Studies",
+      "description": "Industry implementations and practical use cases of consensus systems",
+      "topics": [
+        {
+          "name": "Blockchain Consensus",
+          "chapters": []
+        },
+        {
+          "name": "Database Replication",
+          "chapters": []
+        },
+        {
+          "name": "Distributed File Systems",
+          "chapters": []
+        },
+        {
+          "name": "Cloud Coordination Services",
+          "chapters": []
+        },
+        {
+          "name": "Microservices Orchestration",
+          "chapters": []
+        },
+        {
+          "name": "IoT Device Coordination",
+          "chapters": []
+        },
+        {
+          "name": "Multi-Robot Systems",
+          "chapters": []
+        },
+        {
+          "name": "Financial Transaction Systems",
+          "chapters": []
+        },
+        {
+          "name": "Industry Best Practices",
+          "chapters": []
+        }
+      ]
+    }
+  ]
+}

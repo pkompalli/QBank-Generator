@@ -2184,11 +2184,263 @@ function showResultTab(tabName) {
     if (resultsSection) {
         resultsSection.style.display = 'block';
     }
-    
+
     // Click the appropriate tab
     const tabBtn = document.querySelector(`[data-result-tab="${tabName}"]`);
     if (tabBtn) {
         tabBtn.click();
     }
+}
+
+// ============================================
+// COUNCIL OF MODELS VALIDATION SYSTEM
+// ============================================
+
+// Validate Lessons button handler
+const validateLessonsBtn = document.getElementById('validate-lessons-btn');
+if (validateLessonsBtn) {
+    validateLessonsBtn.addEventListener('click', async () => {
+        if (!lessonsData || !lessonsData.lessons || lessonsData.lessons.length === 0) {
+            showToast('No lessons to validate', 'error');
+            return;
+        }
+
+        // Show modal with loading state
+        const modal = document.getElementById('validation-modal');
+        const reportContent = document.getElementById('validation-report-content');
+
+        reportContent.innerHTML = `
+            <div class="loading-spinner"></div>
+            <p style="text-align: center; color: #999; margin-top: 1rem;">Running Council of Models validation...</p>
+            <p style="text-align: center; color: #999; font-size: 0.9rem;">This may take 30-60 seconds</p>
+        `;
+        modal.style.display = 'block';
+
+        try {
+            // Validate the first lesson (or you can validate all and show summary)
+            const lessonToValidate = lessonsData.lessons[0];
+
+            const response = await fetch('/api/validate-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content_type: 'lesson',
+                    content: lessonToValidate,
+                    domain: 'medical education',
+                    course: lessonsData.course || 'Unknown'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Validation failed');
+            }
+
+            const report = await response.json();
+            displayValidationReport(report, 'lesson');
+
+        } catch (error) {
+            console.error('Validation error:', error);
+            reportContent.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <h3 style="color: #dc3545;">❌ Validation Error</h3>
+                    <p>${error.message || 'Failed to validate content'}</p>
+                </div>
+            `;
+        }
+    });
+}
+
+// Validate QBank button handler
+const validateQBankBtn = document.getElementById('validate-qbank-btn');
+if (validateQBankBtn) {
+    validateQBankBtn.addEventListener('click', async () => {
+        if (!generatedQuestions || generatedQuestions.length === 0) {
+            showToast('No questions to validate', 'error');
+            return;
+        }
+
+        // Show modal with loading state
+        const modal = document.getElementById('validation-modal');
+        const reportContent = document.getElementById('validation-report-content');
+
+        reportContent.innerHTML = `
+            <div class="loading-spinner"></div>
+            <p style="text-align: center; color: #999; margin-top: 1rem;">Running Council of Models validation...</p>
+            <p style="text-align: center; color: #999; font-size: 0.9rem;">This may take 30-60 seconds</p>
+        `;
+        modal.style.display = 'block';
+
+        try {
+            // Validate the first question (or you can validate all and show summary)
+            const questionToValidate = generatedQuestions[0];
+
+            const response = await fetch('/api/validate-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content_type: 'qbank',
+                    content: questionToValidate,
+                    domain: 'medical education',
+                    course: courseStructure?.Course || 'Unknown'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Validation failed');
+            }
+
+            const report = await response.json();
+            displayValidationReport(report, 'qbank');
+
+        } catch (error) {
+            console.error('Validation error:', error);
+            reportContent.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <h3 style="color: #dc3545;">❌ Validation Error</h3>
+                    <p>${error.message || 'Failed to validate content'}</p>
+                </div>
+            `;
+        }
+    });
+}
+
+function displayValidationReport(report, contentType) {
+    const reportContent = document.getElementById('validation-report-content');
+
+    const validator = report.validator || {};
+    const adversarial = report.adversarial || {};
+    const overall = report.overall_assessment || {};
+
+    // Determine score class
+    const getScoreClass = (score) => {
+        if (score >= 8) return 'score-high';
+        if (score >= 6) return 'score-medium';
+        return 'score-low';
+    };
+
+    // Format list items
+    const formatList = (items) => {
+        if (!items || items.length === 0) {
+            return '<p class="empty-state">None identified</p>';
+        }
+        return `<ul class="validation-list">${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    };
+
+    const html = `
+        <!-- Overall Assessment -->
+        <div class="overall-assessment">
+            <h3>📊 Overall Assessment</h3>
+            <div class="assessment-status">${overall.status || 'N/A'}</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <strong>Quality Score:</strong> ${overall.quality_score || 'N/A'}/10
+                </div>
+                <div>
+                    <strong>Validator Score:</strong> ${overall.validator_score || 'N/A'}/10
+                </div>
+                <div>
+                    <strong>Adversarial Score:</strong> ${overall.adversarial_score || 'N/A'}/10
+                </div>
+                <div>
+                    <strong>Needs Revision:</strong> ${overall.needs_revision ? 'Yes ❌' : 'No ✅'}
+                </div>
+            </div>
+            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Recommendation:</strong> ${overall.recommendation || 'N/A'}</p>
+        </div>
+
+        <!-- Validator Results -->
+        <div class="validation-section">
+            <h3>
+                ✅ Validator Agent
+                <span class="validation-score ${getScoreClass(validator.overall_accuracy_score || 0)}">
+                    ${validator.overall_accuracy_score || 'N/A'}/10
+                </span>
+            </h3>
+            <p><strong>Summary:</strong> ${validator.summary || 'No summary available'}</p>
+
+            ${validator.factual_errors && validator.factual_errors.length > 0 ? `
+                <h4 style="color: #dc3545; margin-top: 1rem;">⚠️ Factual Errors</h4>
+                ${formatList(validator.factual_errors)}
+            ` : ''}
+
+            ${validator.missing_critical_info && validator.missing_critical_info.length > 0 ? `
+                <h4 style="color: #ffc107; margin-top: 1rem;">📌 Missing Critical Information</h4>
+                ${formatList(validator.missing_critical_info)}
+            ` : ''}
+
+            ${validator.safety_concerns && validator.safety_concerns.length > 0 ? `
+                <h4 style="color: #dc3545; margin-top: 1rem;">🚨 Safety Concerns</h4>
+                ${formatList(validator.safety_concerns)}
+            ` : ''}
+
+            ${validator.clarity_issues && validator.clarity_issues.length > 0 ? `
+                <h4 style="color: #17a2b8; margin-top: 1rem;">💭 Clarity Issues</h4>
+                ${formatList(validator.clarity_issues)}
+            ` : ''}
+
+            ${validator.distractor_issues && validator.distractor_issues.length > 0 ? `
+                <h4 style="color: #ffc107; margin-top: 1rem;">🎯 Distractor Issues</h4>
+                ${formatList(validator.distractor_issues)}
+            ` : ''}
+
+            ${validator.recommendations && validator.recommendations.length > 0 ? `
+                <h4 style="color: #28a745; margin-top: 1rem;">💡 Recommendations</h4>
+                ${formatList(validator.recommendations)}
+            ` : ''}
+        </div>
+
+        <!-- Adversarial Results -->
+        <div class="validation-section" style="border-left-color: #dc3545;">
+            <h3 style="color: #dc3545;">
+                ⚔️ Adversarial Reviewer
+                <span class="validation-score ${getScoreClass(10 - (adversarial.adversarial_score || 0))}">
+                    ${adversarial.adversarial_score || 'N/A'}/10
+                </span>
+            </h3>
+            <p><strong>Breakability:</strong> ${adversarial.breakability_rating || 'N/A'}</p>
+            <p><strong>Summary:</strong> ${adversarial.summary || 'No summary available'}</p>
+
+            ${adversarial.identified_weaknesses && adversarial.identified_weaknesses.length > 0 ? `
+                <h4 style="color: #dc3545; margin-top: 1rem;">🔍 Identified Weaknesses</h4>
+                ${formatList(adversarial.identified_weaknesses)}
+            ` : ''}
+
+            ${adversarial.ambiguities && adversarial.ambiguities.length > 0 ? `
+                <h4 style="color: #ffc107; margin-top: 1rem;">❓ Ambiguities</h4>
+                ${formatList(adversarial.ambiguities)}
+            ` : ''}
+
+            ${adversarial.alternative_answers && adversarial.alternative_answers.length > 0 ? `
+                <h4 style="color: #dc3545; margin-top: 1rem;">🔀 Alternative Defensible Answers</h4>
+                ${formatList(adversarial.alternative_answers)}
+            ` : ''}
+
+            ${adversarial.logical_gaps && adversarial.logical_gaps.length > 0 ? `
+                <h4 style="color: #ffc107; margin-top: 1rem;">🧩 Logical Gaps</h4>
+                ${formatList(adversarial.logical_gaps)}
+            ` : ''}
+
+            ${adversarial.safety_risks && adversarial.safety_risks.length > 0 ? `
+                <h4 style="color: #dc3545; margin-top: 1rem;">⚠️ Safety Risks</h4>
+                ${formatList(adversarial.safety_risks)}
+            ` : ''}
+
+            ${adversarial.recommendations && adversarial.recommendations.length > 0 ? `
+                <h4 style="color: #28a745; margin-top: 1rem;">💡 Recommendations</h4>
+                ${formatList(adversarial.recommendations)}
+            ` : ''}
+        </div>
+
+        <!-- Metadata -->
+        <div style="margin-top: 2rem; padding: 1rem; background: #f0f0f0; border-radius: 8px; font-size: 0.9rem; color: #666;">
+            <strong>Validation Details:</strong><br>
+            Domain: ${report.domain || 'N/A'} |
+            Course: ${report.course || 'N/A'} |
+            Timestamp: ${new Date(report.timestamp).toLocaleString()}
+        </div>
+    `;
+
+    reportContent.innerHTML = html;
+    showToast('Validation complete!', 'success');
 }
 
