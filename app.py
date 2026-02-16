@@ -111,6 +111,577 @@ def cache_image(search_terms, image_type, image_data):
     save_image_cache(cache)
     print(f"✓ Cached image for: {search_terms[:2]}")
 
+# =============================================================================
+# MODULAR ARCHITECTURE - REUSABLE COMPONENTS
+# =============================================================================
+
+def generate_course_structure(course_name, reference_docs=None):
+    """
+    MODULE 1: Course Structure Generator
+
+    Intelligently generates hierarchical course structure:
+    Course → Subjects → Topics → Chapters
+
+    This module is reusable for both QBank and Lesson generation.
+
+    Args:
+        course_name: Name of the course/exam (e.g., "NEET PG", "USMLE", "FE Exam")
+        reference_docs: Optional uploaded reference documents
+
+    Returns:
+        {
+            'course': str,
+            'exam_type': str,
+            'subjects': [
+                {
+                    'name': str,
+                    'topics': [
+                        {
+                            'name': str,
+                            'chapters': [
+                                {'name': str, 'nice_refs': [...]}
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    """
+    logger.info(f"Generating course structure for: {course_name}")
+
+    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    ref_doc_context = ""
+    if reference_docs:
+        ref_doc_context = f"\n\nREFERENCE DOCUMENTS PROVIDED:\n{reference_docs}\n\nUse these documents to inform the structure."
+
+    structure_prompt = f"""You are an expert educational curriculum designer with access to official exam syllabi and curriculum guidelines.
+
+📚 FIRST: Research and reference the OFFICIAL curriculum for: {course_name}
+
+For each exam/course, base your structure on the authoritative sources:
+- UKMLA AKT: GMC (General Medical Council) curriculum, UKMLA syllabus, UK Foundation Programme curriculum
+- USMLE: NBME content outline, USMLE Step specifications
+- NEET PG: NMC (National Medical Commission) syllabus, MCI guidelines
+- Engineering exams (FE, PE): NCEES exam specifications
+- Other certifications: Official exam board syllabi
+
+🎯 Use the EXACT subject names, topic divisions, and terminology from the official curriculum.
+🎯 Ensure weightage and coverage matches what's actually tested in the exam.
+🎯 Reference the most current version of the curriculum/syllabus.
+
+🚨 CRITICAL WARNING: You MUST generate AT LEAST 10 subjects! 🚨
+   - Generating only 2-3 subjects is COMPLETELY UNACCEPTABLE
+   - Medical/Professional exams require 10-12 subjects based on official curriculum
+   - This is a professional educational platform - comprehensive coverage is MANDATORY
+
+Analyze the official curriculum and create a full hierarchical structure with:
+
+1. **Course identification** (type: medical/engineering/business/certification/other)
+
+2. **Subjects** (major divisions):
+   🔴 CRITICAL: Generate AT LEAST 10 subjects - THIS IS MANDATORY!
+
+   - Medical exams (UKMLA, USMLE, NEET PG): EXACTLY 10-12 subjects required
+
+     🔴 HIERARCHY FOR MEDICAL COURSES:
+     Subject → Topic → Chapter
+
+     Example for "Internal Medicine - Adult":
+     - SUBJECT: Internal Medicine - Adult
+       - TOPIC: Cardiology
+         - CHAPTER: Hypertension
+         - CHAPTER: Heart Failure
+         - CHAPTER: Arrhythmias
+       - TOPIC: Respiratory Medicine
+         - CHAPTER: Asthma
+         - CHAPTER: COPD
+         - CHAPTER: Pneumonia
+
+     FOR UKMLA AKT - Base structure on GMC/UKMLA official curriculum:
+     Reference: GMC "Outcomes for graduates" and UKMLA syllabus domains
+
+     SUGGESTED SUBJECTS (use official terminology where possible):
+     1. Internal Medicine - Adult (system-based topics: Cardiology, Respiratory, Gastroenterology, Nephrology, Endocrinology, Rheumatology, Neurology)
+     2. Surgery (subspecialties: General Surgery, Trauma & Orthopedics, Urology, ENT, Ophthalmology)
+     3. Pediatrics & Child Health (including neonatology, growth & development)
+     4. Obstetrics & Gynecology (including maternal medicine, reproductive health)
+     5. Psychiatry & Mental Health (including liaison psychiatry, substance misuse)
+     6. General Practice & Primary Care (including chronic disease management, preventive care)
+     7. Emergency Medicine & Acute Care (including resuscitation, trauma)
+     8. Ethics, Law & Communication (including consent, capacity, professionalism)
+     9. Public Health & Epidemiology (including screening, health promotion)
+     10. Clinical Pharmacology & Therapeutics (including prescribing, adverse effects)
+     11. Pathology & Laboratory Medicine (including interpretation of results)
+     12. Microbiology & Infectious Diseases (including antimicrobial stewardship)
+
+     ⚠️ If official curriculum uses different terminology or groupings, PREFER the official structure.
+
+   - Engineering exams (FE, PE): EXACTLY 10-12 subjects required
+     Examples: Mathematics, Physics, Chemistry, Statics, Dynamics, Mechanics of Materials,
+     Thermodynamics, Fluid Mechanics, Electrical Circuits, Materials Science, etc.
+
+   - Business exams (CPA, CFA): EXACTLY 8-10 subjects required
+     Examples: Financial Accounting, Auditing, Tax, Business Law, Ethics, Financial Management, etc.
+
+3. **Topics** (under each subject):
+   - 8-12 topics per subject (comprehensive coverage)
+   - Each topic represents a system-based or area-based division
+   - Medical Example: Under "Internal Medicine - Adult" → Cardiology, Respiratory, Gastroenterology, Nephrology, etc.
+   - Engineering Example: Under "Mechanical Engineering" → Thermodynamics, Fluid Mechanics, Heat Transfer, etc.
+
+4. **Chapters** (under each topic):
+   - Leave chapters as EMPTY ARRAYS initially: "chapters": []
+   - Chapters will be generated dynamically when lessons are requested for specific topics
+   - This keeps structure generation fast and efficient
+   - When needed, chapters will be: specific conditions, concepts, procedures, or subtopics (8-12 per topic)
+
+{ref_doc_context}
+
+🔴 MANDATORY REQUIREMENTS:
+✓ Generate AT LEAST 10 subjects for medical/professional exams, 8 for technical exams
+✓ NEVER generate less than 6 subjects - that's insufficient for any comprehensive course
+✓ Each subject must have at least 6 topics
+✓ Each topic must have at least 4 chapters
+✓ Use standard, recognized terminology for the domain
+✓ Cover the FULL breadth of the exam/course - don't summarize or abbreviate
+
+DOMAIN-SPECIFIC GUIDELINES:
+
+**Medical Courses (UKMLA, USMLE, NEET PG, MRCP)**:
+HIERARCHY: Subject → Topic → Chapter
+
+SUBJECTS (Major Specialties - 10-12 total):
+- Core Clinical: Internal Medicine - Adult, Surgery, Pediatrics, OB/GYN, Psychiatry
+- Foundation: Pathology, Pharmacology, Microbiology
+- Professional: Ethics/Law/Communication, Public Health, General Practice
+
+TOPICS (System-based divisions under each subject - 8-12 per subject):
+- Under "Internal Medicine - Adult": Cardiology, Respiratory, Gastroenterology, Nephrology, Endocrinology, Rheumatology, Neurology
+- Under "Surgery": General Surgery, Trauma & Orthopedics, Urology, ENT, Ophthalmology
+- Under "Pediatrics": Neonatology, Growth & Development, Pediatric Cardiology, etc.
+
+CHAPTERS (Specific conditions - 8-15 per topic):
+- Under "Cardiology": Hypertension, Heart Failure, Arrhythmias, Ischemic Heart Disease, Valvular Disease, etc.
+- Under "Respiratory": Asthma, COPD, Pneumonia, Tuberculosis, Lung Cancer, etc.
+
+**Engineering Courses (FE, PE)**:
+- Include: Core sciences (Math, Physics, Chemistry)
+- Include: Engineering fundamentals (Statics, Dynamics, Thermodynamics)
+- Include: Discipline-specific topics (Electrical, Mechanical, Civil, etc.)
+
+**Business/Finance Courses (CPA, CFA, MBA)**:
+- Include: Functional areas (Accounting, Finance, Marketing, Operations)
+- Include: Specializations (Auditing, Tax, Investment, Strategy)
+
+OUTPUT FORMAT (strict JSON):
+{{
+    "course": "{course_name}",
+    "exam_type": "medical|engineering|business|certification|academic",
+    "domain_characteristics": "detailed description of learning patterns and exam focus",
+    "subjects": [
+        {{
+            "name": "Subject Name",
+            "description": "Brief 1-line description of what this subject covers",
+            "topics": [
+                {{
+                    "name": "Topic Name",
+                    "chapters": []
+                }}
+            ]
+        }}
+    ]
+}}
+
+🔴 IMPORTANT: Generate a COMPLETE structure - minimum 10 subjects for professional exams!
+
+Generate ONLY the JSON, no other text."""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=8000,  # Sufficient for subjects + topics (chapters generated on-demand)
+            temperature=0.7,
+            timeout=120.0,  # 2 minute timeout for fast structure generation
+            messages=[{"role": "user", "content": structure_prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Extract JSON if wrapped in markdown
+        if '```json' in response_text:
+            response_text = response_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in response_text:
+            response_text = response_text.split('```')[1].split('```')[0].strip()
+
+        # Try to parse JSON
+        try:
+            structure = json.loads(response_text)
+        except json.JSONDecodeError as json_err:
+            logger.error(f"JSON parsing error: {json_err}")
+            logger.error(f"Response length: {len(response_text)} chars")
+
+            # Try to fix common JSON issues
+            # Remove any trailing incomplete content
+            last_brace = response_text.rfind('}')
+            if last_brace > 0:
+                truncated = response_text[:last_brace + 1]
+                logger.info("Attempting to parse truncated JSON...")
+                try:
+                    structure = json.loads(truncated)
+                    logger.info("✓ Successfully parsed truncated JSON")
+                except:
+                    # If still fails, retry with simpler request (just subjects and topics, fewer chapters)
+                    logger.warning("JSON still invalid, retrying with simplified structure request...")
+                    raise json_err
+            else:
+                raise json_err
+
+        # Validate structure completeness
+        num_subjects = len(structure.get('subjects', []))
+        if num_subjects < 6:
+            logger.warning(f"⚠️ Generated structure has only {num_subjects} subjects - attempting retry with stronger prompt")
+
+            # Retry with even more explicit prompt
+            retry_prompt = f"""CRITICAL: The previous attempt generated only {num_subjects} subjects, which is INSUFFICIENT.
+
+For {course_name}, generate a COMPLETE course structure with AT LEAST 10 subjects.
+
+This is a professional educational platform - we need COMPREHENSIVE coverage.
+
+{structure_prompt}
+
+REMEMBER: Minimum 10 subjects for medical/professional exams, 8 for technical exams!"""
+
+            message = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=8000,
+                temperature=0.5,  # Lower temperature for more focused output
+                timeout=120.0,  # 2 minute timeout
+                messages=[{"role": "user", "content": retry_prompt}]
+            )
+
+            response_text = message.content[0].text.strip()
+            if '```json' in response_text:
+                response_text = response_text.split('```json')[1].split('```')[0].strip()
+            elif '```' in response_text:
+                response_text = response_text.split('```')[1].split('```')[0].strip()
+
+            structure = json.loads(response_text)
+            num_subjects = len(structure.get('subjects', []))
+
+        logger.info(f"✓ Generated structure with {num_subjects} subjects")
+
+        # Log summary statistics
+        total_topics = sum(len(subj.get('topics', [])) for subj in structure.get('subjects', []))
+        logger.info(f"  - Total topics: {total_topics}")
+        logger.info(f"  - Avg topics per subject: {total_topics / num_subjects if num_subjects > 0 else 0:.1f}")
+
+        return structure
+
+    except Exception as e:
+        logger.error(f"Error generating course structure: {e}")
+        raise
+
+
+def analyze_exam_format(course_name, course_structure):
+    """
+    MODULE 2: Exam Format Analyzer (for QBank)
+
+    Analyzes and determines:
+    - Question format (MCQ type, number of options)
+    - Bloom's level distribution strategy
+    - Difficulty distribution
+    - Domain-specific question characteristics
+
+    Args:
+        course_name: Name of course/exam
+        course_structure: Output from generate_course_structure()
+
+    Returns:
+        {
+            'question_format': {...},
+            'blooms_distribution': {...},
+            'difficulty_distribution': {...},
+            'domain_characteristics': {...}
+        }
+    """
+    logger.info(f"Analyzing exam format for: {course_name}")
+
+    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    exam_type = course_structure.get('exam_type', 'general')
+    domain_chars = course_structure.get('domain_characteristics', '')
+
+    # Extract subjects from course structure for subject-specific analysis
+    subjects_list = [s['name'] for s in course_structure.get('subjects', [])]
+    subjects_str = ', '.join(subjects_list[:10]) if subjects_list else 'various subjects'
+
+    format_prompt = f"""You are an assessment design expert with access to official exam data. Analyze the exam format for: {course_name}
+
+COURSE TYPE: {exam_type}
+DOMAIN CHARACTERISTICS: {domain_chars}
+SUBJECTS IN COURSE: {subjects_str}
+
+🔍 MANDATORY RESEARCH REQUIREMENT: Use OFFICIAL published exam specifications and statistics for {course_name}:
+
+**For UKMLA AKT (UK Medical Licensing Assessment Applied Knowledge Test):**
+- Source: GMC (General Medical Council), UKMLA blueprint
+- Number of options: 5 (A, B, C, D, E) - CONFIRMED from official GMC specification
+- Image questions: ~30-40% overall (ECGs, radiology, dermatology, ophthalmology images)
+- Question style: Single best answer, clinical scenario-based
+- Avg stem: 60-80 words per question
+
+**For NEET PG (National Eligibility cum Entrance Test - Postgraduate):**
+- Source: NBE (National Board of Examinations), NEET PG information bulletin
+- Number of options: 4 (A, B, C, D) - CONFIRMED from official specification
+- Image questions: ~40% overall (varies 10-75% by subject)
+- Question style: Single best answer, clinically oriented
+
+**For USMLE (United States Medical Licensing Examination):**
+- Source: NBME, USMLE content outline
+- Number of options: 4-5 (varies by step)
+- Image questions: ~20-30% (anatomical, pathological, radiological images)
+- Question style: Clinical vignettes, single best answer
+
+Use the OFFICIAL specification for number of options - this is critical and must be accurate.
+
+Determine the optimal question bank format including:
+
+1. **Question Format**:
+   - MCQ type (single best answer, multiple correct, true/false, assertion-reason, etc.)
+   - Number of options (typically 4-5)
+   - Clinical vignette length (for medical exams)
+   - Stem complexity
+   - **CRITICAL**: image_questions_percentage - the TYPICAL percentage of image-based questions in this exam overall
+
+2. **Bloom's Taxonomy Distribution**:
+   - Level 1 (Remember/Recall): X%
+   - Level 2 (Understand): X%
+   - Level 3 (Apply): X%
+   - Level 4 (Analyze): X%
+   - Level 5 (Evaluate): X%
+   - Level 6 (Create): X%
+   - Level 7 (Integrate/Synthesize): X%
+
+   Consider:
+   - Medical exams: Higher emphasis on Apply/Analyze (clinical reasoning)
+   - Engineering exams: Balance of Understand/Apply/Analyze
+   - Certification exams: Focus on Apply/Evaluate
+
+3. **Difficulty Distribution**:
+   - Easy: X%
+   - Medium: X%
+   - Hard: X%
+
+4. **Image-Based Questions by Subject** (CRITICAL FOR MEDICAL EXAMS):
+   Research typical image percentages for each subject. Examples:
+   - NEET PG: Radiology ~75%, Ophthalmology ~60%, Medicine ~40%, Biochemistry ~10%
+   - USMLE Step 1: Pathology ~30%, Anatomy ~50%, Physiology ~15%
+
+   Provide subject-specific percentages as a map.
+
+5. **Domain-Specific Characteristics**:
+   - Medical: Case-based scenarios, image-based questions
+   - Engineering: Calculation-based, diagram interpretation
+   - Business: Case studies, scenario analysis
+
+OUTPUT FORMAT (strict JSON):
+{{
+    "question_format": {{
+        "type": "single_best_answer",
+        "num_options": 4,
+        "avg_stem_words": 50,
+        "uses_vignettes": true,
+        "image_questions_percentage": 40
+    }},
+    "blooms_distribution": {{
+        "1_remember": 15,
+        "2_understand": 15,
+        "3_apply": 30,
+        "4_analyze": 25,
+        "5_evaluate": 10,
+        "6_create": 5,
+        "7_integrate": 0
+    }},
+    "difficulty_distribution": {{
+        "easy": 20,
+        "medium": 50,
+        "hard": 30
+    }},
+    "image_percentage_by_subject": {{
+        "Radiology": 75,
+        "Internal Medicine": 40,
+        "Biochemistry": 10,
+        "Surgery": 45
+    }},
+    "domain_characteristics": {{
+        "key_features": ["feature1", "feature2"],
+        "memory_aids": "mnemonics|formulas|frameworks|acronyms",
+        "visual_elements": "high|medium|low"
+    }}
+}}
+
+Generate ONLY the JSON, no other text."""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=3000,
+            temperature=0.7,
+            messages=[{"role": "user", "content": format_prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+        if '```json' in response_text:
+            response_text = response_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in response_text:
+            response_text = response_text.split('```')[1].split('```')[0].strip()
+
+        format_spec = json.loads(response_text)
+        logger.info(f"✓ Analyzed exam format")
+        return format_spec
+
+    except Exception as e:
+        logger.error(f"Error analyzing exam format: {e}")
+        raise
+
+
+def design_lesson_flow(course_name, subject, topic, chapters, course_structure):
+    """
+    MODULE 3: Lesson Flow Architect (for Lessons)
+
+    Designs intelligent lesson structure with:
+    - Bloom's level progression
+    - Optimal content length (7-8 pages topic, 1-2 pages chapter)
+    - Strategic placement of tables, flowcharts, images
+    - Domain-specific memory aids (mnemonics for medical, equivalents for others)
+
+    Args:
+        course_name: Name of course
+        subject: Subject name
+        topic: Topic name
+        chapters: List of chapter names
+        course_structure: Output from generate_course_structure()
+
+    Returns:
+        {
+            'topic_lesson_plan': {...},
+            'chapter_lesson_plan': {...},
+            'visual_strategy': {...}
+        }
+    """
+    logger.info(f"Designing lesson flow for: {topic}")
+
+    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    exam_type = course_structure.get('exam_type', 'general')
+    domain_chars = course_structure.get('domain_characteristics', '')
+
+    flow_prompt = f"""You are an instructional design expert. Design the optimal lesson flow for:
+
+COURSE: {course_name}
+SUBJECT: {subject}
+TOPIC: {topic}
+CHAPTERS: {', '.join([ch if isinstance(ch, str) else ch['name'] for ch in chapters])}
+
+COURSE TYPE: {exam_type}
+DOMAIN: {domain_chars}
+
+Design a comprehensive learning experience with:
+
+1. **TOPIC LESSON STRUCTURE** (7-8 pages, ~1200 words):
+   - Bloom's progression: Foundation → Understanding → Application → Analysis → Evaluation → Synthesis → Integration
+   - 7 main sections mapping to Bloom's levels
+   - Content type per section (text/table/flowchart/image)
+   - Estimated word count per section
+
+2. **CHAPTER LESSON STRUCTURE** (1-2 pages, ~300-500 words):
+   - Rapid revision format
+   - Key facts, problem-solving approaches, quick reference
+   - Visual aid strategy (1-2 elements max)
+
+3. **VISUAL ELEMENT STRATEGY**:
+   Topic lesson:
+   - Minimum images: X (based on subject visual intensity)
+   - Tables: X (for classifications, comparisons)
+   - Flowcharts: X (for algorithms, processes)
+   - Placement: Strategic distribution across Bloom's levels
+
+   Chapter lesson:
+   - Images: 0-2
+   - Tables/flowcharts: 1-2
+   - Focus: Most critical visual
+
+4. **MEMORY AIDS STRATEGY**:
+   - Medical: Mnemonics, clinical pearls
+   - Engineering: Key formulas, design patterns
+   - Business: Frameworks, case examples
+   - General: Acronyms, visual analogies
+
+OUTPUT FORMAT (strict JSON):
+{{
+    "topic_lesson_plan": {{
+        "total_words": 1200,
+        "sections": [
+            {{
+                "blooms_level": 1,
+                "title_pattern": "Foundation/Remember",
+                "content_focus": "core knowledge, definitions, classifications",
+                "word_count": 150,
+                "visual_elements": {{
+                    "images": 1,
+                    "tables": 1,
+                    "flowcharts": 0
+                }},
+                "memory_aids": true
+            }}
+        ]
+    }},
+    "chapter_lesson_plan": {{
+        "total_words": 400,
+        "sections": ["Quick Overview", "Core Facts", "Problem-Solving", "Analysis Framework", "Visual Aid", "Key Points"],
+        "visual_elements": {{
+            "images": 1,
+            "tables_or_flowcharts": 1
+        }}
+    }},
+    "memory_aids_strategy": {{
+        "type": "mnemonics|formulas|frameworks|acronyms",
+        "frequency": "per_section|end_of_topic",
+        "examples": ["SAMPLE", "EXAMPLE"]
+    }}
+}}
+
+Generate ONLY the JSON, no other text."""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=3000,
+            temperature=0.7,
+            messages=[{"role": "user", "content": flow_prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+        if '```json' in response_text:
+            response_text = response_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in response_text:
+            response_text = response_text.split('```')[1].split('```')[0].strip()
+
+        flow_design = json.loads(response_text)
+        logger.info(f"✓ Designed lesson flow")
+        return flow_design
+
+    except Exception as e:
+        logger.error(f"Error designing lesson flow: {e}")
+        raise
+
+
+# =============================================================================
+# END OF MODULAR ARCHITECTURE
+# =============================================================================
+
 def get_neet_prompt(subject, topic, num_questions, chapters=None):
     """Generate prompt for NEET PG questions with equal Bloom's level distribution."""
     
@@ -371,6 +942,8 @@ def collect_candidate_images(image_search_terms, image_type, max_candidates=10):
     """Collect candidate images from multiple sources. Try harder to find images from internet sources."""
     candidates = []
 
+    logger.info(f"🔍 Starting image search with terms: {image_search_terms[:3]}, type: {image_type}")
+
     # Try Open-i (NIH) - more aggressive search
     try:
         url = "https://openi.nlm.nih.gov/api/search"
@@ -381,13 +954,21 @@ def collect_candidate_images(image_search_terms, image_type, max_candidates=10):
         }
         it_param = image_type_map.get(image_type, 'xg,ct,mri,us,mi')
 
+        logger.info(f"  → Trying Open-i NIH with image type param: {it_param}")
+
         # Try ALL search terms (not just first 2)
-        for search_term in image_search_terms[:5]:
+        for idx, search_term in enumerate(image_search_terms[:5]):
             params = {'query': search_term, 'it': it_param, 'm': 1, 'n': 15}
+            logger.info(f"  → Open-i search #{idx+1}: '{search_term}'")
+
             response = requests.get(url, params=params, timeout=15)
+            logger.info(f"    Status: {response.status_code}")
+
             data = response.json()
+            logger.info(f"    Response keys: {list(data.keys())}")
 
             if 'list' in data:
+                logger.info(f"    Found {len(data['list'])} results in list")
                 for item in data['list'][:3]:  # Take top 3 from each search (increased from 2)
                     if 'imgLarge' in item:
                         candidates.append({
@@ -395,38 +976,76 @@ def collect_candidate_images(image_search_terms, image_type, max_candidates=10):
                             'source': 'Open-i (NIH)',
                             'title': item.get('title', '')[:100]
                         })
+                        logger.info(f"    ✓ Added candidate: {item.get('title', '')[:50]}")
                         if len(candidates) >= max_candidates:
+                            logger.info(f"  ✓ Reached max candidates ({max_candidates}), returning")
                             return candidates
+                    else:
+                        logger.info(f"    ✗ Item missing 'imgLarge' key: {list(item.keys())}")
+            else:
+                logger.info(f"    ✗ No 'list' in response")
     except Exception as e:
         logger.error(f"Open-i collection error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     # Try Wikimedia Commons - more aggressive search
     try:
         url = "https://commons.wikimedia.org/w/api.php"
-        for search_term in image_search_terms[:5]:  # Increased from 2 to 5
+        logger.info(f"  → Trying Wikimedia Commons")
+
+        # Add proper User-Agent to avoid 403 errors
+        headers = {
+            'User-Agent': 'QBankGenerator/1.0 (Educational Medical Image Search; contact@example.com)'
+        }
+
+        for idx, search_term in enumerate(image_search_terms[:5]):  # Increased from 2 to 5
             params = {
                 'action': 'query', 'format': 'json', 'generator': 'search',
                 'gsrnamespace': 6, 'gsrsearch': f"{search_term} medical",
                 'gsrlimit': 15, 'prop': 'imageinfo', 'iiprop': 'url|mime', 'iiurlwidth': 600
             }
-            response = requests.get(url, params=params, timeout=20)
+            logger.info(f"  → Wikimedia search #{idx+1}: '{search_term} medical'")
+
+            response = requests.get(url, params=params, headers=headers, timeout=20)
+            logger.info(f"    Status: {response.status_code}")
+
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"    Response keys: {list(data.keys())}")
+
                 if 'query' in data and 'pages' in data['query']:
-                    for page_id, page in list(data['query']['pages'].items())[:3]:  # Increased from 2 to 3
+                    pages = data['query']['pages']
+                    logger.info(f"    Found {len(pages)} pages")
+
+                    for page_id, page in list(pages.items())[:3]:  # Increased from 2 to 3
                         if 'imageinfo' in page and len(page['imageinfo']) > 0:
                             img_info = page['imageinfo'][0]
                             mime = img_info.get('mime', '')
+                            logger.info(f"    Page: {page.get('title', '')[:30]}, mime: {mime}")
+
                             if mime.startswith('image/') and 'svg' not in mime.lower():
                                 candidates.append({
                                     'url': img_info.get('thumburl', img_info.get('url')),
                                     'source': 'Wikimedia Commons',
                                     'title': page.get('title', '').replace('File:', '')
                                 })
+                                logger.info(f"    ✓ Added candidate: {page.get('title', '')[:50]}")
                                 if len(candidates) >= max_candidates:
+                                    logger.info(f"  ✓ Reached max candidates ({max_candidates}), returning")
                                     return candidates
+                            else:
+                                logger.info(f"    ✗ Skipped (SVG or non-image mime type)")
+                        else:
+                            logger.info(f"    ✗ Page missing imageinfo")
+                else:
+                    logger.info(f"    ✗ No 'query' or 'pages' in response")
+            else:
+                logger.info(f"    ✗ Bad response status: {response.status_code}")
     except Exception as e:
         logger.error(f"Wikimedia collection error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
     logger.info(f"Collected {len(candidates)} candidate images from internet sources")
     return candidates
@@ -965,11 +1584,15 @@ def get_generic_prompt(course, subject, topic, num_questions, exam_format=None):
 
     # Use exam format if provided, otherwise infer
     if exam_format:
-        num_options = exam_format.get('num_options', 4)
-        question_style = exam_format.get('question_style', 'Single best answer')
-        typical_length = exam_format.get('typical_length', 'Medium length scenarios')
+        # Handle both old format (flat) and new format (nested in question_format)
+        question_format = exam_format.get('question_format', {})
+        num_options = question_format.get('num_options') or exam_format.get('num_options', 4)
+        question_style = question_format.get('type', exam_format.get('question_style', 'Single best answer'))
+        typical_length = question_format.get('avg_stem_words', exam_format.get('typical_length', 'Medium length scenarios'))
         emphasis = exam_format.get('emphasis', [])
-        domain_context = exam_format.get('domain', 'professional examination')
+        domain_context = exam_format.get('domain_characteristics', {}).get('domain', exam_format.get('domain', 'professional examination'))
+
+        logger.info(f"📝 Using exam format: {num_options} options, style={question_style}")
     else:
         # Fallback defaults
         num_options = 4
@@ -1069,11 +1692,41 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     # Get base prompt - using course-specific exam format
     prompt = get_generic_prompt(course, subject, topic, num_questions, exam_format)
 
-    # Add image requirements if requested
-    if include_images:
-        image_instructions = """
+    # Determine how many image-based questions to include based on exam format
+    num_image_questions = 0
+    if include_images and exam_format:
+        # Get subject-specific image percentage
+        image_by_subject = exam_format.get('image_percentage_by_subject', {})
 
-IMPORTANT: These must be IMAGE-BASED questions. For each question, you MUST analyze what the KEY DIAGNOSTIC FINDING is that needs to be visualized.
+        # Get overall percentage (can be nested in question_format or at top level)
+        overall_image_pct = exam_format.get('question_format', {}).get('image_questions_percentage', 0)
+        if overall_image_pct == 0:
+            overall_image_pct = exam_format.get('image_questions_percentage', 0)
+
+        # Try to find exact subject match or partial match
+        subject_image_pct = None
+        for subj_name, pct in image_by_subject.items():
+            if subj_name.lower() in subject.lower() or subject.lower() in subj_name.lower():
+                subject_image_pct = pct
+                logger.info(f"Found subject-specific image percentage: {pct}% for {subject} (matched with {subj_name})")
+                break
+
+        # Fall back to overall percentage if no subject-specific match found
+        if subject_image_pct is None:
+            subject_image_pct = overall_image_pct
+            logger.info(f"Using overall image percentage: {subject_image_pct}% (no subject-specific data for {subject})")
+
+        # Calculate number of image questions
+        num_image_questions = round(num_questions * subject_image_pct / 100)
+        logger.info(f"Including {num_image_questions}/{num_questions} image-based questions ({subject_image_pct}% for {subject})")
+
+    # Add image requirements if requested
+    if num_image_questions > 0:
+        image_instructions = f"""
+
+IMPORTANT: Out of {num_questions} questions, EXACTLY {num_image_questions} must be IMAGE-BASED questions (the rest should be text-only). This reflects the typical distribution for {subject} in {course}.
+
+For the {num_image_questions} IMAGE-BASED questions, you MUST analyze what the KEY DIAGNOSTIC FINDING is that needs to be visualized.
 
 Think step-by-step:
 1. What is the clinical diagnosis or pathology in this question?
@@ -1088,14 +1741,15 @@ Then add these fields:
   * "Light microscopy of Gram stain showing gram-positive cocci in grape-like clusters (Staphylococcus aureus)"
   * "Histopathology showing Reed-Sternberg cells (large cells with bilobed 'owl-eye' nuclei) in background of inflammatory cells"
 
-- "image_search_terms": Array of 3-5 HIGHLY SPECIFIC medical search queries using precise clinical terminology. **IMPORTANT: Add "unlabeled" or "no text" to search terms to avoid finding images with answer text visible**. Include:
-  * Primary: [condition] + [modality] + [key finding] + "unlabeled"
-  * Secondary: [specific pathologic sign/pattern] + [medical term] + "no text"
-  * Tertiary: [differential diagnosis term] + "clinical image"
+- "image_search_terms": Array of 3-5 medical search queries using SIMPLE, DATABASE-FRIENDLY terms. **IMPORTANT: Use SHORT queries with standard medical terminology that actually exists in NIH/medical databases. DO NOT add "unlabeled", "no text", or "no annotations" - these terms don't exist in databases and will return zero results**. Include:
+  * Primary: [condition] + [modality] (2-3 words max)
+  * Secondary: [specific finding] + [anatomy] (2-3 words max)
+  * Tertiary: [key pathologic term] alone (1-2 words)
   Examples:
-  * ["lobar pneumonia chest x-ray air bronchogram unlabeled", "right lower lobe consolidation radiology no annotations", "pneumococcal pneumonia imaging clinical"]
-  * ["multiple sclerosis MRI dawson fingers unlabeled", "periventricular white matter lesions T2 no text", "demyelinating plaques brain clinical"]
-  * ["inferior STEMI ECG unlabeled", "ST elevation leads II III aVF no diagnosis text", "inferior wall myocardial infarction EKG clinical"]
+  * ["pneumonia chest xray", "lobar consolidation", "air bronchogram"]
+  * ["multiple sclerosis MRI", "dawson fingers", "demyelinating plaques"]
+  * ["inferior STEMI", "ST elevation ECG", "myocardial infarction"]
+  * ["hypertrophic cardiomyopathy", "septal hypertrophy echo", "SAM mitral valve"]
 
 - "image_type": Specific imaging modality (e.g., "Chest X-ray PA view", "Brain MRI T2-weighted", "12-lead ECG", "Gram stain microscopy", "H&E histopathology", "CT abdomen with contrast")
 
@@ -1113,7 +1767,7 @@ CRITICAL: The image should show the PATHOGNOMONIC or CHARACTERISTIC finding that
 These references will trigger automatic visual marker addition (arrows, circles, highlights) to the image. Use them when the diagnostic finding needs to be localized in a specific area of the image.
 
 The question text should reference "the image shown" or "based on the image"."""
-        prompt = prompt.replace("Output ONLY the JSON array, no other text.", image_instructions + "\n\nOutput ONLY the JSON array, no other text.")
+        prompt = prompt.replace("Generate ONLY the JSON array, no additional text.", image_instructions + "\n\nGenerate ONLY the JSON array, no additional text.")
 
     # Call Claude API
     message = client.messages.create(
@@ -1203,13 +1857,18 @@ def generate_questions():
         # Calculate image statistics if images were requested
         image_stats = None
         if include_images:
+            # Count questions designated as image-based (have image metadata)
+            image_based_questions = sum(1 for q in all_questions if q.get('image_description') or q.get('image_type'))
             images_with_url = sum(1 for q in all_questions if q.get('image_url'))
             images_missing = sum(1 for q in all_questions if q.get('needs_image'))
+
             image_stats = {
-                'total_image_questions': len(all_questions),
+                'total_questions': len(all_questions),
+                'image_based_count': image_based_questions,
                 'images_found': images_with_url,
                 'images_missing': images_missing,
-                'success_rate': f"{(images_with_url/len(all_questions)*100):.1f}%" if all_questions else "0%"
+                'image_percentage': f"{(image_based_questions/len(all_questions)*100):.0f}%" if all_questions else "0%",
+                'success_rate': f"{(images_with_url/image_based_questions*100):.1f}%" if image_based_questions else "0%"
             }
             logger.info(f"Image statistics: {image_stats}")
 
@@ -1543,6 +2202,66 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
     return lesson_content
 
 
+def _get_image_requirements(subject, lesson_type='topic'):
+    """Determine minimum image requirements based on subject and lesson type."""
+    subject_lower = subject.lower()
+
+    # Define subject categories by visual intensity
+    highly_visual = ['cardiology', 'anatomy', 'surgery', 'radiology', 'pathology',
+                     'dermatology', 'ophthalmology', 'orthopedics', 'neurology',
+                     'ent', 'obstetrics', 'gynecology', 'pediatrics', 'histology',
+                     'microbiology']
+
+    moderately_visual = ['medicine', 'physiology', 'pharmacology', 'psychiatry',
+                         'emergency', 'critical care', 'anesthesia', 'immunology']
+
+    less_visual = ['biochemistry', 'biostatistics', 'epidemiology', 'ethics',
+                   'forensic', 'community medicine', 'preventive']
+
+    # Determine category
+    if any(keyword in subject_lower for keyword in highly_visual):
+        if lesson_type == 'topic':
+            return {
+                'min_images': 5,
+                'max_images': 8,
+                'guidance': 'HIGHLY VISUAL SUBJECT: Include diagnostic images (X-rays, CT/MRI, histology, clinical photos, ECGs, etc.)'
+            }
+        else:  # chapter
+            return {
+                'min_images': 1,
+                'max_images': 2,
+                'guidance': 'Include 1-2 key diagnostic images'
+            }
+
+    elif any(keyword in subject_lower for keyword in moderately_visual):
+        if lesson_type == 'topic':
+            return {
+                'min_images': 3,
+                'max_images': 5,
+                'guidance': 'MODERATELY VISUAL: Include clinical presentations, key investigations, anatomical correlations'
+            }
+        else:  # chapter
+            return {
+                'min_images': 1,
+                'max_images': 1,
+                'guidance': 'Include 1 key clinical image if relevant'
+            }
+
+    else:  # less visual or unknown
+        if lesson_type == 'topic':
+            return {
+                'min_images': 2,
+                'max_images': 3,
+                'guidance': 'Include relevant diagrams, molecular structures, or key concepts (can use tables/mermaid for some)'
+            }
+        else:  # chapter
+            return {
+                'min_images': 0,
+                'max_images': 1,
+                'guidance': 'Images optional - use tables/flowcharts if more appropriate'
+            }
+
+
 def _get_domain_specific_requirements(course, is_medical, chapter_list):
     """Generate domain-specific requirements based on course type."""
     if is_medical:
@@ -1603,6 +2322,72 @@ def _get_domain_specific_requirements(course, is_medical, chapter_list):
 ✓ Common mistakes and how to avoid them
 ✓ Current developments and recent research where relevant
 """
+
+
+def generate_chapters_for_topic(course_name, subject_name, topic_name):
+    """
+    Dynamically generate chapter names for a topic when they're missing.
+
+    Args:
+        course_name: Name of the course (e.g., "UKMLA AKT")
+        subject_name: Name of the subject (e.g., "Internal Medicine - Adult")
+        topic_name: Name of the topic (e.g., "Cardiology")
+
+    Returns:
+        List of chapter dictionaries: [{"name": "Chapter Name"}, ...]
+    """
+    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    prompt = f"""Generate 8-12 specific chapter names for a lesson on: {topic_name}
+
+Context:
+- Course: {course_name}
+- Subject: {subject_name}
+- Topic: {topic_name}
+
+Generate focused, specific chapter names that cover the key subtopics, conditions, or concepts.
+
+For medical topics, include specific conditions, diseases, or procedures.
+For engineering topics, include specific principles, theorems, or applications.
+
+OUTPUT FORMAT (strict JSON array):
+[
+    {{"name": "Chapter 1 Name"}},
+    {{"name": "Chapter 2 Name"}},
+    ...
+]
+
+Generate ONLY the JSON array, no other text."""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1000,
+            temperature=0.7,
+            timeout=30.0,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Clean up response
+        if response_text.startswith('```'):
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+        response_text = response_text.strip()
+
+        chapters = json.loads(response_text)
+        return chapters
+
+    except Exception as e:
+        logger.error(f"Error generating chapters: {e}")
+        # Return default chapters if generation fails
+        return [
+            {"name": f"{topic_name} - Part 1"},
+            {"name": f"{topic_name} - Part 2"},
+            {"name": f"{topic_name} - Part 3"}
+        ]
 
 
 @app.route('/api/generate-lessons', methods=['POST'])
@@ -1692,8 +2477,19 @@ def generate_lessons():
                 if 'high_yield' in topic_data:
                     topic_entry['high_yield'] = topic_data['high_yield']
 
+                # If chapters are empty, generate them dynamically
+                chapters_list = topic_data.get('chapters', [])
+                if not chapters_list or len(chapters_list) == 0:
+                    logger.info(f"  Generating chapters for topic: {topic_data.get('name')}")
+                    chapters_list = generate_chapters_for_topic(
+                        course,
+                        subject_data.get('name'),
+                        topic_data.get('name')
+                    )
+                    logger.info(f"  Generated {len(chapters_list)} chapters")
+
                 # Parse chapters (can be strings or objects)
-                for chapter in topic_data.get('chapters', []):
+                for chapter in chapters_list:
                     if isinstance(chapter, str):
                         topic_entry['chapters'].append({'name': chapter})
                     elif isinstance(chapter, dict):
@@ -1738,6 +2534,9 @@ def generate_lessons():
                     audience_desc = f"{course} exam candidates or advanced learners"
                     depth_desc = "Advanced professional level - assume foundational knowledge"
 
+                # Get image requirements for this subject
+                image_reqs = _get_image_requirements(subject, 'topic')
+
                 lesson_prompt = f"""====================  LESSON GENERATOR (COURSE-AGNOSTIC)  ====================
 - Course       : {course}
 - Subject      : {subject}
@@ -1750,12 +2549,47 @@ def generate_lessons():
 
 🔴 CRITICAL MANDATORY REQUIREMENTS (NON-NEGOTIABLE):
 1. MUST end with "### High Yield Summary" section (Key Take-Aways, Essential Numbers/Formulas, Key Principles, Quick Reference)
-2. MUST integrate chapter names INSIDE sentences throughout ALL sections - NOT as a list at the end!
-   ✅ CORRECT: "Topic X (see Chapter Name) involves..." or "Concept Y (see Related Chapter) demonstrates..."
-   ❌ WRONG: Having a "Related Chapters:" list at the end of sections
-   → Weave chapter names naturally when discussing each concept
-3. MUST use [Image: description] format: **Figure 1: [Image: specific description]**
+2. 🔴 CHAPTER REFERENCES (CRITICAL FORMAT - MUST USE EXACT SYNTAX):
+   🚨 MANDATORY: Reference ALL chapters from the chapters list using this EXACT format:
+
+   Format: (see **Chapter Name**)
+
+   ✅ EXAMPLES OF CORRECT FORMAT:
+   - "Ischemic heart disease (see **Acute Coronary Syndromes: STEMI and NSTEMI**) accounts for..."
+   - "Management of arrhythmias (see **Atrial Fibrillation, Flutter and Supraventricular Tachycardias**) requires..."
+   - "Hypertensive crisis (see **Hypertension: Assessment and Treatment Strategies**) demands..."
+   - "Systolic dysfunction (see **Heart Failure: Acute and Chronic Management**) is characterized by..."
+
+   ❌ WRONG FORMATS (DO NOT USE):
+   - "(see Acute Coronary Syndromes)" - MISSING bold markers **
+   - "see **Chapter Name**" - MISSING parentheses ()
+   - "[Chapter Name]" - WRONG brackets
+   - "Related chapters: ..." - WRONG approach
+
+   → Reference EVERY chapter from the list at least once throughout the lesson
+   → Use exact chapter names as provided in ChaptersJSON
+   → Bold markers (**) are REQUIRED for automatic linking to work
+3. 🔴 IMAGES (CRITICAL): MINIMUM {image_reqs['min_images']} images required, up to {image_reqs['max_images']} recommended
+   {image_reqs['guidance']}
+   - Format: **Figure N: [Image: SPECIFIC modality + exact finding/structure]**
+   - Examples of SPECIFIC descriptions:
+     ✅ "Chest X-ray PA view showing cardiomegaly with increased cardiothoracic ratio"
+     ✅ "ECG showing ST elevation in leads V1-V4 indicating anterior STEMI"
+     ✅ "Histology section showing non-caseating granulomas with multinucleated giant cells"
+     ❌ "Heart anatomy diagram" (too vague - use Mermaid instead)
+     ❌ "Treatment flowchart" (use Mermaid flowchart, not image)
+   - Include image numbers sequentially (Figure 1, Figure 2, etc.)
+   - Place images strategically throughout lesson, not clustered
 4. MUST include 2-3 ```mermaid flowcharts for algorithms/workflows/processes
+   IMPORTANT: Use SIMPLE mermaid syntax only. Example:
+   ```mermaid
+   flowchart TD
+       A[Start] --> B{{Decision}}
+       B -->|Yes| C[Action 1]
+       B -->|No| D[Action 2]
+   ```
+   Rules: Use TD (top-down) or LR (left-right). Shapes: [] rectangles, {{}} diamonds, () rounded.
+   Keep it simple - max 8 nodes. Use basic punctuation only in labels.
 ==========================================================================
 
 ===========  DEPTH & RIGOR REQUIREMENTS  ===========
@@ -1780,6 +2614,26 @@ def generate_lessons():
 ✓ NO explicit mentions of "exams", "examiners", "toppers", "candidates", "test", "assessment"
 ✓ Capture excellence through depth and precision, not exam rhetoric
 
+===========  FORMATTING REQUIREMENTS (CRITICAL)  ===========
+🔴 PARAGRAPH BREAKS (MANDATORY):
+✓ MAXIMUM 3-4 sentences per paragraph - then MUST add blank line
+✓ Use DOUBLE newlines (blank lines) between ALL paragraphs
+✓ Never write more than 5 lines without a blank line break
+✓ Each major point should be a separate paragraph with blank line before and after
+
+VISUAL MARKERS:
+✓ Use emojis sparingly for visual markers (🎯 for key points, 🚩 for red flags, 💎 for clinical pearls, ⚠️ for warnings)
+✓ Bold key terms and concepts: **term**
+✓ Use bullet points (• or *) for lists with proper line breaks
+
+SPECIAL SECTIONS:
+  - **Key Points:** at the end (will be highlighted in blue box)
+  - **Mnemonic:** for memory aids (will be highlighted in purple box)
+  - **Red Flags:** for urgent warnings (will be highlighted in red box)
+  - **Clinical Pearl:** for expert tips (will be highlighted in green box)
+✓ Use markdown tables with | separators for comparisons
+✓ Ensure each section has clear spacing - double newlines between major elements
+
 ===========  BLOOM'S PROGRESSION STRUCTURE (Levels 1-7)  ===========
 IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only the topic-specific titles.
 
@@ -1791,10 +2645,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
 * Must-know mnemonics linked to clinical decision-making
 * TABLE with key classifications or criteria
-* IF this topic has a KEY DIAGNOSTIC INVESTIGATION that clinicians must recognize:
-  → **Figure 1: [Image: investigation type + specific visible diagnostic features]**
-  → Be ULTRA-SPECIFIC about what's visible in the image
-  → If no essential investigation for this section, skip image and use table instead
+* 🔴 IMAGES: Include 1-2 diagnostic images in this section:
+  → **Figure 1: [Image: specific investigation + exact visible findings]**
+  → Examples: "ECG showing sinus rhythm with normal axis", "Chest X-ray PA view showing normal heart size and clear lung fields"
+  → Be ULTRA-SPECIFIC - mention modality, view, and visible features
 * 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
   → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
@@ -1806,9 +2660,10 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * WHY certain investigations work, WHY certain treatments target specific pathways
 * Pharmacodynamics and pharmacokinetics with clinical implications
 * Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
-* ```mermaid flowchart showing pathophysiological pathway/cascade (MANDATORY)
+* ```mermaid flowchart showing pathophysiological pathway/cascade (MANDATORY - use simple syntax, max 8 nodes)
 * Table linking mechanisms to clinical manifestations
-* 🔴 OPTIONAL: Include anatomical image ONLY if essential for understanding mechanism
+* 🔴 IMAGES: Include anatomical/histological images if relevant to mechanism:
+  → Examples: "Histology showing specific cellular changes", "Anatomical diagram showing affected structures"
 * 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
 
 ### 3 — [Topic-Specific Title for Clinical Application/Apply]
@@ -1818,13 +2673,13 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
 * Interpretation of results in clinical context (not just normal ranges)
 * When to investigate further vs when to act on clinical diagnosis
-* ```mermaid flowchart for diagnostic algorithm (MANDATORY)
+* ```mermaid flowchart for diagnostic algorithm (MANDATORY - use simple syntax, max 8 nodes)
 * Table with likelihood ratios and diagnostic accuracy
 * Red flags requiring urgent action
-* IF this topic has another essential diagnostic investigation (imaging, endoscopy, histology):
-  → **Figure 2/3: [Image: investigation type + specific diagnostic features visible]**
-  → Only include if the visual finding is critical for diagnosis/management
-  → Skip if topic doesn't have essential imaging at this stage
+* 🔴 IMAGES: Include 2-3 diagnostic investigation images (CRITICAL for clinical diagnosis):
+  → Examples: "ECG showing specific abnormality", "CT scan showing characteristic finding", "Blood film showing specific cells"
+  → **Figure 2-4: [Image: modality + view + specific visible diagnostic feature]**
+  → These are essential for pattern recognition in exams and clinical practice
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
 
 ### 4 — [Topic-Specific Title for Analysis/Analyze]
@@ -2067,6 +2922,9 @@ Start directly with first section header."""
 
                 # Generate chapter-level rapid revision notes
                 chapter_lessons = []
+                # Get chapter image requirements
+                chapter_image_reqs = _get_image_requirements(subject, 'chapter')
+
                 for chapter in chapter_list:
                     chapter_name = chapter.get('name') if isinstance(chapter, dict) else chapter
                     nice_refs = chapter.get('nice_refs', []) if isinstance(chapter, dict) else []
@@ -2109,10 +2967,21 @@ Brief context and why this chapter matters clinically/practically.
 • Key discriminating features (table format)
 • Quick decision rules or scoring systems
 
-**Visual Aid** (Choose ONE based on chapter needs):
+**Visual Aid** (REQUIRED: {chapter_image_reqs['min_images']}-{chapter_image_reqs['max_images']} visual elements):
+{chapter_image_reqs['guidance']}
 - ```mermaid flowchart for algorithm/workflow (if chapter has process/algorithm)
+  IMPORTANT: Use simple mermaid syntax only. Valid examples:
+  ```mermaid
+  flowchart TD
+      A[Start] --> B{{Decision}}
+      B -->|Yes| C[Action 1]
+      B -->|No| D[Action 2]
+  ```
+  Common syntax rules: Use TD for top-down, LR for left-right. Node shapes: [] for rectangles, {{}} for diamonds, () for rounded.
+  Keep it simple - max 6-8 nodes. Avoid special characters in labels except basic punctuation.
 - TABLE for classifications/differentials/comparisons (if chapter has categories)
-- **Figure: [Image: specific diagnostic finding]** (if chapter has key visual element)
+- **Figure: [Image: specific modality + exact visible finding]** (for key diagnostic/clinical visuals)
+  Examples: "ECG showing specific pattern", "X-ray showing characteristic feature", "Histology showing specific cells"
 
 **Key Points Summary** (MANDATORY - End section)
 ✓ Top 5-7 bullet points capturing absolute essentials
@@ -2130,6 +2999,9 @@ Brief context and why this chapter matters clinically/practically.
 ✓ NO fluff - every word must add value
 ✓ Clinical pearls and memory aids embedded naturally
 ✓ Professional but concise - assume advanced learner
+✓ Use emojis for visual clarity (🎯 key points, 🚩 red flags, 💊 drugs, 📊 numbers)
+✓ DOUBLE newlines between sections for proper spacing
+✓ Bold important terms and thresholds
 
 🔴 LENGTH: 300-500 words total (strict limit for rapid review)
 🔴 FORMAT: Markdown only. Start directly with "### {chapter_name}"
@@ -2156,7 +3028,7 @@ Brief context and why this chapter matters clinically/practically.
                         chapter_lessons.append({
                             'name': chapter_name,
                             'nice_refs': nice_refs,
-                            'chapter_lesson': chapter_lesson
+                            'lesson': chapter_lesson  # Changed from 'chapter_lesson' to 'lesson' to match frontend
                         })
 
                     except Exception as e:
@@ -2164,7 +3036,7 @@ Brief context and why this chapter matters clinically/practically.
                         chapter_lessons.append({
                             'name': chapter_name,
                             'nice_refs': nice_refs,
-                            'chapter_lesson': f"Error generating lesson: {str(e)}"
+                            'lesson': f"Error generating lesson: {str(e)}"  # Changed from 'chapter_lesson' to 'lesson' to match frontend
                         })
 
                 # Store lesson with metadata
@@ -2189,9 +3061,79 @@ Brief context and why this chapter matters clinically/practically.
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
+@app.route('/api/analyze-course', methods=['POST'])
+def analyze_course():
+    """
+    NEW MODULAR ENDPOINT: Comprehensive course analysis using all three modules
+
+    Uses:
+    1. generate_course_structure() - Get hierarchical structure
+    2. analyze_exam_format() - Determine question/exam characteristics
+    3. design_lesson_flow() - Plan optimal lesson structure
+
+    This provides a complete analysis for both QBank and Lesson generation.
+    """
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY not set'}), 500
+
+    data = request.json
+    course = data.get('course')
+    analysis_type = data.get('type', 'full')  # 'structure', 'exam', 'lesson', 'full'
+
+    if not course:
+        return jsonify({'error': 'Course is required'}), 400
+
+    try:
+        result = {'course': course}
+
+        # MODULE 1: Generate course structure (always needed)
+        logger.info(f"📚 Running MODULE 1: Course Structure Generation")
+        structure = generate_course_structure(course)
+        result['structure'] = structure
+
+        if analysis_type in ['exam', 'full']:
+            # MODULE 2: Analyze exam format (for QBank)
+            logger.info(f"📝 Running MODULE 2: Exam Format Analysis")
+            exam_format = analyze_exam_format(course, structure)
+            result['exam_format'] = exam_format
+
+        if analysis_type in ['lesson', 'full']:
+            # MODULE 3: Design lesson flow (for Lessons)
+            # Use first subject/topic as example
+            if structure['subjects'] and structure['subjects'][0]['topics']:
+                first_subject = structure['subjects'][0]
+                first_topic = first_subject['topics'][0]
+                logger.info(f"📖 Running MODULE 3: Lesson Flow Design")
+
+                lesson_flow = design_lesson_flow(
+                    course,
+                    first_subject['name'],
+                    first_topic['name'],
+                    first_topic.get('chapters', []),
+                    structure
+                )
+                result['lesson_flow_template'] = lesson_flow
+
+        logger.info(f"✓ Complete course analysis generated")
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Course analysis error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+
+
 @app.route('/api/generate-subjects', methods=['POST'])
 def generate_subjects():
-    """Generate course structure (subjects > topics) using Claude for any course."""
+    """
+    Generate comprehensive course structure using the new modular architecture.
+
+    Now uses:
+    - MODULE 1: generate_course_structure() for 10-15 subjects
+    - MODULE 2: analyze_exam_format() for question characteristics
+    """
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         return jsonify({'error': 'ANTHROPIC_API_KEY not set'}), 500
@@ -2203,105 +3145,71 @@ def generate_subjects():
         return jsonify({'error': 'Course is required'}), 400
 
     try:
-        logger.info(f"Researching and generating structure for course: {course}")
+        logger.info(f"📚 Generating comprehensive structure for: {course}")
 
-        # First, research the exam format and characteristics
-        research_prompt = f"""Research and provide detailed information about the "{course}" examination.
+        # Use MODULE 1: Generate course structure (10-15 subjects minimum)
+        structure = generate_course_structure(course)
 
-Provide a JSON with the following structure:
-{{
-  "Course": "{course}",
-  "exam_format": {{
-    "num_options": 5,
-    "question_style": "Single best answer",
-    "typical_length": "Medium to long clinical vignettes",
-    "time_per_question": "90 seconds",
-    "emphasis": ["Clinical reasoning", "Evidence-based practice", "Patient safety"],
-    "blooms_distribution": {{
-      "1": 0,
-      "2": 10,
-      "3": 45,
-      "4": 30,
-      "5": 15
-    }}
-  }},
-  "content_characteristics": {{
-    "domain": "Medical/Clinical",
-    "level": "Postgraduate medical licensing",
-    "geographic_focus": "UK",
-    "key_guidelines": ["NICE", "GMC", "SIGN"],
-    "clinical_focus": ["Diagnosis", "Management", "Ethics", "Communication"]
-  }},
-  "question_requirements": {{
-    "format_notes": "Must present realistic clinical scenarios",
-    "option_style": "All options should be plausible",
-    "explanation_depth": "Should reference evidence and guidelines",
-    "image_types": ["X-rays", "ECGs", "Clinical photos", "Histopathology"]
-  }},
-  "subjects": [
-    {{
-      "name": "Subject Name",
-      "topics": [
-        {{"name": "Topic 1"}},
-        {{"name": "Topic 2"}}
-      ]
-    }}
-  ]
-}}
+        # Use MODULE 2: Analyze exam format
+        logger.info(f"📝 Analyzing exam format for: {course}")
+        exam_format_analysis = analyze_exam_format(course, structure)
 
-CRITICAL REQUIREMENTS:
-1. Research the ACTUAL format of {course} - especially number of options in MCQs
-2. Understand the typical question style and length
-3. Identify key guidelines/standards used
-4. **Determine Bloom's Taxonomy distribution** - What cognitive levels does this exam test?
-   - Professional/licensing exams (UKMLA, USMLE, Bar): Focus on levels 3-5 (Apply, Analyze, Evaluate)
-   - Academic exams: More balanced distribution including levels 1-2
-   - Technical certifications: May vary based on domain
-   - Example distributions (percentages that sum to 100):
-     * UKMLA/USMLE: {{"1": 0, "2": 10, "3": 45, "4": 30, "5": 15}}
-     * Academic course: {{"1": 15, "2": 20, "3": 30, "4": 20, "5": 15}}
-     * Technical cert: {{"1": 5, "2": 15, "3": 40, "4": 25, "5": 15}}
-5. Generate appropriate subjects and topics (5-8 subjects, 8-15 topics each)
+        # Combine into response format expected by frontend
+        response = {
+            'Course': course,
+            'exam_format': exam_format_analysis,  # Include FULL exam format analysis (not just question_format)
+            'blooms_distribution': exam_format_analysis.get('blooms_distribution', {}),
+            'content_characteristics': {
+                'domain': structure.get('exam_type', 'general'),
+                'domain_description': structure.get('domain_characteristics', ''),
+                'key_features': exam_format_analysis.get('domain_characteristics', {}).get('key_features', [])
+            },
+            'question_requirements': {
+                'format_notes': f"Standard format for {structure.get('exam_type', 'general')} exams",
+                'visual_elements': exam_format_analysis.get('domain_characteristics', {}).get('visual_elements', 'medium')
+            },
+            'subjects': structure.get('subjects', [])
+        }
 
-For well-known exams (UKMLA AKT, NEET PG, USMLE, Bar Exam, FE Exam, etc.), use accurate information.
-For less common exams, make educated inferences based on the domain and level.
+        num_subjects = len(response['subjects'])
+        logger.info(f"✓ Generated comprehensive structure:")
+        logger.info(f"  - Subjects: {num_subjects}")
+        logger.info(f"  - Exam Type: {structure.get('exam_type', 'unknown')}")
 
-Output ONLY the JSON, no additional text.
-"""
+        # Debug: Log subject names being returned
+        subject_names = [s.get('name', 'UNNAMED') for s in response['subjects'][:5]]
+        logger.info(f"  - First 5 subjects: {subject_names}")
 
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=4000,
-            temperature=0.7,
-            messages=[{
-                "role": "user",
-                "content": research_prompt
-            }]
-        )
+        # DEBUG: Save structure to file for testing
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        debug_filename = f"debug_structure_{course.replace(' ', '_')}_{timestamp}.json"
+        debug_filepath = os.path.join(os.path.dirname(__file__), debug_filename)
 
-        response_text = message.content[0].text.strip()
+        try:
+            with open(debug_filepath, 'w', encoding='utf-8') as f:
+                json.dump(response, f, indent=2, ensure_ascii=False)
+            logger.info(f"  - 💾 Saved structure to: {debug_filename}")
+            logger.info(f"  - 💾 File contains {len(response['subjects'])} subjects")
 
-        # Extract JSON from response (in case Claude adds any wrapper text)
-        import re
-        json_match = re.search(r'\{[\s\S]*\}', response_text)
-        if json_match:
-            response_text = json_match.group(0)
+            # Also log the size of the JSON string
+            json_str = json.dumps(response, ensure_ascii=False)
+            logger.info(f"  - 💾 JSON string size: {len(json_str)} characters")
+        except Exception as e:
+            logger.error(f"  - ❌ Failed to save debug file: {e}")
 
-        course_structure = json.loads(response_text)
+        # Debug: Log response size
+        import sys
+        response_json = jsonify(response)
+        response_data = response_json.get_json()
+        logger.info(f"  - Response contains {len(response_data.get('subjects', []))} subjects")
+        logger.info(f"  - Total response keys: {list(response_data.keys())}")
 
-        # Log the exam format details
-        exam_format = course_structure.get('exam_format', {})
-        logger.info(f"✓ Researched {course}:")
-        logger.info(f"  - MCQ Options: {exam_format.get('num_options', 'Unknown')}")
-        logger.info(f"  - Question Style: {exam_format.get('question_style', 'Unknown')}")
-        logger.info(f"  - Subjects: {len(course_structure.get('subjects', []))}")
+        if num_subjects < 8:
+            logger.warning(f"⚠️ Only {num_subjects} subjects generated - this may be insufficient")
 
-        return jsonify(course_structure)
+        return response_json
 
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON parsing error: {e}")
-        logger.error(f"Response text: {response_text}")
-        return jsonify({'error': 'Failed to parse generated structure'}), 500
     except Exception as e:
         logger.error(f"Subject generation error: {e}")
         import traceback
@@ -2309,8 +3217,23 @@ Output ONLY the JSON, no additional text.
         return jsonify({'error': f'Error: {str(e)}'}), 500
 
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+@app.route('/api/debug-structure/<course>', methods=['GET'])
+def debug_structure(course):
+    """Debug endpoint to check response structure"""
+    try:
+        structure = generate_course_structure(course)
+        response = {
+            'debug_info': {
+                'backend_subject_count': len(structure.get('subjects', [])),
+                'backend_subject_names': [s.get('name') for s in structure.get('subjects', [])[:10]],
+                'has_topics': all(s.get('topics') for s in structure.get('subjects', [])),
+                'response_type': type(structure).__name__
+            },
+            'structure': structure
+        }
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/refine-structure', methods=['POST'])
@@ -2421,3 +3344,7 @@ Output ONLY the JSON, no additional text.
             'response': f"Error processing request: {str(e)}",
             'modified': False
         }), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)

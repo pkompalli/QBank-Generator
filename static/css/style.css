@@ -1192,3 +1192,217 @@ main {
     border-left: 3px solid var(--primary);
     border-radius: 0 4px 4px 0;
 }
+
+/* ========================================
+   IMPROVED LESSON FORMATTING
+   ======================================== */
+
+/* Lesson Typography */
+.lesson-h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 2rem 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid var(--primary);
+}
+
+.lesson-h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 1.8rem 0 1rem 0;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid #93c5fd;
+}
+
+.lesson-h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1e40af;
+    margin: 1.5rem 0 0.8rem 0;
+}
+
+.lesson-para {
+    line-height: 1.8;
+    margin-bottom: 1.2rem;
+    color: var(--text);
+}
+
+.lesson-list {
+    margin: 1rem 0 1rem 1.5rem;
+    line-height: 1.8;
+}
+
+.lesson-list li {
+    margin-bottom: 0.6rem;
+    padding-left: 0.5rem;
+}
+
+.lesson-list li strong {
+    color: var(--primary);
+}
+
+.lesson-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: block;
+}
+
+/* Highlight Boxes */
+.highlight-box {
+    padding: 1.2rem;
+    margin: 1.5rem 0;
+    border-radius: 10px;
+    border-left: 5px solid;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.highlight-box h4 {
+    margin: 0 0 0.8rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.highlight-box p {
+    margin: 0.5rem 0;
+    line-height: 1.7;
+}
+
+.highlight-box ul {
+    margin: 0.5rem 0 0 1.2rem;
+}
+
+/* Key Points Summary - Blue */
+.highlight-box.key-points {
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+    border-left-color: #2563eb;
+}
+
+.highlight-box.key-points h4 {
+    color: #1e40af;
+}
+
+/* Mnemonics - Purple */
+.highlight-box.mnemonic {
+    background: linear-gradient(135deg, #e9d5ff 0%, #f3e8ff 100%);
+    border-left-color: #9333ea;
+}
+
+.highlight-box.mnemonic h4 {
+    color: #7e22ce;
+}
+
+.highlight-box.mnemonic p {
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+/* Red Flags - Red/Orange */
+.highlight-box.red-flag {
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+    border-left-color: #dc2626;
+}
+
+.highlight-box.red-flag h4 {
+    color: #991b1b;
+}
+
+.highlight-box.red-flag ul li {
+    color: #7f1d1d;
+}
+
+/* Clinical Pearls - Green */
+.highlight-box.clinical-pearl {
+    background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+    border-left-color: #059669;
+}
+
+.highlight-box.clinical-pearl h4 {
+    color: #047857;
+}
+
+/* Improved Table Styling */
+.lesson-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.lesson-table th {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.lesson-table td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.lesson-table tr:last-child td {
+    border-bottom: none;
+}
+
+.lesson-table tr:hover {
+    background: #f9fafb;
+}
+
+/* Mermaid Container */
+.mermaid-container {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    text-align: center;
+}
+
+/* Better spacing for lesson text */
+.lesson-text {
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.lesson-text > *:first-child {
+    margin-top: 0;
+}
+
+.lesson-text > *:last-child {
+    margin-bottom: 0;
+}
+
+/* Chapter Links in Topic Lessons */
+a.chapter-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    padding: 2px 6px;
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+    border-radius: 4px;
+    border: 1px solid #93c5fd;
+    transition: all 0.2s;
+    display: inline-block;
+    cursor: pointer;
+}
+
+a.chapter-link:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+a.chapter-link:active {
+    transform: translateY(0);
+}

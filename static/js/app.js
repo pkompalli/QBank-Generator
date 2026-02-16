@@ -1,3 +1,5 @@
+console.log('🚀 app.js is loading...');
+
 // DOM Elements - Question Bank
 const qbankCourseInput = document.getElementById('qbank-course');
 const qbankGenerateSubjectsBtn = document.getElementById('qbank-generate-subjects-btn');
@@ -5,8 +7,8 @@ const qbankUploadStructureBtn = document.getElementById('qbank-upload-structure-
 const qbankJsonFile = document.getElementById('qbank-json-file');
 const qbankStructureStatus = document.getElementById('qbank-structure-status');
 const qbankSubjectsContainer = document.getElementById('qbank-subjects-container');
-const subjectSelect = document.getElementById('subject');
-const topicsSelect = document.getElementById('topics');
+const subjectSelect = document.getElementById('subject-select');
+const topicsSelect = document.getElementById('topics-select');
 const includeImagesCheckbox = document.getElementById('include-images');
 const numQuestionsInput = document.getElementById('num-questions');
 const numDisplay = document.getElementById('num-display');
@@ -22,37 +24,45 @@ const copyBtn = document.getElementById('copy-btn');
 const loading = document.getElementById('loading');
 const toast = document.getElementById('toast');
 
-// Review Panel Elements
-const structureReview = document.getElementById('structure-review');
-const examFormatDisplay = document.getElementById('exam-format-display');
-const subjectsTopicsDisplay = document.getElementById('subjects-topics-display');
+// New Structure Review Elements
+const structureSection = document.getElementById('structure-section');
+const examFormatDetails = document.getElementById('exam-format-details');
+const structureTree = document.getElementById('structure-tree');
 const approveStructureBtn = document.getElementById('approve-structure-btn');
-const chatMessages = document.getElementById('chat-messages');
-const chatInput = document.getElementById('chat-input');
-const sendChatBtn = document.getElementById('send-chat-btn');
-const attachDocBtn = document.getElementById('attach-doc-btn');
-const refDocUpload = document.getElementById('ref-doc-upload');
-const attachedFileName = document.getElementById('attached-file-name');
+const structureChatMessages = document.getElementById('structure-chat-messages');
+const structureChatInput = document.getElementById('structure-chat-input');
+const sendStructureChatBtn = document.getElementById('send-structure-chat-btn');
+const attachStructureDocBtn = document.getElementById('attach-structure-doc-btn');
+const structureDocUpload = document.getElementById('structure-doc-upload');
+const attachedStructureFile = document.getElementById('attached-structure-file');
 
 let generatedQuestions = [];
-let qbankCourseStructure = null;
+let courseStructure = null; // Shared structure for both Lessons and QBank tabs
 let attachedFile = null;
 
 // Update Bloom's level distribution display
 function updateBloomDistribution() {
-    const course = qbankCourseInput.value;
+    // Disabled - user doesn't want to see the distribution table
+    return;
+
+    // Check if QBank elements exist (they may not if on different tab)
+    if (!numQuestionsInput || !topicsSelect || !bloomInfo) {
+        return; // Skip if elements don't exist
+    }
+
+    const course = courseStructure?.Course || '';
     const numQuestions = parseInt(numQuestionsInput.value);
     const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
     const numTopics = selectedTopics.length || 1;
 
-    if (!course || !qbankCourseStructure) {
+    if (!course || !courseStructure) {
         bloomInfo.innerHTML = '<p>Load course structure to see distribution</p>';
-        totalQuestionsInfo.innerHTML = '';
-        perTopicLabel.style.display = 'none';
+        if (totalQuestionsInfo) totalQuestionsInfo.innerHTML = '';
+        if (perTopicLabel) perTopicLabel.style.display = 'none';
         return;
     }
 
-    perTopicLabel.style.display = 'inline';
+    if (perTopicLabel) perTopicLabel.style.display = 'inline';
 
     const levelNames = {
         1: 'Remember',
@@ -62,58 +72,138 @@ function updateBloomDistribution() {
         5: 'Evaluate'
     };
 
+    const difficultyNames = {
+        'medium': 'Medium',
+        'hard': 'Hard',
+        'very_hard': 'Very Hard'
+    };
+
     let html = '';
     let levels = [1, 2, 3, 4, 5];
+    let difficulties = ['medium', 'hard', 'very_hard'];
 
-    // Use course-specific Bloom's distribution if available
-    if (qbankCourseStructure?.exam_format?.blooms_distribution) {
-        const bloomsPercentages = qbankCourseStructure.exam_format.blooms_distribution;
-        let totalAssigned = 0;
-        let distributions = {};
+    // Use course-specific distributions if available
+    if (courseStructure?.exam_format?.blooms_distribution && courseStructure?.exam_format?.difficulty_distribution) {
+        const bloomsPercentages = courseStructure.exam_format.blooms_distribution;
+        const difficultyPercentages = courseStructure.exam_format.difficulty_distribution;
 
-        // Convert percentages to counts
-        levels.forEach(level => {
-            const percentage = bloomsPercentages[level] || 0;
-            const count = Math.round(numQuestions * percentage / 100);
-            distributions[level] = count;
-            totalAssigned += count;
-        });
+        // Convert backend format (easy, medium, hard) to our format (medium, hard, very_hard)
+        const adjustedDifficultyPercentages = {
+            'medium': difficultyPercentages.easy || 0 + (difficultyPercentages.medium || 0) * 0.5,
+            'hard': (difficultyPercentages.medium || 0) * 0.5 + (difficultyPercentages.hard || 0) * 0.5,
+            'very_hard': (difficultyPercentages.hard || 0) * 0.5
+        };
 
-        // Adjust for rounding errors
-        if (totalAssigned !== numQuestions) {
-            // Find level with highest percentage and adjust
-            const maxLevel = Object.keys(bloomsPercentages).reduce((a, b) =>
-                bloomsPercentages[a] > bloomsPercentages[b] ? a : b
-            );
-            distributions[maxLevel] += (numQuestions - totalAssigned);
+        // Normalize percentages
+        const totalDiffPercentage = adjustedDifficultyPercentages.medium + adjustedDifficultyPercentages.hard + adjustedDifficultyPercentages.very_hard;
+        if (totalDiffPercentage > 0) {
+            difficulties.forEach(diff => {
+                adjustedDifficultyPercentages[diff] = (adjustedDifficultyPercentages[diff] / totalDiffPercentage) * 100;
+            });
         }
 
-        levels.forEach(level => {
-            const count = distributions[level];
-            const percentage = bloomsPercentages[level] || 0;
-            html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions (${percentage}%)</span></div>`;
-        });
-    } else {
-        // Fallback: Equal Bloom's distribution (1-5 levels)
-        let perLevel = Math.floor(numQuestions / 5);
-        let remainder = numQuestions % 5;
+        // Get Bloom's percentages (sum 1-5 levels, ignoring 6-7)
+        const bloomsMap = {
+            1: bloomsPercentages['1_remember'] || bloomsPercentages['1'] || 0,
+            2: bloomsPercentages['2_understand'] || bloomsPercentages['2'] || 0,
+            3: bloomsPercentages['3_apply'] || bloomsPercentages['3'] || 0,
+            4: bloomsPercentages['4_analyze'] || bloomsPercentages['4'] || 0,
+            5: bloomsPercentages['5_evaluate'] || bloomsPercentages['5'] || 0
+        };
 
-        levels.forEach((level, idx) => {
-            const count = perLevel + (idx < remainder ? 1 : 0);
-            html += `<div><span>Level ${level} (${levelNames[level]})</span><span>${count} questions</span></div>`;
+        // Normalize Bloom's percentages to 100% (ignore levels 6-7)
+        const totalBloomPercentage = Object.values(bloomsMap).reduce((a, b) => a + b, 0);
+        if (totalBloomPercentage > 0) {
+            levels.forEach(level => {
+                bloomsMap[level] = (bloomsMap[level] / totalBloomPercentage) * 100;
+            });
+        }
+
+        // Create matrix
+        html = '<div style="overflow-x: auto;"><table class="distribution-matrix" style="width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem;">';
+
+        // Header row
+        html += '<thead><tr><th style="border: 1px solid var(--border); padding: 0.5rem; background: var(--bg-secondary); text-align: left;">Bloom\'s Level</th>';
+        difficulties.forEach(diff => {
+            html += `<th style="border: 1px solid var(--border); padding: 0.5rem; background: var(--bg-secondary); text-align: center;">${difficultyNames[diff]}</th>`;
         });
+        html += '<th style="border: 1px solid var(--border); padding: 0.5rem; background: var(--primary); color: white; text-align: center;">Total</th></tr></thead>';
+
+        // Data rows
+        html += '<tbody>';
+        let difficultyTotals = { medium: 0, hard: 0, very_hard: 0 };
+        let grandTotal = 0;
+
+        levels.forEach(level => {
+            html += `<tr><td style="border: 1px solid var(--border); padding: 0.5rem; font-weight: 500;">${level}. ${levelNames[level]}</td>`;
+            let rowTotal = 0;
+
+            difficulties.forEach(diff => {
+                // Calculate count: (Bloom's %) × (Difficulty %) × numQuestions / 100
+                const percentage = (bloomsMap[level] / 100) * (adjustedDifficultyPercentages[diff] / 100) * 100;
+                const count = Math.round(numQuestions * percentage / 100);
+                rowTotal += count;
+                difficultyTotals[diff] += count;
+                grandTotal += count;
+
+                html += `<td style="border: 1px solid var(--border); padding: 0.5rem; text-align: center;">${count} <span style="color: var(--text-muted); font-size: 0.85rem;">(${percentage.toFixed(0)}%)</span></td>`;
+            });
+
+            html += `<td style="border: 1px solid var(--border); padding: 0.5rem; text-align: center; font-weight: 600; background: var(--bg-secondary);">${rowTotal}</td></tr>`;
+        });
+
+        // Footer row with totals
+        html += '<tr style="font-weight: 600; background: var(--bg-secondary);"><td style="border: 1px solid var(--border); padding: 0.5rem;">Total</td>';
+        difficulties.forEach(diff => {
+            html += `<td style="border: 1px solid var(--border); padding: 0.5rem; text-align: center;">${difficultyTotals[diff]}</td>`;
+        });
+        html += `<td style="border: 1px solid var(--border); padding: 0.5rem; text-align: center; background: var(--primary); color: white;">${grandTotal}</td></tr>`;
+        html += '</tbody></table></div>';
+
+        // Adjust if total doesn't match numQuestions (due to rounding)
+        if (grandTotal !== numQuestions) {
+            html += `<p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Note: Total adjusted to ${numQuestions} questions (rounding differences)</p>`;
+        }
+
+    } else {
+        // Fallback: Equal distribution across Bloom's levels and difficulties
+        const perCell = Math.floor(numQuestions / (levels.length * difficulties.length));
+        const remainder = numQuestions % (levels.length * difficulties.length);
+
+        html = '<div style="overflow-x: auto;"><table class="distribution-matrix" style="width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem;">';
+
+        html += '<thead><tr><th style="border: 1px solid var(--border); padding: 0.5rem; background: var(--bg-secondary);">Bloom\'s Level</th>';
+        difficulties.forEach(diff => {
+            html += `<th style="border: 1px solid var(--border); padding: 0.5rem; background: var(--bg-secondary); text-align: center;">${difficultyNames[diff]}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        let cellIdx = 0;
+        levels.forEach(level => {
+            html += `<tr><td style="border: 1px solid var(--border); padding: 0.5rem;">${level}. ${levelNames[level]}</td>`;
+            difficulties.forEach(diff => {
+                const count = perCell + (cellIdx < remainder ? 1 : 0);
+                html += `<td style="border: 1px solid var(--border); padding: 0.5rem; text-align: center;">${count}</td>`;
+                cellIdx++;
+            });
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
     }
 
     bloomInfo.innerHTML = html;
 
     // Show total questions info
-    const totalQuestions = numQuestions * numTopics;
-    if (numTopics > 1) {
-        totalQuestionsInfo.innerHTML = `<div class="total-info"><strong>Total: ${totalQuestions} questions</strong> (${numQuestions} × ${numTopics} topics)</div>`;
-    } else if (numTopics === 1) {
-        totalQuestionsInfo.innerHTML = `<div class="total-info"><strong>Total: ${totalQuestions} questions</strong></div>`;
-    } else {
-        totalQuestionsInfo.innerHTML = '';
+    if (totalQuestionsInfo) {
+        const totalQuestions = numQuestions * numTopics;
+        if (numTopics > 1) {
+            totalQuestionsInfo.innerHTML = `<div class="total-info"><strong>Total: ${totalQuestions} questions</strong> (${numQuestions} × ${numTopics} topics)</div>`;
+        } else if (numTopics === 1) {
+            totalQuestionsInfo.innerHTML = `<div class="total-info"><strong>Total: ${totalQuestions} questions</strong></div>`;
+        } else {
+            totalQuestionsInfo.innerHTML = '';
+        }
     }
 }
 
@@ -127,93 +217,135 @@ function showToast(message, type = 'info') {
 
 // Display Structure Review Panel
 function displayStructureReview() {
-    if (!qbankCourseStructure) return;
+    console.log('🎯 displayStructureReview() called');
 
-    // Show review panel, hide form container temporarily
-    structureReview.style.display = 'block';
-    qbankSubjectsContainer.style.display = 'none';
-    generateBtn.style.display = 'none';
+    if (!courseStructure) {
+        console.error('❌ courseStructure is null in displayStructureReview()');
+        return;
+    }
+
+    console.log('✅ courseStructure exists:', {
+        hasCourse: !!courseStructure.Course,
+        hasSubjects: !!courseStructure.subjects,
+        subjectsLength: courseStructure.subjects?.length,
+        hasExamFormat: !!courseStructure.exam_format
+    });
+
+    // Show structure section, hide course input
+    const courseInputSection = document.getElementById('course-input-section');
+    if (courseInputSection) courseInputSection.style.display = 'none';
+    if (structureSection) structureSection.style.display = 'block';
 
     // Display Exam Format
-    const examFormat = qbankCourseStructure.exam_format || {};
+    const examFormat = courseStructure.exam_format || {};
     const bloomsDist = examFormat.blooms_distribution || {};
 
-    examFormatDisplay.innerHTML = `
-        <div class="format-item">
-            <div class="label">MCQ Options</div>
-            <div class="value">${examFormat.num_options || 4} options (${Array.from({length: examFormat.num_options || 4}, (_, i) => String.fromCharCode(65 + i)).join(', ')})</div>
-        </div>
-        <div class="format-item">
-            <div class="label">Question Style</div>
-            <div class="value">${examFormat.question_style || 'Single best answer'}</div>
-        </div>
-        <div class="format-item">
-            <div class="label">Typical Length</div>
-            <div class="value">${examFormat.typical_length || 'Medium'}</div>
-        </div>
-        <div class="format-item">
-            <div class="label">Bloom's Distribution</div>
-            <div class="value">
-                L1:${bloomsDist['1'] || 20}%,
-                L2:${bloomsDist['2'] || 20}%,
-                L3:${bloomsDist['3'] || 20}%,
-                L4:${bloomsDist['4'] || 20}%,
-                L5:${bloomsDist['5'] || 20}%
+    if (examFormatDetails) {
+        examFormatDetails.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div>
+                    <strong>MCQ Options:</strong> ${examFormat.num_options || 4} options
+                </div>
+                <div>
+                    <strong>Question Style:</strong> ${examFormat.question_style || 'Single best answer'}
+                </div>
+                ${examFormat.emphasis ? `
+                <div style="grid-column: 1 / -1;">
+                    <strong>Key Emphasis Areas:</strong> ${examFormat.emphasis.join(', ')}
+                </div>
+                ` : ''}
             </div>
-        </div>
-        ${examFormat.emphasis ? `
-        <div class="format-item" style="grid-column: 1 / -1;">
-            <div class="label">Key Emphasis Areas</div>
-            <div class="value">${examFormat.emphasis.join(', ')}</div>
-        </div>
-        ` : ''}
-    `;
+        `;
+    }
 
-    // Display Subjects & Topics
-    const subjects = qbankCourseStructure.subjects || [];
-    subjectsTopicsDisplay.innerHTML = subjects.map(subject => `
-        <div class="subject-item">
-            <h4>${subject.name}</h4>
-            <div class="topics-list">
-                ${subject.topics.map(topic => `
-                    <span class="topic-chip">${topic.name}</span>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
+    // Display Subjects & Topics Tree
+    const subjects = courseStructure.subjects || [];
+    console.log(`📊 Displaying ${subjects.length} subjects in review panel`);
+
+    if (structureTree) {
+        structureTree.innerHTML = subjects.map((subject, idx) => {
+            const topics = subject.topics || [];
+            console.log(`  Subject ${idx + 1}: ${subject.name} (${topics.length} topics)`);
+
+            return `
+            <details style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+                <summary style="cursor: pointer; font-weight: 600; color: var(--primary); user-select: none;">
+                    📚 ${subject.name} (${topics.length} topics)
+                </summary>
+                <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    ${topics.map(topic => `
+                        <span style="padding: 0.4rem 0.8rem; background: white; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem;">
+                            ${topic.name}${topic.high_yield ? ' ⭐' : ''}
+                        </span>
+                    `).join('')}
+                </div>
+            </details>
+            `;
+        }).join('');
+    }
 
     // Clear chat messages
-    chatMessages.innerHTML = '<div class="chat-message assistant"><div class="sender">AI Assistant</div><div class="content">The course structure is ready for review. You can request changes like adding/removing subjects or topics, or upload a reference document for guidance.</div></div>';
+    if (structureChatMessages) {
+        structureChatMessages.innerHTML = '';
+        structureChatMessages.style.display = 'none';
+    }
 
     // Scroll to review panel
     setTimeout(() => {
-        structureReview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (structureSection) {
+            structureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }, 100);
 }
 
 // Add message to chat
 function addChatMessage(content, sender = 'user') {
+    if (!structureChatMessages) return;
+
+    // Show chat messages container if hidden
+    structureChatMessages.style.display = 'block';
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}`;
     messageDiv.innerHTML = `
-        <div class="sender">${sender === 'user' ? 'You' : 'AI Assistant'}</div>
-        <div class="content">${content}</div>
+        <div style="font-weight: 600; margin-bottom: 0.25rem; color: ${sender === 'user' ? 'var(--primary)' : 'var(--success)'};">
+            ${sender === 'user' ? '👤 You' : '🤖 AI Assistant'}
+        </div>
+        <div>${content}</div>
     `;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    structureChatMessages.appendChild(messageDiv);
+    structureChatMessages.scrollTop = structureChatMessages.scrollHeight;
 }
 
 // Approve structure and show subject selection
 function approveStructure() {
-    structureReview.style.display = 'none';
-    qbankSubjectsContainer.style.display = 'block';
-    generateBtn.style.display = 'block';
-    populateQBankSubjects();
-    showToast('Structure approved! Select subjects and topics to generate questions.', 'success');
+    // Hide structure review section
+    if (structureSection) {
+        structureSection.style.display = 'none';
+    }
+
+    // Show generate section
+    const generateSection = document.getElementById('generate-section');
+    if (generateSection) {
+        generateSection.style.display = 'block';
+    }
+
+    // Populate dropdowns for both lessons and QBank
+    populateSubjects(courseStructure);
+
+    // Scroll to generate section
+    setTimeout(() => {
+        if (generateSection) {
+            generateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
+
+    showToast('Structure approved! Select subjects and topics to generate lessons or questions.', 'success');
 }
 
-// Question Bank - Generate Subjects button
-qbankGenerateSubjectsBtn.addEventListener('click', async () => {
+// Question Bank - Generate Subjects button (removed from UI, kept for compatibility)
+if (qbankGenerateSubjectsBtn) {
+    qbankGenerateSubjectsBtn.addEventListener('click', async () => {
     const course = qbankCourseInput.value.trim();
     if (!course) {
         showToast('Please enter a course name', 'error');
@@ -232,11 +364,16 @@ qbankGenerateSubjectsBtn.addEventListener('click', async () => {
 
         if (!response.ok) throw new Error('Failed to generate subjects');
 
-        qbankCourseStructure = await response.json();
+        courseStructure = await response.json();
 
         // Debug logging
-        console.log('Received course structure:', qbankCourseStructure);
-        console.log('exam_format in structure:', qbankCourseStructure.exam_format);
+        console.log('📥 Received course structure:', courseStructure);
+        console.log('📊 Number of subjects received:', courseStructure.subjects?.length || 0);
+        console.log('📋 exam_format in structure:', courseStructure.exam_format);
+
+        if (courseStructure.subjects) {
+            console.log('📚 Subject names:', courseStructure.subjects.map(s => s.name));
+        }
 
         // Show review panel instead of directly populating
         displayStructureReview();
@@ -251,14 +388,18 @@ qbankGenerateSubjectsBtn.addEventListener('click', async () => {
         qbankGenerateSubjectsBtn.disabled = false;
         qbankGenerateSubjectsBtn.textContent = '🤖 Generate Subjects';
     }
-});
+    });
+}
 
-// Question Bank - Upload JSON button
-qbankUploadStructureBtn.addEventListener('click', () => {
-    qbankJsonFile.click();
-});
+// Question Bank - Upload JSON button (removed from UI, kept for compatibility)
+if (qbankUploadStructureBtn) {
+    qbankUploadStructureBtn.addEventListener('click', () => {
+        qbankJsonFile.click();
+    });
+}
 
-qbankJsonFile.addEventListener('change', async (e) => {
+if (qbankJsonFile) {
+    qbankJsonFile.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -269,7 +410,7 @@ qbankJsonFile.addEventListener('change', async (e) => {
 
             // If exam_format is missing, research it based on course name
             if (!uploadedStructure.exam_format) {
-                const courseName = qbankCourseInput.value.trim() || uploadedStructure.Course || 'Unknown';
+                const courseName = uploadedStructure.Course || 'Unknown';
 
                 if (courseName && courseName !== 'Unknown') {
                     showToast('Researching exam format...', 'info');
@@ -295,7 +436,7 @@ qbankJsonFile.addEventListener('change', async (e) => {
                 }
             }
 
-            qbankCourseStructure = uploadedStructure;
+            courseStructure = uploadedStructure;
             displayStructureReview();
             qbankStructureStatus.textContent = `✓ Loaded structure from ${file.name}`;
             qbankStructureStatus.style.color = 'var(--success)';
@@ -307,76 +448,147 @@ qbankJsonFile.addEventListener('change', async (e) => {
         }
     };
     reader.readAsText(file);
-});
+    });
+}
 
 // Populate subjects dropdown from loaded structure
 function populateQBankSubjects() {
-    if (!qbankCourseStructure || !qbankCourseStructure.subjects) return;
+    console.log('🔄 populateQBankSubjects() called');
+    console.log('courseStructure:', courseStructure);
+
+    if (!courseStructure) {
+        console.error('❌ courseStructure is null or undefined');
+        return;
+    }
+
+    if (!courseStructure.subjects) {
+        console.error('❌ courseStructure.subjects is null or undefined');
+        console.log('Structure keys:', Object.keys(courseStructure));
+        return;
+    }
+
+    console.log(`✅ Populating ${courseStructure.subjects.length} subjects into dropdown`);
 
     qbankSubjectsContainer.style.display = 'block';
     subjectSelect.innerHTML = '<option value="">Select a subject...</option>';
     topicsSelect.innerHTML = '';
 
-    qbankCourseStructure.subjects.forEach((subject, idx) => {
+    courseStructure.subjects.forEach((subject, idx) => {
+        console.log(`  Adding subject ${idx}: ${subject.name}`);
         const option = document.createElement('option');
         option.value = idx;
         option.textContent = subject.name;
         subjectSelect.appendChild(option);
     });
+
+    console.log(`✅ Dropdown populated with ${subjectSelect.options.length - 1} subjects`);
+}
+
+// Update image percentage info based on selected subject
+function updateImagePercentageInfo(subjectName) {
+    const imagePercentageInfo = document.getElementById('image-percentage-info');
+    if (!imagePercentageInfo || !courseStructure) return;
+
+    const examFormat = courseStructure.exam_format;
+    if (!examFormat) return;
+
+    const imageBySubject = examFormat.image_percentage_by_subject || {};
+    // Handle both old format (nested) and new format (at top level)
+    const overallPct = examFormat.question_format?.image_questions_percentage ||
+                       examFormat.image_questions_percentage || 0;
+
+    // Try to find subject-specific percentage
+    let subjectPct = overallPct;
+    for (const [subjName, pct] of Object.entries(imageBySubject)) {
+        if (subjName.toLowerCase().includes(subjectName.toLowerCase()) ||
+            subjectName.toLowerCase().includes(subjName.toLowerCase())) {
+            subjectPct = pct;
+            break;
+        }
+    }
+
+    const courseName = courseStructure.Course || 'this exam';
+    imagePercentageInfo.textContent = `Includes ~${subjectPct}% image-based questions (typical for ${subjectName} in ${courseName}). Images fetched from NIH/Wikimedia or generated with AI.`;
 }
 
 // Subject change handler - populate topics from structure
-subjectSelect.addEventListener('change', () => {
-    const subjectIdx = subjectSelect.value;
-    topicsSelect.innerHTML = '';
-    generateBtn.disabled = true;
+if (subjectSelect) {
+    subjectSelect.addEventListener('change', () => {
+        const subjectIdx = subjectSelect.value;
+        if (topicsSelect) topicsSelect.innerHTML = '';
+        if (generateBtn) generateBtn.disabled = true;
 
-    if (!subjectIdx || !qbankCourseStructure) return;
+        if (!subjectIdx || !courseStructure) return;
 
-    const subject = qbankCourseStructure.subjects[subjectIdx];
-    if (!subject || !subject.topics) return;
+        const subject = courseStructure.subjects[subjectIdx];
+        if (!subject || !subject.topics) return;
 
-    subject.topics.forEach((topic, idx) => {
-        const option = document.createElement('option');
-        option.value = topic.name;
-        option.textContent = topic.name;
-        topicsSelect.appendChild(option);
+        subject.topics.forEach((topic, idx) => {
+            const option = document.createElement('option');
+            option.value = topic.name;
+            option.textContent = topic.name;
+            if (topicsSelect) topicsSelect.appendChild(option);
+        });
+
+        // Update image percentage info for this subject
+        updateImagePercentageInfo(subject.name);
+
+        updateBloomDistribution();
     });
-
-    updateBloomDistribution();
-});
+}
 
 // Topics change handler (multi-select)
-topicsSelect.addEventListener('change', () => {
-    const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
-    generateBtn.disabled = selectedTopics.length === 0;
-    updateBloomDistribution();
-});
+if (topicsSelect) {
+    topicsSelect.addEventListener('change', () => {
+        const selectedTopics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
+        const hasSelection = selectedTopics.length > 0;
+
+        // Enable/disable both generate buttons
+        if (generateBtn) generateBtn.disabled = !hasSelection;
+        if (generateLessonsBtn) generateLessonsBtn.disabled = !hasSelection;
+
+        updateBloomDistribution();
+    });
+}
 
 // Number of questions slider
-numQuestionsInput.addEventListener('input', () => {
-    numDisplay.textContent = numQuestionsInput.value;
-    updateBloomDistribution();
-});
+if (numQuestionsInput) {
+    numQuestionsInput.addEventListener('input', () => {
+        if (numDisplay) numDisplay.textContent = numQuestionsInput.value;
+        updateBloomDistribution();
+    });
+}
 
 // Generate button handler
-generateBtn.addEventListener('click', async () => {
-    const course = qbankCourseInput.value.trim();
-    const subjectIdx = subjectSelect.value;
-    const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
-    const numQuestions = parseInt(numQuestionsInput.value);
-    const includeImages = includeImagesCheckbox.checked;
-
-    if (!qbankCourseStructure || !subjectIdx) {
-        showToast('Please load course structure and select a subject', 'error');
+if (generateBtn) {
+    generateBtn.addEventListener('click', async () => {
+    // Get course name from the loaded structure (not from input field)
+    if (!courseStructure) {
+        showToast('Please generate course structure in Lessons tab first', 'error');
         return;
     }
 
-    const subject = qbankCourseStructure.subjects[subjectIdx].name;
+    const course = courseStructure.Course || 'Unknown Course';
+    const subjectIdx = subjectSelect ? subjectSelect.value : '';
+    const topics = topicsSelect ? Array.from(topicsSelect.selectedOptions).map(opt => opt.value) : [];
+    const numQuestions = numQuestionsInput ? parseInt(numQuestionsInput.value) : 10;
+    const includeImages = includeImagesCheckbox ? includeImagesCheckbox.checked : true;
+
+    if (!subjectIdx) {
+        showToast('Please select a subject', 'error');
+        return;
+    }
+
+    if (topics.length === 0) {
+        showToast('Please select at least one topic', 'error');
+        return;
+    }
+
+    const subject = courseStructure.subjects[subjectIdx].name;
 
     // Debug logging
-    console.log('qbankCourseStructure:', qbankCourseStructure);
-    console.log('exam_format being sent:', qbankCourseStructure?.exam_format);
+    console.log('courseStructure:', courseStructure);
+    console.log('exam_format being sent:', courseStructure?.exam_format);
 
     loading.style.display = 'flex';
     generateBtn.disabled = true;
@@ -391,7 +603,7 @@ generateBtn.addEventListener('click', async () => {
                 topics,
                 num_questions: numQuestions,
                 include_images: includeImages,
-                exam_format: qbankCourseStructure?.exam_format
+                exam_format: courseStructure?.exam_format
             })
         });
         
@@ -404,9 +616,12 @@ generateBtn.addEventListener('click', async () => {
         generatedQuestions = data.questions;
         displayResults(data.questions, course, data.image_stats);
 
+        // Show results section and switch to qbank tab
+        showResultTab('qbank');
+
         let message = `Generated ${data.count} questions across ${topics.length} topic(s)!`;
         if (data.image_stats) {
-            message += ` | Images: ${data.image_stats.images_found}/${data.image_stats.total_image_questions} (${data.image_stats.success_rate})`;
+            message += ` | ${data.image_stats.image_based_count} image-based (${data.image_stats.image_percentage}), ${data.image_stats.images_found} images found`;
         }
         showToast(message, 'success');
         
@@ -416,16 +631,12 @@ generateBtn.addEventListener('click', async () => {
         loading.style.display = 'none';
         generateBtn.disabled = false;
     }
-});
+    });
+}
 
 // Display results
 function displayResults(questions, course, imageStats = null) {
     resultsSection.style.display = 'block';
-
-    // Scroll to results section
-    setTimeout(() => {
-        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
 
     // Calculate stats
     const bloomCounts = {};
@@ -449,8 +660,12 @@ function displayResults(questions, course, imageStats = null) {
         </div>
         ${imageStats ? `
             <div class="stat-item">
+                <div class="label">Image-Based</div>
+                <div class="value">${imageStats.image_based_count} (${imageStats.image_percentage})</div>
+            </div>
+            <div class="stat-item">
                 <div class="label">Images Found</div>
-                <div class="value">${imageStats.images_found}/${imageStats.total_image_questions}</div>
+                <div class="value">${imageStats.images_found}/${imageStats.image_based_count}</div>
             </div>
             <div class="stat-item">
                 <div class="label">Image Success</div>
@@ -515,10 +730,11 @@ function displayResults(questions, course, imageStats = null) {
 }
 
 // Download button
-downloadBtn.addEventListener('click', () => {
+if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => {
     if (!generatedQuestions.length) return;
 
-    const course = qbankCourseInput.value.trim() || 'questions';
+    const course = courseStructure?.Course || 'questions';
     const blob = new Blob([JSON.stringify(generatedQuestions, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -528,7 +744,8 @@ downloadBtn.addEventListener('click', () => {
     URL.revokeObjectURL(url);
 
     showToast('Downloaded successfully!', 'success');
-});
+    });
+}
 
 // Convert image URL to base64
 async function urlToBase64(url) {
@@ -548,15 +765,16 @@ async function urlToBase64(url) {
 }
 
 // Download Markdown button
-copyBtn.addEventListener('click', async () => {
+if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
     if (!generatedQuestions.length) return;
 
     try {
         showToast('Generating markdown with embedded images...', 'info');
 
-        const course = qbankCourseInput.value.trim() || 'Unknown Course';
+        const course = courseStructure?.Course || 'Unknown Course';
         const subjectIdx = subjectSelect.value;
-        const subject = qbankCourseStructure && subjectIdx ? qbankCourseStructure.subjects[subjectIdx].name : 'Unknown Subject';
+        const subject = courseStructure && subjectIdx ? courseStructure.subjects[subjectIdx].name : 'Unknown Subject';
         const topics = Array.from(topicsSelect.selectedOptions).map(opt => opt.value);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 
@@ -613,7 +831,8 @@ copyBtn.addEventListener('click', async () => {
         console.error('Error generating markdown:', error);
         showToast('Failed to generate markdown', 'error');
     }
-});
+    });
+}
 
 // Initialize
 updateBloomDistribution();
@@ -637,10 +856,48 @@ tabButtons.forEach(button => {
         button.classList.add('active');
         document.getElementById(`${tabName}-tab`).classList.add('active');
 
-        // Hide results sections when switching tabs
-        resultsSection.style.display = 'none';
-        document.getElementById('image-result').style.display = 'none';
-        document.getElementById('lessons-result').style.display = 'none';
+        // Check if switching to QBank tab - update status based on structure
+        if (tabName === 'generate') {
+            const qbankStructureInfo = document.getElementById('qbank-structure-info');
+            if (courseStructure && courseStructure.subjects && courseStructure.subjects.length > 0) {
+                // Structure exists - hide info box, show subjects container, populate dropdowns
+                if (qbankStructureInfo) qbankStructureInfo.style.display = 'none';
+                populateQBankSubjects();
+                qbankStructureStatus.textContent = `✓ Structure loaded: ${courseStructure.Course || 'Unknown'} (${courseStructure.subjects.length} subjects)`;
+                qbankStructureStatus.style.color = 'var(--success)';
+            } else {
+                // No structure - show info box
+                if (qbankStructureInfo) qbankStructureInfo.style.display = 'block';
+                qbankSubjectsContainer.style.display = 'none';
+                qbankStructureStatus.textContent = 'No structure loaded - generate one in the Lessons tab first';
+                qbankStructureStatus.style.color = 'var(--error)';
+            }
+        }
+
+        // Show/hide results based on active tab (don't hide all - keep each tab's results)
+        // This allows users to iterate on generation separately
+        if (tabName === 'generate') {
+            // QBank tab - show QBank results if they exist, hide others
+            if (resultsSection) resultsSection.style.display = resultsSection.innerHTML.trim() ? 'block' : 'none';
+            if (document.getElementById('lessons-result')) document.getElementById('lessons-result').style.display = 'none';
+            if (document.getElementById('image-result')) document.getElementById('image-result').style.display = 'none';
+        } else if (tabName === 'lessons') {
+            // Lessons tab - show lesson results if they exist, hide others
+            if (document.getElementById('lessons-result')) {
+                const lessonsResult = document.getElementById('lessons-result');
+                lessonsResult.style.display = lessonsResult.innerHTML.trim() ? 'block' : 'none';
+            }
+            if (resultsSection) resultsSection.style.display = 'none';
+            if (document.getElementById('image-result')) document.getElementById('image-result').style.display = 'none';
+        } else if (tabName === 'utility') {
+            // Utility tab - show image results if they exist, hide others
+            if (document.getElementById('image-result')) {
+                const imageResult = document.getElementById('image-result');
+                imageResult.style.display = imageResult.innerHTML.trim() ? 'block' : 'none';
+            }
+            if (resultsSection) resultsSection.style.display = 'none';
+            if (document.getElementById('lessons-result')) document.getElementById('lessons-result').style.display = 'none';
+        }
     });
 });
 
@@ -663,12 +920,15 @@ const downloadImageMdBtn = document.getElementById('download-image-md-btn');
 let imageResultData = null;
 
 // File upload button handler
-uploadJsonBtn.addEventListener('click', () => {
-    jsonFileInput.click();
-});
+if (uploadJsonBtn) {
+    uploadJsonBtn.addEventListener('click', () => {
+        if (jsonFileInput) jsonFileInput.click();
+    });
+}
 
 // File selection handler
-jsonFileInput.addEventListener('change', async (e) => {
+if (jsonFileInput) {
+    jsonFileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -681,10 +941,12 @@ jsonFileInput.addEventListener('change', async (e) => {
     } catch (error) {
         showToast('Error reading file', 'error');
     }
-});
+    });
+}
 
 // Add image button handler
-addImageBtn.addEventListener('click', async () => {
+if (addImageBtn) {
+    addImageBtn.addEventListener('click', async () => {
     const jsonText = jsonInput.value.trim();
     const course = batchCourse.value;
 
@@ -734,6 +996,13 @@ addImageBtn.addEventListener('click', async () => {
         imageResultData = data.questions;
         displayBatchImageResult(data.questions, data.stats);
 
+        // Add indicator badge to Utility tab
+        const utilityTab = document.querySelector('[data-tab="utility"]');
+        if (utilityTab && !utilityTab.textContent.includes('●')) {
+            utilityTab.textContent = '● ' + utilityTab.textContent.trim();
+            utilityTab.style.color = 'var(--success)';
+        }
+
         const stats = data.stats;
         let message = `Processed ${stats.total} questions: ${stats.images_added} images added`;
         if (stats.explanations_generated > 0) {
@@ -751,7 +1020,8 @@ addImageBtn.addEventListener('click', async () => {
         loadingText.textContent = 'Generating questions with Claude...';
         addImageBtn.disabled = false;
     }
-});
+    });
+}
 
 function displayBatchImageResult(questions, stats) {
     imageResultSection.style.display = 'block';
@@ -840,7 +1110,8 @@ function displayBatchImageResult(questions, stats) {
 }
 
 // Download image results as JSON
-downloadImageResultBtn.addEventListener('click', () => {
+if (downloadImageResultBtn) {
+    downloadImageResultBtn.addEventListener('click', () => {
     if (!imageResultData) return;
 
     // Clean up internal metadata fields before download
@@ -865,10 +1136,12 @@ downloadImageResultBtn.addEventListener('click', () => {
     URL.revokeObjectURL(url);
 
     showToast('Downloaded successfully!', 'success');
-});
+    });
+}
 
 // Download as Markdown
-downloadImageMdBtn.addEventListener('click', async () => {
+if (downloadImageMdBtn) {
+    downloadImageMdBtn.addEventListener('click', async () => {
     if (!imageResultData) return;
 
     try {
@@ -933,7 +1206,8 @@ downloadImageMdBtn.addEventListener('click', async () => {
         console.error('Error generating markdown:', error);
         showToast('Failed to generate markdown', 'error');
     }
-});
+    });
+}
 
 // ============================================
 // LESSON GENERATION FUNCTIONALITY
@@ -957,10 +1231,22 @@ const downloadLessonsJsonBtn = document.getElementById('download-lessons-json-bt
 const downloadLessonsMdBtn = document.getElementById('download-lessons-md-btn');
 
 let lessonsData = null;
-let courseStructure = null;  // Stores the full course structure
+// courseStructure is declared globally at the top and shared between tabs
+
+// Debug: Check if button exists
+console.log('🔍 Lessons button element:', generateSubjectsBtn);
+console.log('🔍 Lessons course input:', lessonCourse);
+if (!generateSubjectsBtn) {
+    console.error('❌ Generate Subjects button NOT FOUND in DOM!');
+} else {
+    console.log('✅ Generate Subjects button FOUND! Attaching event listener...');
+}
 
 // Generate Subjects button handler
-generateSubjectsBtn.addEventListener('click', async () => {
+if (generateSubjectsBtn) {
+    console.log('📌 About to attach click event listener to generateSubjectsBtn');
+    generateSubjectsBtn.addEventListener('click', async () => {
+    console.log('🎯 BUTTON CLICKED! Starting handler...');
     const course = lessonCourse.value.trim();
     if (!course) {
         showToast('Please enter a course/exam name', 'error');
@@ -972,48 +1258,54 @@ generateSubjectsBtn.addEventListener('click', async () => {
     generateSubjectsBtn.disabled = true;
 
     try {
-        // TODO: This will call Claude to generate structure
-        // For now, show placeholder
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Call backend to generate comprehensive structure
+        console.log('🎓 Lessons: Calling API to generate structure for:', course);
 
-        // Placeholder structure
-        courseStructure = {
-            Course: course,
-            subjects: [
-                {
-                    name: "Core Medicine",
-                    topics: [
-                        { name: "Cardiology", high_yield: true, chapters: [{ name: "Heart Failure" }, { name: "Arrhythmias" }] },
-                        { name: "Respiratory", chapters: [{ name: "Asthma" }, { name: "COPD" }] }
-                    ]
-                },
-                {
-                    name: "Surgery",
-                    topics: [
-                        { name: "General Surgery", chapters: [{ name: "Appendicitis" }] }
-                    ]
-                }
-            ]
-        };
+        const response = await fetch('/api/generate-subjects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ course })
+        });
 
-        populateSubjects(courseStructure);
+        if (!response.ok) {
+            throw new Error('Failed to generate course structure');
+        }
+
+        courseStructure = await response.json();
+
+        console.log('🎓 Lessons: Received structure:', courseStructure);
+        console.log('🎓 Lessons: Number of subjects:', courseStructure.subjects?.length || 0);
+        if (courseStructure.subjects) {
+            console.log('🎓 Lessons: Subject names:', courseStructure.subjects.map(s => s.name));
+        }
+
+        // Show structure review panel
+        displayStructureReview();
+
         structureStatus.textContent = `✓ Generated ${courseStructure.subjects.length} subjects`;
-        showToast('Course structure generated!', 'success');
+        showToast('Structure generated! Please review and approve.', 'success');
     } catch (error) {
+        console.error('🎓 Lessons: Error generating structure:', error);
         structureStatus.textContent = '✗ Failed to generate structure';
         showToast('Failed to generate structure', 'error');
     } finally {
         generateSubjectsBtn.disabled = false;
     }
-});
+    });
+} else {
+    console.error('❌ Cannot attach event listener - button not found');
+}
 
 // Upload JSON button handler
-uploadStructureBtn.addEventListener('click', () => {
-    lessonJsonFile.click();
-});
+if (uploadStructureBtn) {
+    uploadStructureBtn.addEventListener('click', () => {
+        lessonJsonFile.click();
+    });
+}
 
 // File selection handler for lessons
-lessonJsonFile.addEventListener('change', async (e) => {
+if (lessonJsonFile) {
+    lessonJsonFile.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -1047,58 +1339,81 @@ lessonJsonFile.addEventListener('change', async (e) => {
         structureStatus.textContent = '✗ Invalid JSON file';
         courseStructure = null;
     }
-});
+    });
+}
 
 function populateSubjects(structure) {
     if (!structure || !structure.subjects) return;
 
-    lessonSubjectsContainer.style.display = 'block';
-    lessonSubjectSelect.innerHTML = '<option value="">Select a subject...</option>';
-    lessonTopicsSelect.innerHTML = '';
-    lessonChaptersSelect.innerHTML = '';
+    // Populate lesson subject select
+    if (lessonSubjectSelect) {
+        lessonSubjectSelect.innerHTML = '<option value="">Select a subject...</option>';
+        structure.subjects.forEach((subject, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = subject.name;
+            lessonSubjectSelect.appendChild(option);
+        });
+    }
 
-    // Populate subjects
-    structure.subjects.forEach((subject, idx) => {
-        const option = document.createElement('option');
-        option.value = idx;
-        option.textContent = subject.name;
-        lessonSubjectSelect.appendChild(option);
-    });
+    // Populate QBank subject select (same dropdown in unified UI)
+    if (subjectSelect) {
+        subjectSelect.innerHTML = '<option value="">Select a subject...</option>';
+        structure.subjects.forEach((subject, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = subject.name;
+            subjectSelect.appendChild(option);
+        });
+    }
 
-    // Enable generate button
-    generateLessonsBtn.disabled = false;
-    console.log('✓ Generate Lessons button enabled');
+    // Clear topics and chapters
+    if (lessonTopicsSelect) lessonTopicsSelect.innerHTML = '';
+    if (lessonChaptersSelect) lessonChaptersSelect.innerHTML = '';
+    if (topicsSelect) topicsSelect.innerHTML = '';
+
+    // Show subjects container
+    if (lessonSubjectsContainer) lessonSubjectsContainer.style.display = 'block';
+
+    // Initially buttons are disabled - they get enabled when user selects topics
+    // Don't enable them here, let the topic selection handler enable them
+    console.log('✓ Subjects populated - select topics to enable generate buttons');
     console.log('Course structure loaded:', structure);
 }
 
 function updateTopics() {
     if (!courseStructure || !courseStructure.subjects) return;
 
-    const selectedSubjectIdx = lessonSubjectSelect.value;
-    lessonTopicsSelect.innerHTML = '';
-    lessonChaptersSelect.innerHTML = '';
+    const selectedSubjectIdx = lessonSubjectSelect?.value;
+    if (lessonTopicsSelect) lessonTopicsSelect.innerHTML = '';
+    if (lessonChaptersSelect) lessonChaptersSelect.innerHTML = '';
 
-    if (selectedSubjectIdx === '') return;
+    if (!selectedSubjectIdx || selectedSubjectIdx === '') return;
 
     const subject = courseStructure.subjects[selectedSubjectIdx];
+    if (!subject || !subject.topics) return;
 
     subject.topics.forEach((topic, idx) => {
         const option = document.createElement('option');
         option.value = idx;
         const highYieldMarker = topic.high_yield ? ' ⭐' : '';
         option.textContent = `${topic.name}${highYieldMarker}`;
-        lessonTopicsSelect.appendChild(option);
+        if (lessonTopicsSelect) lessonTopicsSelect.appendChild(option);
     });
 }
 
 function updateChapters() {
-    if (!courseStructure || !courseStructure.subjects) return;
+    if (!courseStructure || !courseStructure.subjects || !lessonChaptersSelect) return;
 
-    const selectedSubjectIdx = lessonSubjectSelect.value;
-    if (selectedSubjectIdx === '') return;
+    const selectedSubjectIdx = lessonSubjectSelect?.value;
+    if (!selectedSubjectIdx || selectedSubjectIdx === '') return;
 
     const subject = courseStructure.subjects[selectedSubjectIdx];
-    const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
+    if (!subject || !subject.topics) return;
+
+    const selectedTopicIndices = lessonTopicsSelect
+        ? Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value))
+        : [];
 
     lessonChaptersSelect.innerHTML = '';
 
@@ -1108,7 +1423,7 @@ function updateChapters() {
     // Collect chapters from selected topics
     selectedTopicIndices.forEach(topicIdx => {
         const topic = subject.topics[topicIdx];
-        if (topic.chapters && topic.chapters.length > 0) {
+        if (topic && topic.chapters && topic.chapters.length > 0) {
             topic.chapters.forEach((chapter, chIdx) => {
                 const option = document.createElement('option');
                 option.value = `${topicIdx}-${chIdx}`;
@@ -1121,44 +1436,51 @@ function updateChapters() {
 }
 
 // Update topics when subject changes
-lessonSubjectSelect.addEventListener('change', updateTopics);
+if (lessonSubjectSelect) {
+    lessonSubjectSelect.addEventListener('change', updateTopics);
+}
 
 // Update chapters when topics change
-lessonTopicsSelect.addEventListener('change', updateChapters);
+if (lessonTopicsSelect) {
+    lessonTopicsSelect.addEventListener('change', updateChapters);
+}
 
 // Handle "Generate All" checkbox
-generateAllCheckbox.addEventListener('change', (e) => {
-    const isChecked = e.target.checked;
-    lessonSubjectSelect.disabled = isChecked;
-    lessonTopicsSelect.disabled = isChecked;
-    lessonChaptersSelect.disabled = isChecked;
+if (generateAllCheckbox) {
+    generateAllCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        if (lessonSubjectSelect) lessonSubjectSelect.disabled = isChecked;
+        if (lessonTopicsSelect) lessonTopicsSelect.disabled = isChecked;
+        if (lessonChaptersSelect) lessonChaptersSelect.disabled = isChecked;
 
-    if (isChecked) {
-        structureStatus.textContent = '✓ Will generate lessons for entire course';
-    } else {
-        structureStatus.textContent = structureStatus.textContent.replace('Will generate lessons for entire course', '');
-    }
-});
+        if (isChecked && structureStatus) {
+            structureStatus.textContent = '✓ Will generate lessons for entire course';
+        } else if (structureStatus) {
+            structureStatus.textContent = structureStatus.textContent.replace('Will generate lessons for entire course', '');
+        }
+    });
+}
 
 // Generate lessons button handler
-generateLessonsBtn.addEventListener('click', async () => {
-    console.log('Generate Lessons button clicked');
+if (generateLessonsBtn) {
+    generateLessonsBtn.addEventListener('click', async () => {
+        console.log('Generate Lessons button clicked');
 
-    const course = lessonCourse.value.trim();
+        const course = lessonCourse?.value.trim() || '';
 
-    // Validation
-    if (!course) {
-        showToast('Please enter a course name', 'error');
-        lessonCourse.focus();
-        return;
-    }
+        // Validation
+        if (!course) {
+            showToast('Please enter a course name', 'error');
+            if (lessonCourse) lessonCourse.focus();
+            return;
+        }
 
-    if (!courseStructure) {
-        showToast('Please click "Generate Subjects" or "Upload JSON" first!', 'error');
-        return;
-    }
+        if (!courseStructure) {
+            showToast('Please click "Generate Subjects" or "Upload JSON" first!', 'error');
+            return;
+        }
 
-    const generateAll = generateAllCheckbox.checked;
+        const generateAll = generateAllCheckbox?.checked || false;
 
     // Prepare request data
     const requestData = {
@@ -1183,9 +1505,11 @@ generateLessonsBtn.addEventListener('click', async () => {
         }
 
         // Get selected chapters (optional)
-        const selectedChapters = Array.from(lessonChaptersSelect.selectedOptions).map(opt => opt.value);
-        if (selectedChapters.length > 0) {
-            requestData.selected_chapters = selectedChapters;
+        if (lessonChaptersSelect) {
+            const selectedChapters = Array.from(lessonChaptersSelect.selectedOptions).map(opt => opt.value);
+            if (selectedChapters.length > 0) {
+                requestData.selected_chapters = selectedChapters;
+            }
         }
     }
 
@@ -1234,7 +1558,17 @@ generateLessonsBtn.addEventListener('click', async () => {
 
         // Display results
         displayLessons(data);
-        lessonsResultSection.style.display = 'block';
+
+        // Show results section and switch to lessons tab
+        showResultTab('lessons');
+
+        // Scroll to results after a brief delay to ensure rendering
+        setTimeout(() => {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 300);
 
         showToast(`✓ Generated ${data.lessons.length} lessons!`, 'success');
     } catch (error) {
@@ -1245,7 +1579,8 @@ generateLessonsBtn.addEventListener('click', async () => {
         loading.style.display = 'none';
         generateLessonsBtn.disabled = false;
     }
-});
+    });
+}
 
 function displayLessons(data) {
     // Display stats
@@ -1293,7 +1628,7 @@ function displayLessons(data) {
 
             <!-- Topic Tab Content -->
             <div class="lesson-tab-content active" id="${topicId}-topic">
-                <div class="lesson-text">${formatLessonContent(lesson.topic_lesson)}</div>
+                <div class="lesson-text">${formatLessonContent(lesson.topic_lesson, lesson.chapters, topicId)}</div>
             </div>
 
             <!-- Chapters Tab Content -->
@@ -1368,61 +1703,265 @@ function displayLessons(data) {
     });
 }
 
-function formatLessonContent(content) {
+// Helper function to escape special characters in regex
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Navigate to a specific chapter in the Deep Dive tab
+function navigateToChapter(topicId, chapterIdx) {
+    // Switch to chapters tab
+    const lessonTabBtns = document.querySelectorAll(`[data-lesson="${topicId}"]`);
+    lessonTabBtns.forEach(btn => btn.classList.remove('active'));
+
+    const chaptersTabBtn = document.querySelector(`[data-lesson="${topicId}"][data-tab="chapters"]`);
+    if (chaptersTabBtn) {
+        chaptersTabBtn.classList.add('active');
+    }
+
+    // Show chapters tab content
+    document.querySelectorAll(`[id^="${topicId}-"]`).forEach(content => {
+        if (!content.id.includes('chapter-')) {
+            content.classList.remove('active');
+        }
+    });
+    const chaptersTabContent = document.getElementById(`${topicId}-chapters`);
+    if (chaptersTabContent) {
+        chaptersTabContent.classList.add('active');
+    }
+
+    // Activate the specific chapter
+    document.querySelectorAll(`.chapter-link-btn[data-lesson="${topicId}"]`).forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const chapterBtn = document.querySelector(`.chapter-link-btn[data-lesson="${topicId}"][data-chapter="${chapterIdx}"]`);
+    if (chapterBtn) {
+        chapterBtn.classList.add('active');
+    }
+
+    // Show the specific chapter content
+    document.querySelectorAll(`.chapter-content[id^="${topicId}-chapter-"]`).forEach(content => {
+        content.classList.remove('active');
+    });
+    const chapterContent = document.getElementById(`${topicId}-chapter-${chapterIdx}`);
+    if (chapterContent) {
+        chapterContent.classList.add('active');
+
+        // Smooth scroll to the chapter content
+        setTimeout(() => {
+            chapterContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
+}
+
+function formatLessonContent(content, chapters = null, topicId = null) {
     if (!content) return '<p class="text-muted">No content available</p>';
 
     let html = content;
 
-    // Extract and process Mermaid code blocks
+    // Create chapter links if chapters are provided
+    if (chapters && topicId) {
+        // Sort chapters by name length (longest first) to match more specific names first
+        const sortedChapters = chapters.map((ch, idx) => ({ chapter: ch, index: idx }))
+            .sort((a, b) => b.chapter.name.length - a.chapter.name.length);
+
+        sortedChapters.forEach(({ chapter, index: chIdx }) => {
+            const chapterName = chapter.name;
+
+            // Try multiple variations of the chapter name for better matching
+            const variations = [
+                chapterName, // Full name
+                chapterName.split(':')[0].trim(), // Name before colon
+                chapterName.split('-')[0].trim(), // Name before dash
+            ];
+
+            variations.forEach(namePart => {
+                if (!namePart || namePart.length < 3) return; // Skip very short names
+
+                const escapedName = escapeRegExp(namePart);
+
+                // Multiple patterns to catch different formats
+                const patterns = [
+                    // (see **Chapter Name**)
+                    new RegExp(`\\(see\\s+\\*\\*([^*]*${escapedName}[^*]*)\\*\\*\\)`, 'gi'),
+                    // (see Chapter Name)
+                    new RegExp(`\\(see\\s+(${escapedName}[^)]*)\\)`, 'gi'),
+                    // **Chapter Name** standalone
+                    new RegExp(`\\*\\*(${escapedName}[^*]*)\\*\\*(?![^<]*</)`, 'gi'),
+                ];
+
+                patterns.forEach(pattern => {
+                    html = html.replace(pattern, (match, captured) => {
+                        // Don't replace if already has a link
+                        if (match.includes('href=') || match.includes('chapter-link')) {
+                            return match;
+                        }
+                        return `<a href="#" class="chapter-link" data-topic="${topicId}" data-chapter="${chIdx}" onclick="navigateToChapter('${topicId}', ${chIdx}); return false;">${match}</a>`;
+                    });
+                });
+            });
+        });
+    }
+
+    // Handle "Visual Aid" sections - convert to proper heading BEFORE mermaid extraction
+    html = html.replace(/(\*\*)?Visual Aid[s]?(\*\*)?:?\s*(\(.*?\))?/gi, '\n<h4 class="visual-aid-heading">📊 Visual Aid</h4>\n');
+
+    // Extract and process Mermaid code blocks first (preserve spacing)
     const mermaidBlocks = [];
-    html = html.replace(/```mermaid\n([\s\S]*?)```/g, (match, code) => {
+    html = html.replace(/```mermaid\s*\n([\s\S]*?)```/g, (match, code) => {
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
         mermaidBlocks.push({ id, code: code.trim() });
-        return `<div class="mermaid-container"><pre class="mermaid" id="${id}">${code.trim()}</pre></div>`;
+        return `\n\n<div class="mermaid-container" id="container-${id}"><pre class="mermaid" id="${id}">${code.trim()}</pre></div>\n\n`;
     });
 
-    // Convert markdown headings
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    // Remove empty Visual Aid sections (heading with no content after it)
+    html = html.replace(/<h4 class="visual-aid-heading">📊 Visual Aid<\/h4>\s*\n\s*\n(?=<h|$)/g, '');
 
-    // Convert markdown images
-    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 1rem 0;">');
+    // Identify and highlight special sections FIRST (before any markdown conversion)
+    // Key Points Summary
+    html = html.replace(/(\*\*)?Key Points Summary(\*\*)?/gi, () => {
+        return '\n<div class="highlight-box key-points">\n<h4>🎯 Key Points Summary</h4>\n';
+    });
 
-    // Convert bold and italic
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Look for the next heading after Key Points and close the box
+    html = html.replace(/(<div class="highlight-box key-points">[\s\S]*?)(\n#{1,3}\s)/g, '$1\n</div>$2');
 
-    // Convert bullet lists
-    html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // If no next heading found, close at end
+    if (html.includes('<div class="highlight-box key-points">') && !html.includes('</div>\n#')) {
+        html = html.replace(/(<div class="highlight-box key-points">[\s\S]*$)/, '$1\n</div>');
+    }
 
-    // Convert tables (simple markdown tables)
+    // Mnemonics (with or without bold markers)
+    html = html.replace(/(\*\*)?Mnemonic[s]?:?\s*(\*\*)?\s*([A-Z\s]+)\s+for\s+(.+?)(?=\n\n|\n[A-Z#]|$)/gis, (match, b1, b2, acronym, explanation) => {
+        return `\n<div class="highlight-box mnemonic">
+            <h4>🧠 Mnemonic: ${acronym.trim()}</h4>
+            <p>for ${explanation.trim()}</p>
+        </div>\n`;
+    });
+
+    // Simpler mnemonic pattern
+    html = html.replace(/(\*\*)?Mnemonic[s]?:?\s*(\*\*)?\s*(.+?)(?=\n\n|\n[A-Z#]|$)/gis, (match, b1, b2, content) => {
+        if (content.trim() && !content.includes('<div')) {
+            return `\n<div class="highlight-box mnemonic">
+                <h4>🧠 Mnemonic</h4>
+                <p>${content.trim()}</p>
+            </div>\n`;
+        }
+        return match;
+    });
+
+    // Red Flags
+    html = html.replace(/(\*\*)?Red Flag[s]?:?\s*(\*\*)?\s*(.+?)(?=\n\n|\n[A-Z#]|$)/gis, (match, b1, b2, content) => {
+        if (content.trim() && !content.includes('<div')) {
+            return `\n<div class="highlight-box red-flag">
+                <h4>🚩 Red Flags</h4>
+                <p>${content.trim()}</p>
+            </div>\n`;
+        }
+        return match;
+    });
+
+    // Clinical Pearls
+    html = html.replace(/(\*\*)?Clinical Pearl[s]?:?\s*(\*\*)?\s*(.+?)(?=\n\n|\n[A-Z#]|$)/gis, (match, b1, b2, content) => {
+        if (content.trim() && !content.includes('<div')) {
+            return `\n<div class="highlight-box clinical-pearl">
+                <h4>💎 Clinical Pearl</h4>
+                <p>${content.trim()}</p>
+            </div>\n`;
+        }
+        return match;
+    });
+
+    // Convert tables (do this early to avoid conflicts)
     const tableRegex = /(\|.+\|\n)+/g;
     html = html.replace(tableRegex, (table) => {
         const rows = table.trim().split('\n');
-        let tableHtml = '<table class="lesson-table">';
+        let tableHtml = '\n<table class="lesson-table">\n';
         rows.forEach((row, idx) => {
             if (idx === 1 && row.includes('---')) return; // Skip separator row
             const cells = row.split('|').filter(c => c.trim());
             const tag = idx === 0 ? 'th' : 'td';
-            tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
+            tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>\n`;
         });
-        tableHtml += '</table>';
+        tableHtml += '</table>\n';
         return tableHtml;
     });
 
-    // Convert paragraphs
-    html = html.split('\n\n').map(para => {
-        if (para.startsWith('<')) return para; // Already HTML
-        return `<p>${para.replace(/\n/g, '<br>')}</p>`;
-    }).join('');
+    // Convert markdown images
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '\n<img src="$2" alt="$1" class="lesson-image">\n');
 
-    // Initialize Mermaid rendering after content is added to DOM
+    // Convert bold and italic (before lists to handle bold in lists)
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Convert bullet points (• or * or ✓ or -)
+    html = html.replace(/^[•\*✓\-]\s+(.+)$/gm, '<li>$1</li>');
+
+    // Wrap consecutive <li> in <ul>
+    html = html.replace(/(<li>.*?<\/li>\n?)+/g, (match) => {
+        return '\n<ul class="lesson-list">\n' + match + '</ul>\n';
+    });
+
+    // Convert numbered lists
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*?<\/li>\n?)+/g, (match) => {
+        if (!match.includes('<ul')) {
+            return '\n<ol class="lesson-list">\n' + match + '</ol>\n';
+        }
+        return match;
+    });
+
+    // Convert markdown headings
+    html = html.replace(/^### (.+)$/gm, '\n<h3 class="lesson-h3">$1</h3>\n');
+    html = html.replace(/^## (.+)$/gm, '\n<h2 class="lesson-h2">$1</h2>\n');
+    html = html.replace(/^# (.+)$/gm, '\n<h1 class="lesson-h1">$1</h1>\n');
+
+    // Convert paragraphs (split by double newlines, but preserve existing HTML)
+    const blocks = html.split(/\n\n+/);
+    html = blocks.map(block => {
+        block = block.trim();
+        if (!block) return '';
+
+        // Skip if already HTML
+        if (block.startsWith('<')) return block;
+
+        // Skip if it's just a list item
+        if (block.startsWith('<li>')) return block;
+
+        // Convert single newlines to <br> within paragraphs
+        return `<p class="lesson-para">${block.replace(/\n/g, '<br>')}</p>`;
+    }).filter(b => b).join('\n\n');
+
+    // Initialize Mermaid rendering after content is added to DOM with error handling
     setTimeout(() => {
-        if (window.mermaid) {
-            window.mermaid.run({
-                querySelector: '.mermaid'
+        if (window.mermaid && mermaidBlocks.length > 0) {
+            mermaidBlocks.forEach(block => {
+                try {
+                    const element = document.getElementById(block.id);
+                    const container = document.getElementById(`container-${block.id}`);
+
+                    if (element && container) {
+                        // Try to render the mermaid diagram
+                        window.mermaid.render(`rendered-${block.id}`, block.code)
+                            .then(result => {
+                                container.innerHTML = result.svg;
+                            })
+                            .catch(error => {
+                                // If mermaid syntax is invalid, show a clean fallback
+                                console.warn('Mermaid rendering error:', error);
+                                container.innerHTML = `
+                                    <div style="padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; margin: 1rem 0;">
+                                        <p style="margin: 0; color: #856404;">
+                                            <strong>📊 Diagram:</strong> Visual diagram could not be rendered. Content description available in text.
+                                        </p>
+                                    </div>
+                                `;
+                            });
+                    }
+                } catch (error) {
+                    console.warn('Error processing mermaid block:', error);
+                }
             });
         }
     }, 100);
@@ -1431,7 +1970,8 @@ function formatLessonContent(content) {
 }
 
 // Download lessons as JSON
-downloadLessonsJsonBtn.addEventListener('click', () => {
+if (downloadLessonsJsonBtn) {
+    downloadLessonsJsonBtn.addEventListener('click', () => {
     if (!lessonsData) {
         showToast('No lessons to download', 'error');
         return;
@@ -1447,10 +1987,12 @@ downloadLessonsJsonBtn.addEventListener('click', () => {
     URL.revokeObjectURL(url);
 
     showToast('Lessons downloaded!', 'success');
-});
+    });
+}
 
 // Download lessons as Markdown
-downloadLessonsMdBtn.addEventListener('click', () => {
+if (downloadLessonsMdBtn) {
+    downloadLessonsMdBtn.addEventListener('click', () => {
     if (!lessonsData) {
         showToast('No lessons to download', 'error');
         return;
@@ -1492,96 +2034,161 @@ downloadLessonsMdBtn.addEventListener('click', () => {
         console.error('Error generating markdown:', error);
         showToast('Failed to generate markdown', 'error');
     }
-});
+    });
+}
 
 // ============================================
 // STRUCTURE REVIEW PANEL EVENT HANDLERS
 // ============================================
 
 // Approve structure button
-approveStructureBtn.addEventListener('click', approveStructure);
+if (approveStructureBtn) {
+    approveStructureBtn.addEventListener('click', approveStructure);
+}
 
 // Attach document button
-attachDocBtn.addEventListener('click', () => {
-    refDocUpload.click();
-});
+if (attachStructureDocBtn) {
+    attachStructureDocBtn.addEventListener('click', () => {
+        structureDocUpload.click();
+    });
+}
 
 // File upload handler
-refDocUpload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        attachedFile = file;
-        attachedFileName.textContent = `📎 ${file.name}`;
-        showToast(`Attached: ${file.name}`, 'info');
-    }
-});
+if (structureDocUpload) {
+    structureDocUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            attachedFile = file;
+            if (attachedStructureFile) {
+                attachedStructureFile.textContent = `📎 ${file.name}`;
+            }
+            showToast(`Attached: ${file.name}`, 'info');
+        }
+    });
+}
 
 // Send chat message
-sendChatBtn.addEventListener('click', async () => {
-    const message = chatInput.value.trim();
-    if (!message && !attachedFile) {
-        showToast('Please enter a message or attach a document', 'error');
-        return;
-    }
-
-    // Add user message to chat
-    if (message) {
-        addChatMessage(message, 'user');
-        chatInput.value = '';
-    }
-
-    // Prepare request
-    const formData = new FormData();
-    formData.append('course', qbankCourseInput.value.trim());
-    formData.append('message', message);
-    formData.append('current_structure', JSON.stringify(qbankCourseStructure));
-
-    if (attachedFile) {
-        formData.append('reference_doc', attachedFile);
-        addChatMessage(`Uploaded: ${attachedFile.name}`, 'user');
-    }
-
-    sendChatBtn.disabled = true;
-    sendChatBtn.textContent = '⏳';
-
-    try {
-        const response = await fetch('/api/refine-structure', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) throw new Error('Failed to process request');
-
-        const data = await response.json();
-
-        // Add AI response to chat
-        addChatMessage(data.response, 'assistant');
-
-        // Update structure if modified
-        if (data.updated_structure) {
-            qbankCourseStructure = data.updated_structure;
-            displayStructureReview();
-            showToast('Structure updated!', 'success');
+if (sendStructureChatBtn) {
+    sendStructureChatBtn.addEventListener('click', async () => {
+        const message = structureChatInput?.value.trim() || '';
+        if (!message && !attachedFile) {
+            showToast('Please enter a message or attach a document', 'error');
+            return;
         }
 
-        // Clear attached file
-        attachedFile = null;
-        attachedFileName.textContent = '';
-        refDocUpload.value = '';
+        // Add user message to chat
+        if (message) {
+            addChatMessage(message, 'user');
+            if (structureChatInput) structureChatInput.value = '';
+        }
 
-    } catch (error) {
-        addChatMessage('Sorry, I encountered an error processing your request. Please try again.', 'assistant');
-        showToast(error.message || 'Error processing request', 'error');
-    } finally {
-        sendChatBtn.disabled = false;
-        sendChatBtn.textContent = 'Send';
-    }
-});
+        // Prepare request
+        const formData = new FormData();
+        formData.append('course', courseStructure?.Course || '');
+        formData.append('message', message);
+        formData.append('current_structure', JSON.stringify(courseStructure));
+
+        if (attachedFile) {
+            formData.append('reference_doc', attachedFile);
+            addChatMessage(`Uploaded: ${attachedFile.name}`, 'user');
+        }
+
+        sendStructureChatBtn.disabled = true;
+        sendStructureChatBtn.textContent = '⏳';
+
+        try {
+            const response = await fetch('/api/refine-structure', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Failed to process request');
+
+            const data = await response.json();
+
+            // Add AI response to chat
+            addChatMessage(data.response, 'assistant');
+
+            // Update structure if modified
+            if (data.updated_structure) {
+                courseStructure = data.updated_structure;
+                displayStructureReview();
+                showToast('Structure updated!', 'success');
+            }
+
+            // Clear attached file
+            attachedFile = null;
+            if (attachedStructureFile) attachedStructureFile.textContent = '';
+            if (structureDocUpload) structureDocUpload.value = '';
+
+        } catch (error) {
+            addChatMessage('Sorry, I encountered an error processing your request. Please try again.', 'assistant');
+            showToast(error.message || 'Error processing request', 'error');
+        } finally {
+            sendStructureChatBtn.disabled = false;
+            sendStructureChatBtn.textContent = 'Update';
+        }
+    });
+}
 
 // Allow Enter to send (Shift+Enter for new line)
-chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendChatBtn.click();
-    }
+if (structureChatInput) {
+    structureChatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (sendStructureChatBtn) sendStructureChatBtn.click();
+        }
+    });
+}
+
+// ============================================
+// RESULT TABS SWITCHING
+// ============================================
+
+document.querySelectorAll('.result-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tabName = btn.getAttribute('data-result-tab');
+        
+        // Remove active class from all result tab buttons
+        document.querySelectorAll('.result-tab-btn').forEach(b => b.classList.remove('active'));
+        
+        // Add active class to clicked button
+        btn.classList.add('active');
+        
+        // Hide all result tab contents
+        document.querySelectorAll('.result-tab-content').forEach(content => {
+            content.classList.remove('active');
+            content.style.display = 'none';
+        });
+        
+        // Show selected result tab content
+        if (tabName === 'lessons') {
+            const lessonsResult = document.getElementById('lessons-result');
+            if (lessonsResult) {
+                lessonsResult.classList.add('active');
+                lessonsResult.style.display = 'block';
+            }
+        } else if (tabName === 'qbank') {
+            const qbankResult = document.getElementById('results');
+            if (qbankResult) {
+                qbankResult.classList.add('active');
+                qbankResult.style.display = 'block';
+            }
+        }
+    });
 });
+
+// Helper function to show results section and switch to specific tab
+function showResultTab(tabName) {
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        resultsSection.style.display = 'block';
+    }
+    
+    // Click the appropriate tab
+    const tabBtn = document.querySelector(`[data-result-tab="${tabName}"]`);
+    if (tabBtn) {
+        tabBtn.click();
+    }
+}
+

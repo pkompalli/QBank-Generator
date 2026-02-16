@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBank Generator</title>
+    <title>QBank Generator - AI Study Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
@@ -14,194 +14,204 @@
 <body>
     <div class="container">
         <header>
-            <h1>QBank Generator</h1>
-            <p class="subtitle">Generate MCQs & Lessons for NEET PG, USMLE & More</p>
+            <h1>🎓 AI Study Assistant</h1>
+            <p class="subtitle">Generate personalized MCQs & Lessons for any exam</p>
         </header>
 
         <!-- Tab Navigation -->
         <div class="tabs">
-            <button class="tab-button active" data-tab="generate">Generate Questions</button>
-            <button class="tab-button" data-tab="add-image">Add Image to Question</button>
-            <button class="tab-button" data-tab="lessons">Generate Lessons</button>
+            <button class="tab-button active" data-tab="main" style="border-bottom: 3px solid var(--primary); font-weight: 600;">
+                📚 Generator
+            </button>
+            <button class="tab-button" data-tab="utility">
+                🔧 Utility
+            </button>
         </div>
 
         <main>
-            <!-- Generate Questions Tab -->
-            <div class="tab-content active" id="generate-tab">
-            <section class="form-section">
-                <div class="form-group">
-                    <label for="qbank-course">Step 1: Course / Exam Name</label>
-                    <input type="text" id="qbank-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, FE Exam" required>
-                    <small>Enter the course or exam name</small>
+            <!-- Main Tab -->
+            <div class="tab-content active" id="main-tab">
+            <!-- Step 1: Course Input -->
+            <section class="step-section" id="course-input-section">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h2>What exam are you studying for?</h2>
                 </div>
 
                 <div class="form-group">
-                    <label>Step 2: Load Course Structure</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <button type="button" id="qbank-generate-subjects-btn" class="btn-secondary" style="width: 100%;">
-                            🤖 Generate Subjects
-                        </button>
-                        <button type="button" id="qbank-upload-structure-btn" class="btn-secondary" style="width: 100%;">
-                            📁 Upload JSON
-                        </button>
-                    </div>
-                    <input type="file" id="qbank-json-file" accept=".json" style="display: none;">
-                    <small id="qbank-structure-status" style="display: block; margin-top: 0.5rem; color: var(--text-muted);">Choose one option to load the course structure</small>
+                    <input type="text" id="lesson-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, MRCP"
+                           style="width: 100%; padding: 1rem; font-size: 1.1rem; border: 2px solid var(--border); border-radius: 8px;">
+                    <button id="generate-subjects-btn" class="btn-primary" style="margin-top: 1rem;">
+                        🔍 Analyze Course & Generate Structure
+                    </button>
+                </div>
+                <p id="structure-status" style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-muted);"></p>
+            </section>
+
+            <!-- Step 2: Course Structure Review -->
+            <section class="step-section" id="structure-section" style="display: none;">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h2>Review Course Structure</h2>
                 </div>
 
-                <div id="qbank-subjects-container" style="display: none;">
-                    <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Subject & Topics</h4>
+                <!-- Exam Format Display -->
+                <div class="info-box" id="exam-format-box">
+                    <h3>📋 Exam Format</h3>
+                    <div id="exam-format-details"></div>
+                </div>
 
-                    <div class="form-group">
-                        <label for="subject">Subject</label>
-                        <select id="subject" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
-                            <option value="">Select a subject...</option>
-                        </select>
-                    </div>
+                <!-- Subjects & Topics Tree -->
+                <div class="info-box" style="margin-top: 1rem;">
+                    <h3>📚 Course Structure</h3>
+                    <div id="structure-tree"></div>
+                </div>
 
-                    <div class="form-group">
-                        <label for="topics">Topics</label>
-                        <select id="topics" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
-                        </select>
-                        <small>Hold Ctrl/Cmd to select multiple topics. Questions generated per topic.</small>
+                <!-- Refine Structure (Compact) -->
+                <details class="refine-section" style="margin-top: 1rem; padding: 1rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);">
+                    <summary style="cursor: pointer; font-weight: 600; color: var(--primary); user-select: none;">
+                        💬 Refine Structure (Optional - click to expand)
+                    </summary>
+
+                    <div style="margin-top: 1rem;">
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                            Modify subjects/topics or upload curriculum document
+                        </p>
+
+                        <div class="chat-messages" id="structure-chat-messages" style="display: none; max-height: 200px; overflow-y: auto; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.9rem;"></div>
+
+                        <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                            <input type="file" id="structure-doc-upload" accept=".pdf,.doc,.docx,.txt,.json" style="display: none;">
+
+                            <button type="button" id="attach-structure-doc-btn" class="btn-icon" title="Attach curriculum document" style="flex-shrink: 0; padding: 0.6rem; font-size: 1rem;">
+                                📎
+                            </button>
+
+                            <div style="flex: 1;">
+                                <textarea id="structure-chat-input" placeholder="e.g., 'Add Pharmacology subject with topics on antibiotics...'" rows="2" style="width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; resize: vertical;"></textarea>
+                                <span id="attached-structure-file" class="attached-file" style="font-size: 0.85rem; color: var(--primary);"></span>
+                            </div>
+
+                            <button id="send-structure-chat-btn" class="btn-secondary" style="flex-shrink: 0; padding: 0.6rem 1.2rem; white-space: nowrap;">
+                                Update
+                            </button>
+                        </div>
                     </div>
+                </details>
+
+                <button id="approve-structure-btn" class="btn-primary" style="margin-top: 1.5rem; width: 100%; padding: 0.9rem; font-size: 1rem;">
+                    ✓ Approve & Continue
+                </button>
+            </section>
+
+            <!-- Subjects Container (populated after structure approval) -->
+            <div id="subjects-container" style="display: none;"></div>
+
+            <!-- Step 3: Generate Content -->
+            <section class="step-section" id="generate-section" style="display: none;">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    <h2>Generate Study Materials</h2>
+                </div>
+
+                <div class="form-group">
+                    <label for="subject-select">Select Subject</label>
+                    <select id="subject-select" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                        <option value="">Choose a subject...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="topics-select">Select Topics (hold Ctrl/Cmd for multiple)</label>
+                    <select id="topics-select" multiple size="8" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
+                    </select>
                 </div>
 
                 <div class="form-group checkbox-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" id="include-images">
-                        <span>Include Image-Based Questions</span>
+                        <input type="checkbox" id="generate-all-checkbox">
+                        <span>Generate for ALL Subjects & Topics</span>
                     </label>
-                    <small>Adds questions with X-rays, ECGs, histopathology, etc. from public sources</small>
                 </div>
 
-                <div class="form-group">
-                    <label for="num-questions">Number of Questions</label>
-                    <input type="range" id="num-questions" min="5" max="50" value="10" step="5">
-                    <span id="num-display">10</span>
+                <!-- QBank specific controls -->
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="num-questions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span>Questions per Topic</span>
+                        <span id="num-display" style="font-size: 1.2rem; font-weight: 600; color: var(--primary);">10</span>
+                    </label>
+                    <input type="range" id="num-questions" min="5" max="50" value="10" step="5" style="width: 100%;">
+                    <div id="total-questions-info" style="margin-top: 0.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;"></div>
+                    <div id="bloom-distribution" style="margin-top: 1rem;"></div>
                 </div>
 
-                <div class="info-box" id="bloom-info">
-                    <h4>Bloom's Level Distribution <span id="per-topic-label">(per topic)</span></h4>
-                    <div id="bloom-distribution"></div>
-                    <div id="total-questions-info"></div>
-                </div>
-
-                <button id="generate-btn" class="btn-primary" disabled>
-                    Generate Questions
-                </button>
-            </section>
-
-            <!-- Course Structure Review Panel -->
-            <section class="review-panel" id="structure-review" style="display: none;">
-                <div class="review-header">
-                    <h2>📋 Course Structure Review</h2>
-                    <button id="approve-structure-btn" class="btn-secondary">✓ Approve & Continue</button>
-                </div>
-
-                <!-- Exam Format Section -->
-                <div class="review-section">
-                    <h3>🎯 Exam Format</h3>
-                    <div id="exam-format-display" class="format-grid"></div>
-                </div>
-
-                <!-- Subjects & Topics Section -->
-                <div class="review-section">
-                    <h3>📚 Subjects & Topics</h3>
-                    <div id="subjects-topics-display" class="subjects-tree"></div>
-                </div>
-
-                <!-- Chat Interface for Refinement -->
-                <div class="review-section chat-section">
-                    <h3>💬 Refine Structure</h3>
-                    <p class="chat-help">Ask me to modify subjects, topics, or exam format. You can also upload reference documents.</p>
-
-                    <div class="chat-messages" id="chat-messages"></div>
-
-                    <div class="chat-input-area">
-                        <div class="attachment-area">
-                            <input type="file" id="ref-doc-upload" accept=".pdf,.doc,.docx,.txt,.json" style="display: none;">
-                            <button type="button" id="attach-doc-btn" class="btn-icon" title="Attach reference document">
-                                📎
-                            </button>
-                            <span id="attached-file-name" class="attached-file"></span>
-                        </div>
-                        <div class="chat-input-row">
-                            <textarea id="chat-input" placeholder="e.g., Add 'Pharmacology' subject with topics on antibiotics, or upload a curriculum document..." rows="2"></textarea>
-                            <button id="send-chat-btn" class="btn-primary">Send</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="results-section" id="results" style="display: none;">
-                <div class="results-header">
-                    <h2>Generated Questions</h2>
-                    <div class="action-buttons">
-                        <button id="download-btn" class="btn-secondary">Download JSON</button>
-                        <button id="copy-btn" class="btn-secondary">📄 Download Markdown</button>
-                    </div>
-                </div>
-                <div class="stats" id="stats"></div>
-                <div id="questions-container"></div>
-            </section>
-            </div>
-
-            <!-- Add Image Tab -->
-            <div class="tab-content" id="add-image-tab">
-                <section class="form-section">
-                    <div class="info-box">
-                        <h3>📸 Add Images to Questions</h3>
-                        <p>Upload a JSON file or paste question data. The system will analyze each question and add appropriate medical images.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Upload JSON File</label>
-                        <div class="file-upload-area">
-                            <input type="file" id="json-file-input" accept=".json" style="display: none;">
-                            <button type="button" id="upload-json-btn" class="btn-secondary">
-                                📁 Choose File
-                            </button>
-                            <span id="file-name" style="margin-left: 0.5rem; color: var(--text-muted); font-size: 0.9rem;"></span>
-                        </div>
-                    </div>
-
-                    <div class="divider">
-                        <span>OR</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="json-input">Paste JSON</label>
-                        <textarea id="json-input" rows="10" placeholder='[
-  {
-    "question": "...",
-    "options": ["A", "B", "C", "D"],
-    "correct_option": "A",
-    "explanation": "...",
-    "subject": "Medicine",
-    "tags": ["NEET-PG"]
-  }
-]'></textarea>
-                        <small>Format: <code>NEET PG Example.json</code> or <code>USMLE Example.json</code></small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="batch-course">Course</label>
-                        <select id="batch-course">
-                            <option value="">Auto-detect</option>
-                            <option value="NEET PG">NEET PG</option>
-                            <option value="USMLE">USMLE</option>
-                        </select>
-                    </div>
-
-                    <button id="add-image-btn" class="btn-primary">
-                        🔍 Analyze & Add Images
+                <!-- Generate Buttons -->
+                <div class="action-buttons" style="margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <button id="generate-lessons-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
+                        📖 Generate Lessons
                     </button>
-                </section>
+                    <button id="generate-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
+                        📝 Generate QBank
+                    </button>
+                </div>
+            </section>
 
-                <section class="results-section" id="image-result" style="display: none;">
+            <!-- Results Tabs -->
+            <section class="results-section" id="results-section" style="display: none; margin-top: 2rem;">
+                <div class="result-tabs" style="border-bottom: 2px solid var(--border); margin-bottom: 1.5rem;">
+                    <button class="result-tab-btn" data-result-tab="lessons">
+                        📚 Lessons
+                    </button>
+                    <button class="result-tab-btn" data-result-tab="qbank">
+                        📝 QBank
+                    </button>
+                </div>
+
+                <!-- Lesson Results Tab -->
+                <div class="result-tab-content" id="lessons-result" style="display: none;">
                     <div class="results-header">
-                        <h2>Questions with Images</h2>
+                        <h2>📚 Lesson Results</h2>
+                        <div class="action-buttons">
+                            <button id="download-lessons-json-btn" class="btn-secondary">💾 Download JSON</button>
+                            <button id="download-lessons-md-btn" class="btn-secondary">📄 Download Markdown</button>
+                        </div>
+                    </div>
+                    <div class="stats" id="lessons-stats"></div>
+                    <div id="lessons-container"></div>
+                </div>
+
+                <!-- QBank Results Tab -->
+                <div class="result-tab-content" id="results" style="display: none;">
+                    <div class="results-header">
+                        <h2>📝 QBank Results</h2>
+                        <div class="action-buttons">
+                            <button id="download-btn" class="btn-secondary">💾 Download JSON</button>
+                            <button id="copy-btn" class="btn-secondary">📄 Download Markdown</button>
+                        </div>
+                    </div>
+                    <div class="stats" id="stats"></div>
+                    <div id="questions-container"></div>
+                </div>
+            </section>
+
+            </div>
+            <!-- End Main Tab -->
+
+            <!-- Utility Tab -->
+            <div class="tab-content" id="utility-tab" style="display: none;">
+                <section class="form-section">
+                    <h2>🔧 Add Images to Your Questions</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Upload a JSON file with questions and the system will automatically add appropriate medical images.</p>
+
+                    <input type="file" id="json-file-input" accept=".json" style="display: none;">
+                    <button type="button" id="add-images-btn" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                        🖼️ Add Images to Your Questions
+                    </button>
+                    <p id="processing-status" style="margin-top: 1rem; color: var(--text-muted);"></p>
+
+                <div class="results-section" id="image-result" style="display: none; margin-top: 1rem;">
+                    <div class="results-header">
+                        <h4>Questions with Images</h4>
                         <div class="action-buttons">
                             <button id="download-image-result-btn" class="btn-secondary">Download JSON</button>
                             <button id="download-image-md-btn" class="btn-secondary">📄 Download Markdown</button>
@@ -209,101 +219,440 @@
                     </div>
                     <div class="stats" id="image-stats"></div>
                     <div id="image-result-container"></div>
-                </section>
+                </div>
+            </section>
             </div>
+            <!-- End Utility Tab -->
 
-            <!-- Generate Lessons Tab -->
-            <div class="tab-content" id="lessons-tab">
-                <section class="form-section">
-                    <div class="info-box">
-                        <h3>📚 Generate Review Lessons</h3>
-                        <p>Create comprehensive review materials at chapter and topic levels.</p>
-                        <ul style="font-size: 0.85rem; margin: 0.5rem 0 0 1.25rem; color: var(--text-muted);">
-                            <li><strong>Chapter-level:</strong> 1-2 pages, rapid revision</li>
-                            <li><strong>Topic-level:</strong> 7-8 pages, detailed concepts</li>
-                        </ul>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="lesson-course">Step 1: Course / Exam Name</label>
-                        <input type="text" id="lesson-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, UPSC" required>
-                        <small>Enter the course or exam name</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Step 2: Load Course Structure</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <button type="button" id="generate-subjects-btn" class="btn-secondary" style="width: 100%;">
-                                🤖 Generate Subjects
-                            </button>
-                            <button type="button" id="upload-structure-btn" class="btn-secondary" style="width: 100%;">
-                                📁 Upload JSON
-                            </button>
-                        </div>
-                        <input type="file" id="lesson-json-file" accept=".json" style="display: none;">
-                        <small id="structure-status" style="display: block; margin-top: 0.5rem; color: var(--text-muted);">Choose one option to load the course structure</small>
-                    </div>
-
-                    <div id="subjects-container" style="display: none;">
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">Step 3: Select Subject & Topics</h4>
-
-                        <div class="form-group">
-                            <label for="subject-select">Subject</label>
-                            <select id="subject-select" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
-                                <option value="">Select a subject...</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="topics-select">Topics (Optional - leave empty for all)</label>
-                            <select id="topics-select" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
-                            </select>
-                            <small>Hold Ctrl/Cmd to select multiple topics</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="chapters-select">Chapters (Optional)</label>
-                            <select id="chapters-select" multiple size="6" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
-                            </select>
-                            <small>Hold Ctrl/Cmd to select specific chapters. Leave empty for all chapters.</small>
-                        </div>
-
-                        <div class="form-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="generate-all-checkbox">
-                                <span>Generate All (All Subjects, Topics & Chapters)</span>
-                            </label>
-                            <small>Generates lessons for entire course structure</small>
-                        </div>
-                    </div>
-
-                    <button id="generate-lessons-btn" class="btn-primary" disabled>
-                        📖 Generate Lessons
-                    </button>
-                </section>
-
-                <section class="results-section" id="lessons-result" style="display: none;">
-                    <div class="results-header">
-                        <h2>Generated Lessons</h2>
-                        <div class="action-buttons">
-                            <button id="download-lessons-json-btn" class="btn-secondary">Download JSON</button>
-                            <button id="download-lessons-md-btn" class="btn-secondary">📄 Download Markdown</button>
-                        </div>
-                    </div>
-                    <div class="stats" id="lessons-stats"></div>
-                    <div id="lessons-container"></div>
-                </section>
-            </div>
         </main>
-
         <div class="loading" id="loading" style="display: none;">
             <div class="spinner"></div>
-            <p>Generating questions with Claude...</p>
+            <p id="loading-message">Processing...</p>
         </div>
 
         <div class="toast" id="toast"></div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <style>
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            border-bottom: 2px solid var(--border, #ddd);
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .tab-button:hover {
+            background: var(--bg-secondary, #f5f5f5);
+        }
+
+        .tab-button.active {
+            border-bottom-color: var(--primary, #007bff);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        /* Result Tabs */
+        .result-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-tab-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-secondary);
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .result-tab-btn:hover {
+            background: var(--bg);
+        }
+
+        .result-tab-btn.active {
+            background: var(--bg);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .result-tab-content {
+            display: none;
+        }
+
+        .result-tab-content.active {
+            display: block;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .step-section {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: var(--bg-secondary, #f5f5f5);
+            border-radius: 12px;
+            border-left: 4px solid var(--primary, #007bff);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: var(--primary, #007bff);
+            color: white;
+            border-radius: 50%;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .step-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--text, #333);
+        }
+
+        .chat-message {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-message.user {
+            background: var(--primary, #007bff);
+            color: white;
+            margin-left: 1rem;
+        }
+
+        .chat-message.assistant {
+            background: var(--bg, white);
+            border: 1px solid var(--border, #ddd);
+            margin-right: 1rem;
+        }
+
+        .refine-section summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .refine-section summary::marker {
+            content: '';
+        }
+
+        .refine-section[open] summary {
+            margin-bottom: 0;
+        }
+
+        .chat-input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .attachment-area {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chat-input-row textarea {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--border, #ddd);
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .btn-icon {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary, #f5f5f5);
+            border: 2px solid var(--border, #ddd);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .btn-icon:hover {
+            background: var(--border, #ddd);
+        }
+
+        .attached-file {
+            color: var(--text-muted, #666);
+            font-size: 0.9rem;
+        }
+
+        .distribution-matrix {
+            font-size: 0.9rem;
+        }
+
+        .distribution-matrix th,
+        .distribution-matrix td {
+            border: 1px solid var(--border, #ddd);
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .distribution-matrix th {
+            background: var(--bg-secondary, #f5f5f5);
+            font-weight: 600;
+        }
+
+        .utility-section {
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .utility-section:hover {
+            opacity: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Markdown Content Styling */
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .markdown-content h1 {
+            font-size: 1.8rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .markdown-content h2 {
+            font-size: 1.5rem;
+        }
+
+        .markdown-content h3 {
+            font-size: 1.2rem;
+        }
+
+        .markdown-content p {
+            margin: 0.75rem 0;
+            line-height: 1.7;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 0.75rem 0;
+            padding-left: 2rem;
+        }
+
+        .markdown-content li {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        .markdown-content table th,
+        .markdown-content table td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .markdown-content table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .markdown-content table tr:nth-child(even) {
+            background: var(--bg-secondary);
+        }
+
+        .markdown-content pre {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .markdown-content code {
+            background: var(--bg-secondary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .markdown-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .markdown-content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-content .mermaid {
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+
+        /* Mermaid Container */
+        .mermaid-container {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .mermaid-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Visual Aid Heading */
+        .visual-aid-heading {
+            margin: 1.5rem 0 1rem 0;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Lesson Tables */
+        .lesson-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .lesson-table th,
+        .lesson-table td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .lesson-table th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .lesson-table tr:nth-child(even) {
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .markdown-content strong {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Chapter Links */
+        .chapter-link {
+            transition: all 0.2s;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+        }
+
+        .chapter-link:hover {
+            background: var(--primary);
+            color: white !important;
+            text-decoration: none !important;
+        }
+
+        /* Deep Dive Section */
+        .deep-dive-section {
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .chapter-deep-dive {
+            transition: all 0.3s;
+        }
+
+        .chapter-deep-dive:target {
+            background: #fff8dc !important;
+            border-left-width: 6px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
 </body>
 </html>
+
