@@ -2135,9 +2135,32 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
         'process', 'cycle', 'overview', 'summary', 'treatment plan', 'management',
         'approach', 'strategy', 'decision tree', 'flow', 'schematic'
     ]
-    specific_terms = ['ecg', 'x-ray', 'ct', 'mri', 'ultrasound', 'histology',
-                      'histopathology', 'microscopy', 'endoscopy', 'photograph',
-                      'blood film', 'smear', 'angiography', 'anatomical']
+    specific_terms = [
+        # ECG / cardiac monitoring
+        'ecg', 'ekg', 'rhythm strip', 'holter',
+        # Radiology
+        'x-ray', 'xray', 'chest radiograph', 'radiograph',
+        'ct', 'computed tomography',
+        'mri', 'magnetic resonance',
+        'pet', 'spect', 'nuclear',
+        'fluoroscopy', 'angiography', 'angiogram',
+        # Ultrasound / echo
+        'ultrasound', 'echocardiogram', 'echocardiograph', 'echo ',
+        'transthoracic', 'transoesophageal', 'transesophageal',
+        'doppler', 'sonograph',
+        # Pathology / microscopy
+        'histology', 'histopathology', 'microscopy', 'biopsy',
+        'blood film', 'blood smear', 'smear', 'cytology',
+        'stain', 'haematoxylin', 'hematoxylin',
+        # Endoscopy
+        'endoscopy', 'colonoscopy', 'bronchoscopy', 'gastroscopy',
+        'fundoscopy', 'funduscopy', 'ophthalmoscopy', 'slit lamp',
+        # Clinical photos / specimens
+        'photograph', 'photo', 'clinical image', 'clinical photo',
+        'anatomical', 'specimen',
+        # Specific modalities
+        'spirometry', 'peak flow', 'capillary', 'dermatoscopy', 'dermoscopy',
+    ]
 
     image_pattern = r'\*\*Figure (\d+):\s*\[Image:\s*([^\]]+)\]\*\*'
 
