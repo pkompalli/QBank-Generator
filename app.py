@@ -2464,6 +2464,24 @@ def generate_lessons():
         all_lessons = []
         subject = None
 
+        from concurrent.futures import ThreadPoolExecutor as _TP
+
+        def _gen_and_integrate(client_ref, prompt, max_tok, subj, name):
+            """Generate a lesson via Claude then integrate images. Thread-safe."""
+            try:
+                msg = client_ref.messages.create(
+                    model="claude-sonnet-4-5",
+                    max_tokens=max_tok,
+                    temperature=0.7,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                text = msg.content[0].text.strip()
+                logger.info(f"✓ Generated lesson for {name} ({len(text)} chars)")
+                return integrate_images_into_lesson(text, subj, name)
+            except Exception as e:
+                logger.error(f"Error generating lesson for {name}: {e}")
+                return f"Error generating lesson: {str(e)}"
+
         for subject_data in subjects_to_process:
             subject = subject_data.get('name')
             structure = []
@@ -2635,12 +2653,22 @@ SPECIAL SECTIONS:
 ✓ Use markdown tables with | separators for comparisons
 ✓ Ensure each section has clear spacing - double newlines between major elements
 
-===========  BLOOM'S PROGRESSION STRUCTURE (Levels 1-7)  ===========
-IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only the topic-specific titles.
+===========  LESSON FLOW STRUCTURE  ===========
+CRITICAL RULES FOR SECTION HEADERS:
+✗ NO section numbers ("1 —", "2 —", "Section 1", etc.)
+✗ NO Bloom's labels ("Remember", "Understand", "Apply", "Analyze", "Level 1", etc.)
+✗ NO "Page 1", "Page 2" etc.
+✓ ONLY use short, topic-specific memorable titles that read naturally to a learner
 
-### [Topic-Specific Memorable Title for Foundation/Remember]
+OPENING PARAGRAPH (MANDATORY — appears BEFORE the first ### header):
+Write a single paragraph of exactly 25-30 words — a vivid scenario, clinical moment,
+or compelling question that immediately anchors WHY this topic matters. No heading.
+This is the reader's entry point into the lesson. Make it memorable.
+Example style: "A 52-year-old arrives breathless at 3am. The next 20 minutes of decisions
+hinge on one skill: reading this topic fluently. Here is how you build it."
+
+### [Short Topic-Specific Title — Foundation]
 **Core Knowledge Building**
-* Engaging clinical vignette or scenario hook ≤25 words
 * Essential classifications with clinical significance (not just lists)
 * Evidence-based definitions and diagnostic criteria with specific thresholds
 * Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
@@ -2654,7 +2682,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
   → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
   → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
 
-### 2 — [Topic-Specific Title for Mechanisms/Understand]
+### [Short Topic-Specific Title — Mechanisms]
 **Pathophysiology & Clinical Mechanisms**
 * Mechanistic understanding that explains clinical presentations
 * Molecular/cellular basis linked to macroscopic clinical findings
@@ -2667,7 +2695,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
   → Examples: "Histology showing specific cellular changes", "Anatomical diagram showing affected structures"
 * 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
 
-### 3 — [Topic-Specific Title for Clinical Application/Apply]
+### [Short Topic-Specific Title — Clinical Application]
 **Clinical Presentations & Diagnostic Approach**
 * Real clinical scenarios with presenting complaints and examination findings
 * Diagnostic approach with pre-test probability considerations
@@ -2683,7 +2711,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
   → These are essential for pattern recognition in exams and clinical practice
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
 
-### 4 — [Topic-Specific Title for Analysis/Analyze]
+### [Short Topic-Specific Title — Differential Thinking]
 **Differential Diagnosis & Clinical Reasoning**
 * Systematic approach to distinguishing between similar presentations
 * Key discriminating features with clinical significance (not just lists of differences)
@@ -2697,7 +2725,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * 🔴 NO images needed in this section - tables are clearer for differentials
 * 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Unlike stable angina (see Stable angina management), ACS presents...")
 
-### 5 — [Topic-Specific Title for Evaluation/Evaluate]
+### [Short Topic-Specific Title — Management]
 **Evidence-Based Management & Treatment**
 * Evidence-based treatment algorithms with NICE/guideline references
 * Specific drug names, dosages, routes, frequencies, durations
@@ -2712,7 +2740,7 @@ IMPORTANT: Do NOT include "Page 1", "Page 2" etc. in section headers - use only 
 * 🔴 NO images needed - use mermaid flowcharts and tables only
 * 🔴 Integrate 2-3 chapter names INSIDE sentences with NICE refs (e.g., "Heart failure pharmacotherapy (see Heart failure drug therapy - NICE NG106) includes...")
 
-### 6 — [Topic-Specific Title for Advanced Integration/Synthesize]
+### [Short Topic-Specific Title — Advanced Integration]
 **Advanced Clinical Integration & Special Scenarios**
 * Pick one clinically important but less emphasized chapter from ChaptersJSON
 * Complex cases: multimorbidity, atypical presentations, special populations
@@ -2897,40 +2925,14 @@ BAD examples (will be rejected, universal):
 Markdown only. No meta commentary. No apologies. No "here's the lesson".
 Start directly with first section header."""
 
-                try:
-                    # Call Claude API with increased tokens for complete lesson
-                    message = client.messages.create(
-                        model="claude-sonnet-4-5",
-                        max_tokens=8000,  # Increased to ensure complete lesson with all sections
-                        temperature=0.7,
-                        messages=[{
-                            "role": "user",
-                            "content": lesson_prompt
-                        }]
-                    )
-
-                    topic_lesson = message.content[0].text.strip()
-                    logger.info(f"✓ Generated lesson for {topic_name} ({len(topic_lesson)} chars)")
-
-                    # Integrate images into the lesson
-                    logger.info(f"Integrating images for {topic_name}...")
-                    topic_lesson = integrate_images_into_lesson(topic_lesson, subject, topic_name)
-                    logger.info(f"✓ Images integrated for {topic_name}")
-
-                except Exception as e:
-                    logger.error(f"Error generating lesson for {topic_name}: {e}")
-                    topic_lesson = f"Error generating lesson: {str(e)}"
-
-                # Generate chapter-level rapid revision notes
-                chapter_lessons = []
                 # Get chapter image requirements
                 chapter_image_reqs = _get_image_requirements(subject, 'chapter')
 
+                # Build chapter prompts up-front so we can fire all in parallel
+                chapter_specs = []  # (chapter_name, nice_refs, chapter_prompt)
                 for chapter in chapter_list:
                     chapter_name = chapter.get('name') if isinstance(chapter, dict) else chapter
                     nice_refs = chapter.get('nice_refs', []) if isinstance(chapter, dict) else []
-
-                    logger.info(f"Generating chapter lesson for {chapter_name}...")
 
                     chapter_prompt = f"""====================  CHAPTER RAPID REVISION GENERATOR  ====================
 - Course   : {course}
@@ -3008,36 +3010,29 @@ Brief context and why this chapter matters clinically/practically.
 🔴 FORMAT: Markdown only. Start directly with "### {chapter_name}"
 🔴 MUST END WITH: "**Key Points Summary**" section
 """
+                    chapter_specs.append((chapter_name, nice_refs, chapter_prompt))
 
-                    try:
-                        chapter_message = client.messages.create(
-                            model="claude-sonnet-4-5",
-                            max_tokens=2000,
-                            temperature=0.7,
-                            messages=[{
-                                "role": "user",
-                                "content": chapter_prompt
-                            }]
-                        )
+                # ---- Parallel generation: topic lesson + all chapters at once ----
+                logger.info(f"🚀 Generating topic lesson + {len(chapter_specs)} chapter(s) in parallel for '{topic_name}'...")
+                max_workers = 1 + len(chapter_specs)
 
-                        chapter_lesson = chapter_message.content[0].text.strip()
-                        logger.info(f"✓ Generated chapter lesson for {chapter_name} ({len(chapter_lesson)} chars)")
+                with _TP(max_workers=max_workers) as pool:
+                    topic_future = pool.submit(
+                        _gen_and_integrate, client, lesson_prompt, 8000, subject, topic_name
+                    )
+                    ch_futures = [
+                        (ch_name, nice_refs,
+                         pool.submit(_gen_and_integrate, client, ch_prompt, 2000, subject, ch_name))
+                        for ch_name, nice_refs, ch_prompt in chapter_specs
+                    ]
 
-                        # Integrate images if any
-                        chapter_lesson = integrate_images_into_lesson(chapter_lesson, subject, chapter_name)
-
+                    topic_lesson = topic_future.result()
+                    chapter_lessons = []
+                    for ch_name, nice_refs, fut in ch_futures:
                         chapter_lessons.append({
-                            'name': chapter_name,
+                            'name': ch_name,
                             'nice_refs': nice_refs,
-                            'lesson': chapter_lesson  # Changed from 'chapter_lesson' to 'lesson' to match frontend
-                        })
-
-                    except Exception as e:
-                        logger.error(f"Error generating chapter lesson for {chapter_name}: {e}")
-                        chapter_lessons.append({
-                            'name': chapter_name,
-                            'nice_refs': nice_refs,
-                            'lesson': f"Error generating lesson: {str(e)}"  # Changed from 'chapter_lesson' to 'lesson' to match frontend
+                            'lesson': fut.result()
                         })
 
                 # Store lesson with metadata
@@ -3896,41 +3891,64 @@ Tags: {', '.join(q.get('tags', []))}
                 )
                 return response.content[0].text.strip()
 
-            # STEP 1: Batch Validator
-            logger.info(f"   📋 Step 1: Validator on {len(valid_items)} item(s) in batches of {BATCH_SIZE}...")
             validator_prompt = get_batch_validator_prompt(content_type, domain)
-
-            for b_start in range(0, len(valid_items), BATCH_SIZE):
-                b_end = min(b_start + BATCH_SIZE, len(valid_items))
-                batch_count = b_end - b_start
-                first_block = section_block_ranges[b_start][0]
-                last_block  = section_block_ranges[b_end - 1][1]
-                batch_payload = content_payload[first_block:last_block]
-                logger.info(f"      Validator batch {b_start // BATCH_SIZE + 1}: sections {b_start+1}–{b_end}...")
-                v_text = _call_agent(validator_prompt, batch_payload, 0.3, 'validator')
-                batch_results = _extract_json_array(v_text, batch_count)
-                logger.info(f"      → Parsed {len(batch_results)}/{batch_count} validator result(s)")
-                validator_results.extend(batch_results)
-
-            logger.info(f"   ✓ Validator done: {len(validator_results)} total result(s)")
-
-            # STEP 2: Batch Adversarial
-            logger.info(f"   ⚔️  Step 2: Adversarial on {len(valid_items)} item(s) in batches of {BATCH_SIZE}...")
             adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)
 
+            # Pre-compute all batch specs
+            batch_specs = []
             for b_start in range(0, len(valid_items), BATCH_SIZE):
                 b_end = min(b_start + BATCH_SIZE, len(valid_items))
                 batch_count = b_end - b_start
                 first_block = section_block_ranges[b_start][0]
                 last_block  = section_block_ranges[b_end - 1][1]
                 batch_payload = content_payload[first_block:last_block]
-                logger.info(f"      Adversarial batch {b_start // BATCH_SIZE + 1}: sections {b_start+1}–{b_end}...")
-                a_text = _call_agent(adversarial_prompt, batch_payload, 0.5, 'adversarial')
-                batch_results = _extract_json_array(a_text, batch_count)
-                logger.info(f"      → Parsed {len(batch_results)}/{batch_count} adversarial result(s)")
-                adversarial_results.extend(batch_results)
+                batch_specs.append((b_start, b_end, batch_count, batch_payload))
 
-            logger.info(f"   ✓ Adversarial done: {len(adversarial_results)} total result(s)")
+            num_batches = len(batch_specs)
+            logger.info(f"   🚀 Running {num_batches} validator + {num_batches} adversarial batches in parallel "
+                        f"({len(valid_items)} item(s), batch size {BATCH_SIZE})...")
+
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            # Slot results by position so order is preserved regardless of completion order
+            v_slots = [None] * len(valid_items)
+            a_slots = [None] * len(valid_items)
+
+            def _run_validator_batch(b_start, b_end, batch_count, payload):
+                batch_num = b_start // BATCH_SIZE + 1
+                logger.info(f"      [V{batch_num}] Validator sections {b_start+1}–{b_end}...")
+                text = _call_agent(validator_prompt, payload, 0.3, 'validator')
+                results = _extract_json_array(text, batch_count)[:batch_count]
+                logger.info(f"      [V{batch_num}] → Parsed {len(results)}/{batch_count}")
+                return 'validator', b_start, b_end, results
+
+            def _run_adversarial_batch(b_start, b_end, batch_count, payload):
+                batch_num = b_start // BATCH_SIZE + 1
+                logger.info(f"      [A{batch_num}] Adversarial sections {b_start+1}–{b_end}...")
+                text = _call_agent(adversarial_prompt, payload, 0.5, 'adversarial')
+                results = _extract_json_array(text, batch_count)[:batch_count]
+                logger.info(f"      [A{batch_num}] → Parsed {len(results)}/{batch_count}")
+                return 'adversarial', b_start, b_end, results
+
+            with ThreadPoolExecutor(max_workers=num_batches * 2) as executor:
+                futures = []
+                for b_start, b_end, batch_count, payload in batch_specs:
+                    futures.append(executor.submit(_run_validator_batch,   b_start, b_end, batch_count, payload))
+                    futures.append(executor.submit(_run_adversarial_batch, b_start, b_end, batch_count, payload))
+
+                for future in as_completed(futures):
+                    try:
+                        role, b_start, b_end, results = future.result()
+                        slots = v_slots if role == 'validator' else a_slots
+                        for j, r in enumerate(results):
+                            if b_start + j < len(slots):
+                                slots[b_start + j] = r if isinstance(r, dict) else {}
+                    except Exception as e:
+                        logger.error(f"Batch future error: {e}")
+
+            validator_results  = [r or {} for r in v_slots]
+            adversarial_results = [r or {} for r in a_slots]
+            logger.info(f"   ✓ All batches done: {len(validator_results)} validator, {len(adversarial_results)} adversarial")
 
         # ---- Merge results back in original order ----
         merged_items = []

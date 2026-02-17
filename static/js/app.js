@@ -2197,6 +2197,24 @@ function showResultTab(tabName) {
 // ============================================
 
 // Validate Lessons button handler
+// Flatten lessons: topic lesson + each chapter become individual sections
+function flattenLessonsToSections(lessons) {
+    const sections = [];
+    for (const lesson of lessons) {
+        if (lesson.topic_lesson) {
+            sections.push({ topic: lesson.topic, topic_lesson: lesson.topic_lesson, chapters: [] });
+        }
+        if (lesson.chapters && lesson.chapters.length > 0) {
+            for (const ch of lesson.chapters) {
+                if (ch.lesson) {
+                    sections.push({ topic: ch.chapter, topic_lesson: ch.lesson, chapters: [] });
+                }
+            }
+        }
+    }
+    return sections;
+}
+
 const validateLessonsBtn = document.getElementById('validate-lessons-btn');
 if (validateLessonsBtn) {
     validateLessonsBtn.addEventListener('click', async () => {
@@ -2207,12 +2225,13 @@ if (validateLessonsBtn) {
 
         const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
-        const count = lessonsData.lessons.length;
+        const sections = flattenLessonsToSections(lessonsData.lessons);
+        const count = sections.length;
 
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
             <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} section(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds depending on size</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 2–4 min</p>
         `;
         modal.style.display = 'block';
 
@@ -2222,7 +2241,7 @@ if (validateLessonsBtn) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     content_type: 'lesson',
-                    items: lessonsData.lessons,
+                    items: sections,
                     domain: 'medical education',
                     course: lessonsData.course || 'Unknown'
                 })
@@ -2261,7 +2280,7 @@ if (validateQBankBtn) {
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
             <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} question(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds depending on size</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 1–3 min</p>
         `;
         modal.style.display = 'block';
 
@@ -2446,10 +2465,13 @@ async function runUploadValidation(items, contentType, course) {
     const modal = document.getElementById('validation-modal');
     const reportContent = document.getElementById('validation-report-content');
 
+    // For lessons, flatten topic + chapters into individual sections
+    const sendItems = (contentType === 'lesson') ? flattenLessonsToSections(items) : items;
+
     reportContent.innerHTML = `
         <div class="loading-spinner"></div>
-        <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${items.length} ${contentType === 'qbank' ? 'question(s)' : 'section(s)'}...</p>
-        <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds</p>
+        <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${sendItems.length} ${contentType === 'qbank' ? 'question(s)' : 'section(s)'}...</p>
+        <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 2–4 min</p>
     `;
     modal.style.display = 'block';
 
@@ -2459,7 +2481,7 @@ async function runUploadValidation(items, contentType, course) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 content_type: contentType,
-                items,
+                items: sendItems,
                 domain: 'medical education',
                 course: course || 'Uploaded Document'
             })
