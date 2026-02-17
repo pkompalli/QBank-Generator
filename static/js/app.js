@@ -2205,44 +2205,39 @@ if (validateLessonsBtn) {
             return;
         }
 
-        // Show modal with loading state
         const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
+        const count = lessonsData.lessons.length;
 
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
-            <p style="text-align: center; color: #999; margin-top: 1rem;">Running Council of Models validation...</p>
-            <p style="text-align: center; color: #999; font-size: 0.9rem;">This may take 30-60 seconds</p>
+            <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} section(s)...</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds depending on size</p>
         `;
         modal.style.display = 'block';
 
         try {
-            // Validate the first lesson (or you can validate all and show summary)
-            const lessonToValidate = lessonsData.lessons[0];
-
             const response = await fetch('/api/validate-content', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     content_type: 'lesson',
-                    content: lessonToValidate,
+                    items: lessonsData.lessons,
                     domain: 'medical education',
                     course: lessonsData.course || 'Unknown'
                 })
             });
 
-            if (!response.ok) {
-                throw new Error('Validation failed');
-            }
+            if (!response.ok) throw new Error('Validation failed');
 
             const report = await response.json();
-            displayValidationReport(report, 'lesson');
+            displayBatchValidationReport(report, 'lesson');
 
         } catch (error) {
             console.error('Validation error:', error);
             reportContent.innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <h3 style="color: #dc3545;">❌ Validation Error</h3>
+                <div style="text-align:center;padding:2rem;">
+                    <h3 style="color:#dc3545;">❌ Validation Error</h3>
                     <p>${error.message || 'Failed to validate content'}</p>
                 </div>
             `;
@@ -2259,44 +2254,39 @@ if (validateQBankBtn) {
             return;
         }
 
-        // Show modal with loading state
         const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
+        const count = generatedQuestions.length;
 
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
-            <p style="text-align: center; color: #999; margin-top: 1rem;">Running Council of Models validation...</p>
-            <p style="text-align: center; color: #999; font-size: 0.9rem;">This may take 30-60 seconds</p>
+            <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} question(s)...</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds depending on size</p>
         `;
         modal.style.display = 'block';
 
         try {
-            // Validate the first question (or you can validate all and show summary)
-            const questionToValidate = generatedQuestions[0];
-
             const response = await fetch('/api/validate-content', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     content_type: 'qbank',
-                    content: questionToValidate,
+                    items: generatedQuestions,
                     domain: 'medical education',
                     course: courseStructure?.Course || 'Unknown'
                 })
             });
 
-            if (!response.ok) {
-                throw new Error('Validation failed');
-            }
+            if (!response.ok) throw new Error('Validation failed');
 
             const report = await response.json();
-            displayValidationReport(report, 'qbank');
+            displayBatchValidationReport(report, 'qbank');
 
         } catch (error) {
             console.error('Validation error:', error);
             reportContent.innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <h3 style="color: #dc3545;">❌ Validation Error</h3>
+                <div style="text-align:center;padding:2rem;">
+                    <h3 style="color:#dc3545;">❌ Validation Error</h3>
                     <p>${error.message || 'Failed to validate content'}</p>
                 </div>
             `;
@@ -2304,143 +2294,136 @@ if (validateQBankBtn) {
     });
 }
 
-function displayValidationReport(report, contentType) {
+function displayBatchValidationReport(report, contentType) {
     const reportContent = document.getElementById('validation-report-content');
+    const items = report.items || [];
+    const summary = report.summary || {};
 
-    const validator = report.validator || {};
-    const adversarial = report.adversarial || {};
-    const overall = report.overall_assessment || {};
-
-    // Determine score class
     const getScoreClass = (score) => {
         if (score >= 8) return 'score-high';
         if (score >= 6) return 'score-medium';
         return 'score-low';
     };
 
-    // Format list items
-    const formatList = (items) => {
-        if (!items || items.length === 0) {
-            return '<p class="empty-state">None identified</p>';
-        }
-        return `<ul class="validation-list">${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    const formatList = (arr) => {
+        if (!arr || arr.length === 0) return '<p class="empty-state">None identified</p>';
+        return `<ul class="validation-list">${arr.map(i => `<li>${i}</li>`).join('')}</ul>`;
     };
 
-    const html = `
-        <!-- Overall Assessment -->
-        <div class="overall-assessment">
-            <h3>📊 Overall Assessment</h3>
-            <div class="assessment-status">${overall.status || 'N/A'}</div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                <div>
-                    <strong>Quality Score:</strong> ${overall.quality_score || 'N/A'}/10
-                </div>
-                <div>
-                    <strong>Validator Score:</strong> ${overall.validator_score || 'N/A'}/10
-                </div>
-                <div>
-                    <strong>Adversarial Score:</strong> ${overall.adversarial_score || 'N/A'}/10
-                </div>
-                <div>
-                    <strong>Needs Revision:</strong> ${overall.needs_revision ? 'Yes ❌' : 'No ✅'}
-                </div>
+    const statusBadge = (assessment) => {
+        const s = assessment.status || '';
+        const color = s.includes('Approved') ? '#28a745' : s.includes('Conditional') ? '#ffc107' : '#dc3545';
+        return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.85rem;">${s}</span>`;
+    };
+
+    // ---- Summary bar ----
+    const summaryHtml = `
+        <div class="overall-assessment" style="margin-bottom:1.5rem;">
+            <h3>📊 Batch Summary — ${report.course || ''}</h3>
+            <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.75rem;font-size:1rem;">
+                <div><strong>Total:</strong> ${summary.total || 0}</div>
+                <div style="color:#28a745;"><strong>✅ Approved:</strong> ${summary.approved || 0}</div>
+                <div style="color:#dc3545;"><strong>❌ Needs Revision:</strong> ${summary.needs_revision || 0}</div>
+                <div><strong>Avg Quality Score:</strong> ${summary.avg_quality_score || 'N/A'}/10</div>
             </div>
-            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Recommendation:</strong> ${overall.recommendation || 'N/A'}</p>
-        </div>
-
-        <!-- Validator Results -->
-        <div class="validation-section">
-            <h3>
-                ✅ Validator Agent
-                <span class="validation-score ${getScoreClass(validator.overall_accuracy_score || 0)}">
-                    ${validator.overall_accuracy_score || 'N/A'}/10
-                </span>
-            </h3>
-            <p><strong>Summary:</strong> ${validator.summary || 'No summary available'}</p>
-
-            ${validator.factual_errors && validator.factual_errors.length > 0 ? `
-                <h4 style="color: #dc3545; margin-top: 1rem;">⚠️ Factual Errors</h4>
-                ${formatList(validator.factual_errors)}
-            ` : ''}
-
-            ${validator.missing_critical_info && validator.missing_critical_info.length > 0 ? `
-                <h4 style="color: #ffc107; margin-top: 1rem;">📌 Missing Critical Information</h4>
-                ${formatList(validator.missing_critical_info)}
-            ` : ''}
-
-            ${validator.safety_concerns && validator.safety_concerns.length > 0 ? `
-                <h4 style="color: #dc3545; margin-top: 1rem;">🚨 Safety Concerns</h4>
-                ${formatList(validator.safety_concerns)}
-            ` : ''}
-
-            ${validator.clarity_issues && validator.clarity_issues.length > 0 ? `
-                <h4 style="color: #17a2b8; margin-top: 1rem;">💭 Clarity Issues</h4>
-                ${formatList(validator.clarity_issues)}
-            ` : ''}
-
-            ${validator.distractor_issues && validator.distractor_issues.length > 0 ? `
-                <h4 style="color: #ffc107; margin-top: 1rem;">🎯 Distractor Issues</h4>
-                ${formatList(validator.distractor_issues)}
-            ` : ''}
-
-            ${validator.recommendations && validator.recommendations.length > 0 ? `
-                <h4 style="color: #28a745; margin-top: 1rem;">💡 Recommendations</h4>
-                ${formatList(validator.recommendations)}
-            ` : ''}
-        </div>
-
-        <!-- Adversarial Results -->
-        <div class="validation-section" style="border-left-color: #dc3545;">
-            <h3 style="color: #dc3545;">
-                ⚔️ Adversarial Reviewer
-                <span class="validation-score ${getScoreClass(10 - (adversarial.adversarial_score || 0))}">
-                    ${adversarial.adversarial_score || 'N/A'}/10
-                </span>
-            </h3>
-            <p><strong>Breakability:</strong> ${adversarial.breakability_rating || 'N/A'}</p>
-            <p><strong>Summary:</strong> ${adversarial.summary || 'No summary available'}</p>
-
-            ${adversarial.identified_weaknesses && adversarial.identified_weaknesses.length > 0 ? `
-                <h4 style="color: #dc3545; margin-top: 1rem;">🔍 Identified Weaknesses</h4>
-                ${formatList(adversarial.identified_weaknesses)}
-            ` : ''}
-
-            ${adversarial.ambiguities && adversarial.ambiguities.length > 0 ? `
-                <h4 style="color: #ffc107; margin-top: 1rem;">❓ Ambiguities</h4>
-                ${formatList(adversarial.ambiguities)}
-            ` : ''}
-
-            ${adversarial.alternative_answers && adversarial.alternative_answers.length > 0 ? `
-                <h4 style="color: #dc3545; margin-top: 1rem;">🔀 Alternative Defensible Answers</h4>
-                ${formatList(adversarial.alternative_answers)}
-            ` : ''}
-
-            ${adversarial.logical_gaps && adversarial.logical_gaps.length > 0 ? `
-                <h4 style="color: #ffc107; margin-top: 1rem;">🧩 Logical Gaps</h4>
-                ${formatList(adversarial.logical_gaps)}
-            ` : ''}
-
-            ${adversarial.safety_risks && adversarial.safety_risks.length > 0 ? `
-                <h4 style="color: #dc3545; margin-top: 1rem;">⚠️ Safety Risks</h4>
-                ${formatList(adversarial.safety_risks)}
-            ` : ''}
-
-            ${adversarial.recommendations && adversarial.recommendations.length > 0 ? `
-                <h4 style="color: #28a745; margin-top: 1rem;">💡 Recommendations</h4>
-                ${formatList(adversarial.recommendations)}
-            ` : ''}
-        </div>
-
-        <!-- Metadata -->
-        <div style="margin-top: 2rem; padding: 1rem; background: #f0f0f0; border-radius: 8px; font-size: 0.9rem; color: #666;">
-            <strong>Validation Details:</strong><br>
-            Domain: ${report.domain || 'N/A'} |
-            Course: ${report.course || 'N/A'} |
-            Timestamp: ${new Date(report.timestamp).toLocaleString()}
+            <p style="font-size:0.85rem;color:#999;margin-top:0.5rem;">
+                Domain: ${report.domain || 'N/A'} &nbsp;|&nbsp;
+                Validated: ${new Date(report.timestamp).toLocaleString()}
+            </p>
         </div>
     `;
 
-    reportContent.innerHTML = html;
-    showToast('Validation complete!', 'success');
+    // ---- Per-item accordion ----
+    const itemLabel = contentType === 'qbank' ? 'Q' : 'Section';
+    const itemsHtml = items.map((item, idx) => {
+        const v = item.validator || {};
+        const a = item.adversarial || {};
+        const oa = item.overall_assessment || {};
+        const num = item.index || idx + 1;
+
+        // Short label for the accordion header
+        let headerTitle = `${itemLabel} ${num}`;
+        if (contentType === 'qbank' && v.question_preview) {
+            headerTitle += ` — ${v.question_preview.substring(0, 70)}${v.question_preview.length > 70 ? '...' : ''}`;
+        } else if (contentType === 'lesson' && v.section_title) {
+            headerTitle += ` — ${v.section_title}`;
+        }
+
+        const accordionId = `val-item-${num}`;
+
+        return `
+        <div class="val-accordion" style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:0.75rem;overflow:hidden;">
+            <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
+                style="width:100%;text-align:left;padding:0.9rem 1rem;background:#f8f9fa;border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
+                <span style="font-weight:600;">${headerTitle}</span>
+                <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
+                    ${statusBadge(oa)}
+                    <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">
+                        ${oa.quality_score || 'N/A'}/10
+                    </span>
+                    <span style="font-size:0.8rem;color:#999;">▼</span>
+                </span>
+            </button>
+            <div id="${accordionId}" style="display:none;padding:1rem 1.25rem;border-top:1px solid #e0e0e0;">
+
+                <!-- Score row -->
+                <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.9rem;">
+                    <div>✅ <strong>Validator:</strong>
+                        <span class="validation-score ${getScoreClass(v.overall_accuracy_score || 0)}" style="font-size:0.8rem;">
+                            ${v.overall_accuracy_score ?? 'N/A'}/10
+                        </span>
+                    </div>
+                    ${contentType === 'qbank' ? `<div>Answer verified: <strong>${v.correct_answer_verified ? 'Yes ✅' : 'No ❌'}</strong></div>` : ''}
+                    <div>⚔️ <strong>Adversarial:</strong>
+                        <span class="validation-score ${getScoreClass(10 - (a.adversarial_score || 0))}" style="font-size:0.8rem;">
+                            ${a.adversarial_score ?? 'N/A'}/10
+                        </span>
+                        &nbsp;<em style="font-size:0.8rem;color:#666;">${a.breakability_rating || ''}</em>
+                    </div>
+                    <div>Needs revision: <strong>${oa.needs_revision ? 'Yes ❌' : 'No ✅'}</strong></div>
+                </div>
+
+                <!-- Validator summary -->
+                <p style="margin-bottom:0.5rem;"><strong>Validator Summary:</strong> ${v.summary || 'N/A'}</p>
+
+                ${v.factual_errors?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Factual Errors</h4>${formatList(v.factual_errors)}` : ''}
+                ${v.missing_critical_info?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📌 Missing Critical Info</h4>${formatList(v.missing_critical_info)}` : ''}
+                ${v.safety_concerns?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🚨 Safety Concerns</h4>${formatList(v.safety_concerns)}` : ''}
+                ${v.clarity_issues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">💭 Clarity Issues</h4>${formatList(v.clarity_issues)}` : ''}
+                ${v.distractor_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
+                ${v.vignette_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
+                ${v.explanation_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
+                ${v.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
+
+                <!-- Adversarial summary -->
+                <hr style="margin:1rem 0;border-color:#f0d0d0;">
+                <p style="margin-bottom:0.5rem;"><strong>Adversarial Summary:</strong> ${a.summary || 'N/A'}</p>
+
+                ${a.identified_weaknesses?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🔍 Weaknesses</h4>${formatList(a.identified_weaknesses)}` : ''}
+                ${a.ambiguities?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">❓ Ambiguities</h4>${formatList(a.ambiguities)}` : ''}
+                ${a.alternative_answers?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🔀 Alternative Defensible Answers</h4>${formatList(a.alternative_answers)}` : ''}
+                ${a.distractor_defenses?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🛡️ Defensible Distractors</h4>${formatList(a.distractor_defenses)}` : ''}
+                ${a.logical_gaps?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🧩 Logical Gaps</h4>${formatList(a.logical_gaps)}` : ''}
+                ${a.overgeneralizations?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📢 Overgeneralizations</h4>${formatList(a.overgeneralizations)}` : ''}
+                ${a.safety_risks?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
+                ${a.explanation_contradictions?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">💥 Explanation Contradictions</h4>${formatList(a.explanation_contradictions)}` : ''}
+                ${a.triviality_clues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">🔓 Triviality Clues</h4>${formatList(a.triviality_clues)}` : ''}
+                ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
+
+                <!-- Recommendation -->
+                <div style="margin-top:1rem;padding:0.75rem;background:#f8f9fa;border-radius:6px;font-size:0.9rem;">
+                    <strong>Assessment:</strong> ${oa.recommendation || 'N/A'}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    reportContent.innerHTML = summaryHtml + itemsHtml;
+    showToast(`Validation complete — ${summary.approved}/${summary.total} approved`, 'success');
+}
+
+function toggleValAccordion(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
