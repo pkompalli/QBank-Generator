@@ -1688,130 +1688,296 @@ CRITICAL REQUIREMENTS:
 Generate ONLY the JSON array, no additional text."""
 
 
-def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None):
-    """Generate questions for a single topic."""
-    # Get base prompt - using course-specific exam format
-    prompt = get_generic_prompt(course, subject, topic, num_questions, exam_format)
+# ── QBank parallel batch helpers ──────────────────────────────────────────────
 
-    # Determine how many image-based questions to include based on exam format
-    num_image_questions = 0
-    if include_images and exam_format:
-        # Get subject-specific image percentage
-        image_by_subject = exam_format.get('image_percentage_by_subject', {})
+def _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_image_questions, num_questions):
+    """
+    Split question generation into per-Bloom's-level parallel batches (max 8 each).
+    Returns list of dicts: {bloom_level, count, img_count, diff_dist}
+    """
+    MAX_BATCH = 8
+    batches = []
 
-        # Get overall percentage (can be nested in question_format or at top level)
-        overall_image_pct = exam_format.get('question_format', {}).get('image_questions_percentage', 0)
-        if overall_image_pct == 0:
-            overall_image_pct = exam_format.get('image_questions_percentage', 0)
+    # Build one batch per active Bloom's level (split if >MAX_BATCH)
+    for level in range(1, 6):
+        remaining = bloom_distribution.get(level, 0)
+        while remaining > 0:
+            batch_n = min(remaining, MAX_BATCH)
+            batches.append({'bloom_level': level, 'count': batch_n, 'img_count': 0, 'diff_dist': {}})
+            remaining -= batch_n
 
-        # Try to find exact subject match or partial match
-        subject_image_pct = None
-        for subj_name, pct in image_by_subject.items():
-            if subj_name.lower() in subject.lower() or subject.lower() in subj_name.lower():
-                subject_image_pct = pct
-                logger.info(f"Found subject-specific image percentage: {pct}% for {subject} (matched with {subj_name})")
-                break
+    if not batches:
+        return []
 
-        # Fall back to overall percentage if no subject-specific match found
-        if subject_image_pct is None:
-            subject_image_pct = overall_image_pct
-            logger.info(f"Using overall image percentage: {subject_image_pct}% (no subject-specific data for {subject})")
+    # Distribute image slots proportionally across batches
+    total = sum(b['count'] for b in batches)
+    img_assigned = 0
+    for b in batches[:-1]:
+        img_n = min(round(num_image_questions * b['count'] / total), b['count'])
+        b['img_count'] = img_n
+        img_assigned += img_n
+    batches[-1]['img_count'] = max(0, min(num_image_questions - img_assigned, batches[-1]['count']))
 
-        # Calculate number of image questions
-        num_image_questions = round(num_questions * subject_image_pct / 100)
-        logger.info(f"Including {num_image_questions}/{num_questions} image-based questions ({subject_image_pct}% for {subject})")
+    # Difficulty sub-distribution proportional to batch count
+    for b in batches:
+        n = b['count']
+        diff = {}
+        d_total = 0
+        for d in [1, 2, 3]:
+            cnt = max(0, round(difficulty_distribution.get(d, 0) * n / num_questions))
+            diff[d] = cnt
+            d_total += cnt
+        adj = n - d_total
+        if adj > 0:
+            diff[2] += adj
+        elif adj < 0:
+            for d in [3, 2, 1]:
+                dec = min(abs(adj), diff[d])
+                diff[d] -= dec
+                adj += dec
+                if adj == 0:
+                    break
+        b['diff_dist'] = diff
 
-    # Add image requirements if requested
-    if num_image_questions > 0:
-        image_instructions = f"""
+    return batches
 
-IMPORTANT: Out of {num_questions} questions, EXACTLY {num_image_questions} must be IMAGE-BASED questions (the rest should be text-only). This reflects the typical distribution for {subject} in {course}.
 
-For the {num_image_questions} IMAGE-BASED questions, you MUST analyze what the KEY DIAGNOSTIC FINDING is that needs to be visualized.
+def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, include_images):
+    """
+    Call Claude for one Bloom's-level batch. Returns list of question dicts (no images yet).
+    """
+    bloom_level = batch_spec['bloom_level']
+    count       = batch_spec['count']
+    img_count   = batch_spec['img_count']
+    diff_dist   = batch_spec['diff_dist']
+    bloom_labels = {1: 'Remember', 2: 'Understand', 3: 'Apply', 4: 'Analyze', 5: 'Evaluate'}
+    bloom_name  = bloom_labels.get(bloom_level, 'Apply')
 
-Think step-by-step:
-1. What is the clinical diagnosis or pathology in this question?
-2. What specific imaging finding or visual feature would help a student make this diagnosis?
-3. What exact medical terminology describes this visual finding?
+    if exam_format:
+        question_format = exam_format.get('question_format', {})
+        num_options   = question_format.get('num_options') or exam_format.get('num_options', 4)
+        question_style = question_format.get('type', exam_format.get('question_style', 'Single best answer'))
+        typical_length = question_format.get('avg_stem_words', exam_format.get('typical_length', 'Medium length scenarios'))
+        emphasis       = exam_format.get('emphasis', [])
+        domain_context = exam_format.get('domain_characteristics', {}).get('domain', exam_format.get('domain', 'professional examination'))
+    else:
+        num_options    = 4
+        question_style = 'Single best answer'
+        typical_length = 'Medium length scenarios'
+        emphasis       = []
+        domain_context = 'professional examination'
 
-Then add these fields:
-- "image_description": PRECISE description of the KEY diagnostic finding visible in the image. Be specific about pathology, anatomy, and visual characteristics. Examples:
-  * "Chest X-ray showing dense right lower lobe consolidation with air bronchograms, consistent with lobar pneumonia"
-  * "Brain MRI T2-weighted showing hyperintense periventricular white matter lesions perpendicular to ventricles (Dawson fingers), characteristic of multiple sclerosis"
-  * "ECG showing ST-segment elevation >1mm in leads II, III, aVF indicating inferior wall myocardial infarction"
-  * "Light microscopy of Gram stain showing gram-positive cocci in grape-like clusters (Staphylococcus aureus)"
-  * "Histopathology showing Reed-Sternberg cells (large cells with bilobed 'owl-eye' nuclei) in background of inflammatory cells"
-
-- "image_search_terms": Array of 3-5 medical search queries using SIMPLE, DATABASE-FRIENDLY terms. **IMPORTANT: Use SHORT queries with standard medical terminology that actually exists in NIH/medical databases. DO NOT add "unlabeled", "no text", or "no annotations" - these terms don't exist in databases and will return zero results**. Include:
-  * Primary: [condition] + [modality] (2-3 words max)
-  * Secondary: [specific finding] + [anatomy] (2-3 words max)
-  * Tertiary: [key pathologic term] alone (1-2 words)
-  Examples:
-  * ["pneumonia chest xray", "lobar consolidation", "air bronchogram"]
-  * ["multiple sclerosis MRI", "dawson fingers", "demyelinating plaques"]
-  * ["inferior STEMI", "ST elevation ECG", "myocardial infarction"]
-  * ["hypertrophic cardiomyopathy", "septal hypertrophy echo", "SAM mitral valve"]
-
-- "image_type": Specific imaging modality (e.g., "Chest X-ray PA view", "Brain MRI T2-weighted", "12-lead ECG", "Gram stain microscopy", "H&E histopathology", "CT abdomen with contrast")
-
-- "key_finding": Single sentence describing what the student should identify (e.g., "Air bronchograms within consolidation", "Dawson fingers pattern", "ST elevation in inferior leads")
-
-CRITICAL: The image should show the PATHOGNOMONIC or CHARACTERISTIC finding that distinguishes this diagnosis. Avoid generic images - be specific about what clinical feature is visible.
-
-**ABSOLUTELY CRITICAL - NO ANSWER TEXT IN IMAGES**: The image MUST be completely unlabeled with NO text, NO annotations, NO arrows with labels, NO diagnosis names visible. Students must interpret the raw clinical image. Any text revealing the answer makes the question invalid. Search terms should include "unlabeled", "no text", "clinical image" to find appropriate images.
-
-**SPATIAL REFERENCES IN QUESTIONS**: When appropriate, use spatial references in the question text to help students focus on the relevant diagnostic area. Examples:
-- "The arrow points to which structure?"
-- "The circled area shows what pathology?"
-- "What diagnosis is indicated by the highlighted region?"
-- "The marked area represents which finding?"
-These references will trigger automatic visual marker addition (arrows, circles, highlights) to the image. Use them when the diagnostic finding needs to be localized in a specific area of the image.
-
-The question text should reference "the image shown" or "based on the image"."""
-        prompt = prompt.replace("Generate ONLY the JSON array, no additional text.", image_instructions + "\n\nGenerate ONLY the JSON array, no additional text.")
-
-    # Call Claude API
-    message = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=8192,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+    option_labels  = [chr(65 + i) for i in range(num_options)]
+    emphasis_text  = "\n   - " + "\n   - ".join(emphasis) if emphasis else ""
+    diff_lines     = (
+        f"- Difficulty 1 (Medium): {diff_dist.get(1, 0)} questions\n"
+        f"- Difficulty 2 (Hard):   {diff_dist.get(2, 0)} questions\n"
+        f"- Difficulty 3 (Very Hard): {diff_dist.get(3, 0)} questions"
     )
 
-    # Parse response
-    response_text = message.content[0].text
+    prompt = f"""You are an expert educator creating MCQs for {course} ({domain_context}).
 
-    # Try to extract JSON from response
+EXAM FORMAT REQUIREMENTS FOR {course}:
+- Number of options: {num_options} ({', '.join(option_labels)})
+- Question style: {question_style}
+- Typical length: {typical_length}
+- Key emphasis areas: {emphasis_text if emphasis_text else "Professional standards"}
+
+Generate exactly {count} unique, high-quality MCQs following {course} examination standards.
+
+SUBJECT: {subject}
+TOPIC: {topic}
+
+BLOOM'S LEVEL — ALL {count} questions in this batch MUST be Bloom's Level {bloom_level} ({bloom_name}):
+- Bloom's Level {bloom_level} ({bloom_name}): {count} questions
+
+DIFFICULTY DISTRIBUTION (MANDATORY - must follow exactly):
+{diff_lines}
+
+QUESTION REQUIREMENTS:
+1. Each question must have:
+   - Clear, unambiguous stem following {course} style
+   - EXACTLY {num_options} options ({', '.join(option_labels)})
+   - Only ONE correct answer
+   - Detailed explanation for correct answer
+   - Bloom's level and difficulty specified
+
+2. Question quality standards:
+   - Professional examination level matching {course}
+   - Test understanding and application, not just recall
+   - Avoid trick questions or ambiguous wording
+   - All {num_options} options should be plausible distractors
+   - Explanations should be educational and comprehensive
+
+3. Content requirements:
+   - Cover different aspects of {topic}
+   - Match {course} typical question length and style
+   - Use appropriate terminology and conventions for {course}
+   - Ensure accuracy and current best practices
+
+OUTPUT FORMAT (JSON array):
+[
+  {{
+    "question": "Question text here",
+    "options": [{', '.join([f'"Option {label}"' for label in option_labels])}],
+    "correct_option": "{option_labels[0]}",
+    "explanation": "Detailed explanation of correct answer",
+    "blooms_level": {bloom_level},
+    "difficulty": 1,
+    "course": "{course}",
+    "subject": "{subject}",
+    "topic": "{topic}",
+    "tags": ["{course}"]
+  }}
+]
+
+CRITICAL REQUIREMENTS:
+- MUST have EXACTLY {num_options} options per question (not more, not less)
+- "blooms_level": MUST be {bloom_level} for ALL questions in this batch
+- "difficulty": Must be 1 (Medium), 2 (Hard), or 3 (Very Hard)
+- Follow the difficulty distribution requirements above
+- "course", "subject", and "topic" are separate fields
+- "tags": Array containing ONLY the course name (e.g., ["{course}"])
+- correct_option must be one of: {', '.join(option_labels)}
+
+Generate ONLY the JSON array, no additional text."""
+
+    # Append image instructions if this batch has image questions
+    if include_images and img_count > 0:
+        image_instructions = f"""
+
+IMPORTANT: Out of {count} questions, EXACTLY {img_count} must be IMAGE-BASED questions (the rest text-only).
+
+For the {img_count} IMAGE-BASED questions, add these fields:
+- "image_description": PRECISE description of the KEY diagnostic finding (e.g., "Chest X-ray showing dense right lower lobe consolidation with air bronchograms")
+- "image_search_terms": Array of 3-5 SHORT, DATABASE-FRIENDLY medical search queries (2-3 words each, no annotations/unlabeled/no-text)
+- "image_type": Specific imaging modality (e.g., "Chest X-ray PA view", "Brain MRI T2-weighted", "12-lead ECG")
+- "key_finding": Single sentence describing what the student should identify
+
+The question text should reference "the image shown" or "based on the image"."""
+        prompt = prompt.replace(
+            "Generate ONLY the JSON array, no additional text.",
+            image_instructions + "\n\nGenerate ONLY the JSON array, no additional text."
+        )
+
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=max(2048, count * 600),
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    response_text = message.content[0].text
     if '```json' in response_text:
         response_text = response_text.split('```json')[1].split('```')[0]
     elif '```' in response_text:
         response_text = response_text.split('```')[1].split('```')[0]
 
     questions = json.loads(response_text.strip())
-
     if not isinstance(questions, list):
-        raise ValueError('Invalid response format from AI')
-
-    # Fetch images if requested
-    if include_images:
-        logger.info(f"Fetching images for {len(questions)} questions...")
-        images_found = 0
-        for idx, q in enumerate(questions, 1):
-            if 'image_search_terms' in q or 'image_type' in q:
-                logger.info(f"  Question {idx}/{len(questions)}: {q.get('image_type', 'Unknown')}")
-                # Note: q already contains 'question' field, so it can be passed directly
-                image_result = search_and_validate_image(q, subject)
-                if image_result:
-                    q['image_url'] = image_result['url']
-                    q['image_source'] = image_result['source']
-                    images_found += 1
-                else:
-                    q['image_url'] = None
-                    q['needs_image'] = True
-        logger.info(f"Image fetch complete: {images_found}/{len(questions)} found")
-
+        raise ValueError(f'Invalid response format for Bloom level {bloom_level}')
     return questions
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None):
+    """Generate questions for a single topic using parallel Bloom's-level batches."""
+    from concurrent.futures import ThreadPoolExecutor as _QTP, as_completed as _QAC
+
+    # ── Bloom's distribution ──────────────────────────────────────────────────
+    if exam_format and 'blooms_distribution' in exam_format:
+        blooms_pct = exam_format['blooms_distribution']
+        bloom_distribution = {}
+        total_assigned = 0
+        for level in range(1, 6):
+            pct = blooms_pct.get(str(level), 20)
+            cnt = round(num_questions * pct / 100)
+            bloom_distribution[level] = cnt
+            total_assigned += cnt
+        if total_assigned != num_questions:
+            max_level = int(max(blooms_pct.items(), key=lambda x: x[1])[0])
+            bloom_distribution[max_level] += num_questions - total_assigned
+    else:
+        per_level = num_questions // 5
+        rem = num_questions % 5
+        bloom_distribution = {l: per_level + (1 if rem > l - 1 else 0) for l in range(1, 6)}
+
+    # ── Difficulty distribution ───────────────────────────────────────────────
+    per_diff  = num_questions // 3
+    diff_rem  = num_questions % 3
+    difficulty_distribution = {
+        1: per_diff + (1 if diff_rem > 0 else 0),
+        2: per_diff + (1 if diff_rem > 1 else 0),
+        3: per_diff,
+    }
+
+    # ── Image count ───────────────────────────────────────────────────────────
+    num_image_questions = 0
+    if include_images and exam_format:
+        image_by_subject = exam_format.get('image_percentage_by_subject', {})
+        overall_pct = (
+            exam_format.get('question_format', {}).get('image_questions_percentage', 0)
+            or exam_format.get('image_questions_percentage', 0)
+        )
+        subject_pct = next(
+            (pct for subj, pct in image_by_subject.items()
+             if subj.lower() in subject.lower() or subject.lower() in subj.lower()),
+            overall_pct
+        )
+        num_image_questions = round(num_questions * subject_pct / 100)
+        logger.info(f"Including {num_image_questions}/{num_questions} image-based questions ({subject_pct}% for {subject})")
+
+    # ── Build parallel batch specs ────────────────────────────────────────────
+    batch_specs = _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_image_questions, num_questions)
+    logger.info(
+        f"   📦 {len(batch_specs)} parallel batch(es) for '{topic}': "
+        + ", ".join(f"L{b['bloom_level']}×{b['count']}" for b in batch_specs)
+    )
+
+    # ── Fire all Bloom's-level batches in parallel ────────────────────────────
+    all_questions = []
+    with _QTP(max_workers=len(batch_specs)) as pool:
+        future_to_spec = {
+            pool.submit(_run_single_qbank_batch, course, subject, topic, spec, exam_format, include_images): spec
+            for spec in batch_specs
+        }
+        for future in _QAC(future_to_spec):
+            spec = future_to_spec[future]
+            try:
+                qs = future.result()
+                logger.info(f"   ✓ L{spec['bloom_level']} batch returned {len(qs)} question(s)")
+                all_questions.extend(qs)
+            except Exception as e:
+                logger.error(f"   ✗ L{spec['bloom_level']} batch failed: {e}")
+
+    # ── Fetch images in parallel for all image-tagged questions ──────────────
+    if include_images:
+        image_candidates = [
+            (idx, q) for idx, q in enumerate(all_questions)
+            if 'image_search_terms' in q or 'image_type' in q
+        ]
+        logger.info(f"Fetching images for {len(image_candidates)} image-tagged question(s)...")
+
+        def _fetch_q_image(args):
+            idx, q = args
+            result = search_and_validate_image(q, subject)
+            if result:
+                q['image_url']    = result['url']
+                q['image_source'] = result['source']
+            else:
+                q['image_url']   = None
+                q['needs_image'] = True
+            return idx, q
+
+        if image_candidates:
+            with _QTP(max_workers=len(image_candidates)) as img_pool:
+                for idx, q in img_pool.map(_fetch_q_image, image_candidates):
+                    all_questions[idx] = q
+
+        images_found = sum(1 for q in all_questions if q.get('image_url'))
+        logger.info(f"Image fetch complete: {images_found}/{len(image_candidates)} found")
+
+    return all_questions
 
 
 @app.route('/api/generate', methods=['POST'])
@@ -1850,10 +2016,18 @@ def generate_questions():
         logger.info(f"Generating {num_questions} questions per topic for {len(topics)} topics")
         logger.info(f"  Format: {num_options} options, images={include_images}")
 
-        # Generate questions for each topic
-        for topic in topics:
-            topic_questions = generate_for_topic(course, subject, topic, num_questions, include_images, exam_format)
-            all_questions.extend(topic_questions)
+        # Generate questions for all topics in parallel
+        from concurrent.futures import ThreadPoolExecutor as _TQP
+        def _gen_topic(t):
+            return generate_for_topic(course, subject, t, num_questions, include_images, exam_format)
+
+        if len(topics) == 1:
+            all_questions = _gen_topic(topics[0])
+        else:
+            logger.info(f"  🚀 Running {len(topics)} topics in parallel...")
+            with _TQP(max_workers=len(topics)) as topic_pool:
+                for qs in topic_pool.map(_gen_topic, topics):
+                    all_questions.extend(qs)
 
         # Calculate image statistics if images were requested
         image_stats = None
