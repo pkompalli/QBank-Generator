@@ -2125,47 +2125,43 @@ Respond with ONLY the JSON object, no other text."""
 
 
 def integrate_images_into_lesson(lesson_content, subject, topic):
-    """Parse lesson content and integrate actual images where placeholders exist."""
+    """Parse lesson content and integrate actual images where placeholders exist.
+    All image searches run in parallel to minimise latency."""
     import re
+    from concurrent.futures import ThreadPoolExecutor as _ImgTP
 
-    # Vague terms that should use Mermaid/tables instead of images
     vague_terms = [
         'pathway', 'flowchart', 'algorithm', 'diagram', 'mechanism', 'cascade',
         'process', 'cycle', 'overview', 'summary', 'treatment plan', 'management',
         'approach', 'strategy', 'decision tree', 'flow', 'schematic'
     ]
+    specific_terms = ['ecg', 'x-ray', 'ct', 'mri', 'ultrasound', 'histology',
+                      'histopathology', 'microscopy', 'endoscopy', 'photograph',
+                      'blood film', 'smear', 'angiography', 'anatomical']
 
-    # Find all image placeholders with Figure numbers: **Figure N: [Image: description]**
-    # Pattern captures: Figure number and description
     image_pattern = r'\*\*Figure (\d+):\s*\[Image:\s*([^\]]+)\]\*\*'
-    matches = re.finditer(image_pattern, lesson_content)
 
-    replacements = []
-    for match in matches:
+    # Collect all searchable figures first
+    candidates = []
+    for match in re.finditer(image_pattern, lesson_content):
         figure_num = match.group(1)
         description = match.group(2).strip()
         full_placeholder = match.group(0)
+        desc_lower = description.lower()
 
-        # Check if description is too vague (should use Mermaid instead)
-        description_lower = description.lower()
-        is_vague = any(term in description_lower for term in vague_terms)
-
-        if is_vague:
-            logger.warning(f"⚠️ Figure {figure_num} description is too vague: '{description}' - keeping placeholder (should use Mermaid/table instead)")
-            continue  # Skip this image, keep placeholder
-
-        # Check if it's a specific medical investigation type
-        specific_terms = ['ecg', 'x-ray', 'ct', 'mri', 'ultrasound', 'histology',
-                         'histopathology', 'microscopy', 'endoscopy', 'photograph',
-                         'blood film', 'smear', 'angiography', 'anatomical']
-        is_specific = any(term in description_lower for term in specific_terms)
-
-        if not is_specific:
-            logger.warning(f"⚠️ Figure {figure_num} not specific enough: '{description}' - skipping")
+        if any(t in desc_lower for t in vague_terms):
+            logger.warning(f"⚠️ Figure {figure_num} too vague: '{description}' — skipping")
             continue
+        if not any(t in desc_lower for t in specific_terms):
+            logger.warning(f"⚠️ Figure {figure_num} not specific enough: '{description}' — skipping")
+            continue
+        candidates.append((figure_num, description, full_placeholder))
 
-        # Create image metadata for search
-        image_metadata = {
+    if not candidates:
+        return lesson_content
+
+    def _fetch_image(figure_num, description, full_placeholder):
+        metadata = {
             'image_description': description,
             'image_type': 'Medical illustration',
             'image_search_terms': [
@@ -2175,30 +2171,25 @@ def integrate_images_into_lesson(lesson_content, subject, topic):
             ],
             'question': f"Medical illustration showing {description} in the context of {topic}"
         }
-
         logger.info(f"Searching for Figure {figure_num}: {description}")
-
         try:
-            # Use existing image search function
-            image_result = search_and_validate_image(image_metadata, subject)
+            result = search_and_validate_image(metadata, subject)
+            return full_placeholder, result, figure_num, description
+        except Exception as e:
+            logger.error(f"Error searching for image '{description}': {e}")
+            return full_placeholder, None, figure_num, description
 
-            if image_result:
-                # Replace with markdown image + caption below
-                image_url = image_result['url']
-                image_alt = description
-                markdown_with_caption = f"![{image_alt}]({image_url})\n*Figure {figure_num}: {description}*"
-                replacements.append((full_placeholder, markdown_with_caption))
+    # Search all images in parallel
+    with _ImgTP(max_workers=len(candidates)) as pool:
+        futures = [pool.submit(_fetch_image, fn, desc, ph) for fn, desc, ph in candidates]
+        for fut in futures:
+            placeholder, result, figure_num, description = fut.result()
+            if result:
+                markdown = f"![{description}]({result['url']})\n*Figure {figure_num}: {description}*"
+                lesson_content = lesson_content.replace(placeholder, markdown)
                 logger.info(f"✓ Found image for Figure {figure_num}")
             else:
                 logger.warning(f"✗ No image found for Figure {figure_num}")
-                # Keep the placeholder if no image found
-
-        except Exception as e:
-            logger.error(f"Error searching for image '{description}': {e}")
-
-    # Apply all replacements
-    for old, new in replacements:
-        lesson_content = lesson_content.replace(old, new)
 
     return lesson_content
 
@@ -2520,41 +2511,35 @@ def generate_lessons():
 
                 structure.append(topic_entry)
 
-            # Generate lessons using OnCourse prompt
-            for topic_data in structure:
+            # Compute per-subject invariants once (don't repeat inside the topic loop)
+            is_medical = any(kw in course.lower() for kw in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
+            if is_medical:
+                audience_desc = "Medical licensing exam candidates"
+                depth_desc = "Clinical practitioner level - assume medical school foundation knowledge"
+            else:
+                audience_desc = f"{course} exam candidates or advanced learners"
+                depth_desc = "Advanced professional level - assume foundational knowledge"
+            image_reqs        = _get_image_requirements(subject, 'topic')
+            chapter_image_reqs = _get_image_requirements(subject, 'chapter')
+
+            def _process_topic(topic_data):
+                """Build prompts and generate (topic + chapters) in parallel. Returns lesson dict."""
                 topic_name = topic_data.get('topic')
-                chapters = topic_data.get('chapters', [])
+                chapters   = topic_data.get('chapters', [])
                 high_yield = topic_data.get('high_yield', False)
 
-                # Prepare chapter list for prompt
                 chapter_list = []
                 for chapter in chapters:
                     if isinstance(chapter, dict):
-                        chapter_entry = {'name': chapter.get('name')}
+                        entry = {'name': chapter.get('name')}
                         if 'nice_refs' in chapter:
-                            chapter_entry['nice_refs'] = chapter['nice_refs']
-                        chapter_list.append(chapter_entry)
+                            entry['nice_refs'] = chapter['nice_refs']
+                        chapter_list.append(entry)
                     else:
                         chapter_list.append({'name': chapter})
 
                 chapter_list_json = json.dumps(chapter_list, indent=2)
-
-                # Detect course type and customize prompt
-                is_medical = any(keyword in course.lower() for keyword in ['ukmla', 'neet', 'usmle', 'medical', 'mbbs', 'md', 'clinical'])
-
-                # Generate topic-level lesson using Claude
                 logger.info(f"Generating lesson for {course} > {subject} > {topic_name}")
-
-                # Build audience and depth description based on course
-                if is_medical:
-                    audience_desc = "Medical licensing exam candidates"
-                    depth_desc = "Clinical practitioner level - assume medical school foundation knowledge"
-                else:
-                    audience_desc = f"{course} exam candidates or advanced learners"
-                    depth_desc = "Advanced professional level - assume foundational knowledge"
-
-                # Get image requirements for this subject
-                image_reqs = _get_image_requirements(subject, 'topic')
 
                 lesson_prompt = f"""====================  LESSON GENERATOR (COURSE-AGNOSTIC)  ====================
 - Course       : {course}
@@ -2925,9 +2910,6 @@ BAD examples (will be rejected, universal):
 Markdown only. No meta commentary. No apologies. No "here's the lesson".
 Start directly with first section header."""
 
-                # Get chapter image requirements
-                chapter_image_reqs = _get_image_requirements(subject, 'chapter')
-
                 # Build chapter prompts up-front so we can fire all in parallel
                 chapter_specs = []  # (chapter_name, nice_refs, chapter_prompt)
                 for chapter in chapter_list:
@@ -3035,14 +3017,22 @@ Brief context and why this chapter matters clinically/practically.
                             'lesson': fut.result()
                         })
 
-                # Store lesson with metadata
-                all_lessons.append({
+                return {
                     'topic': topic_name,
                     'high_yield': high_yield,
                     'topic_lesson': topic_lesson,
                     'chapters': chapter_lessons,
                     'subject': subject
-                })
+                }
+
+            # Run all topics for this subject in parallel
+            logger.info(f"🚀 Generating {len(structure)} topic(s) in parallel for subject '{subject}'...")
+            if len(structure) == 1:
+                all_lessons.append(_process_topic(structure[0]))
+            else:
+                with _TP(max_workers=len(structure)) as topic_pool:
+                    for result in topic_pool.map(_process_topic, structure):
+                        all_lessons.append(result)
 
         return jsonify({
             'course': course,
@@ -3870,9 +3860,9 @@ Tags: {', '.join(q.get('tags', []))}
         validator_results = []
         adversarial_results = []
 
-        # Lessons have large bodies — batch 5 at a time so response fits in 8k tokens.
-        # QBank questions are small — batch 15 at a time.
-        BATCH_SIZE = 5 if content_type == 'lesson' else 15
+        # Lessons: batch 2 — smaller batches finish faster, all run fully in parallel.
+        # QBank: batch 10 — still parallelised, keeps response well within token limits.
+        BATCH_SIZE = 2 if content_type == 'lesson' else 10
 
         if valid_items:
             # Helper to build user message content (string or list)

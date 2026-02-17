@@ -2231,7 +2231,7 @@ if (validateLessonsBtn) {
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
             <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} section(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 2–4 min</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 60–90 sec</p>
         `;
         modal.style.display = 'block';
 
@@ -2280,7 +2280,7 @@ if (validateQBankBtn) {
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
             <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} question(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 1–3 min</p>
+            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 30–60 sec</p>
         `;
         modal.style.display = 'block';
 
@@ -2471,7 +2471,7 @@ async function runUploadValidation(items, contentType, course) {
     reportContent.innerHTML = `
         <div class="loading-spinner"></div>
         <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${sendItems.length} ${contentType === 'qbank' ? 'question(s)' : 'section(s)'}...</p>
-        <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 2–4 min</p>
+        <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 60–90 sec</p>
     `;
     modal.style.display = 'block';
 
