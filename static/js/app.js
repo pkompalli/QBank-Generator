@@ -2317,6 +2317,7 @@ function displayBatchValidationReport(report, contentType) {
     };
 
     // ---- Summary bar ----
+    const structuralCount = summary.structural_failures || 0;
     const summaryHtml = `
         <div class="overall-assessment" style="margin-bottom:1.5rem;">
             <h3>📊 Batch Summary — ${report.course || ''}</h3>
@@ -2324,9 +2325,11 @@ function displayBatchValidationReport(report, contentType) {
                 <div><strong>Total:</strong> ${summary.total || 0}</div>
                 <div style="color:#28a745;"><strong>✅ Approved:</strong> ${summary.approved || 0}</div>
                 <div style="color:#dc3545;"><strong>❌ Needs Revision:</strong> ${summary.needs_revision || 0}</div>
+                ${structuralCount ? `<div style="color:#6f42c1;"><strong>🔧 Structural Failures:</strong> ${structuralCount}</div>` : ''}
                 <div><strong>Avg Quality Score:</strong> ${summary.avg_quality_score || 'N/A'}/10</div>
             </div>
-            <p style="font-size:0.85rem;color:#999;margin-top:0.5rem;">
+            ${structuralCount ? `<p style="font-size:0.85rem;color:#6f42c1;margin-top:0.5rem;">⚠️ ${structuralCount} question(s) have structural issues (e.g. missing image) and were auto-failed. Adversarial review was skipped for these.</p>` : ''}
+            <p style="font-size:0.85rem;color:#999;margin-top:0.25rem;">
                 Domain: ${report.domain || 'N/A'} &nbsp;|&nbsp;
                 Validated: ${new Date(report.timestamp).toLocaleString()}
             </p>
@@ -2350,14 +2353,16 @@ function displayBatchValidationReport(report, contentType) {
         }
 
         const accordionId = `val-item-${num}`;
+        const isStructural = item.structural_failure === true;
+        const headerBg = isStructural ? '#fff0f6' : '#f8f9fa';
 
         return `
-        <div class="val-accordion" style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:0.75rem;overflow:hidden;">
+        <div class="val-accordion" style="border:1px solid ${isStructural ? '#f5c6cb' : '#e0e0e0'};border-radius:8px;margin-bottom:0.75rem;overflow:hidden;">
             <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
-                style="width:100%;text-align:left;padding:0.9rem 1rem;background:#f8f9fa;border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
+                style="width:100%;text-align:left;padding:0.9rem 1rem;background:${headerBg};border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
                 <span style="font-weight:600;">${headerTitle}</span>
                 <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
-                    ${statusBadge(oa)}
+                    ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Structural Failure</span>' : statusBadge(oa)}
                     <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">
                         ${oa.quality_score || 'N/A'}/10
                     </span>
@@ -2390,6 +2395,10 @@ function displayBatchValidationReport(report, contentType) {
                 ${v.missing_critical_info?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📌 Missing Critical Info</h4>${formatList(v.missing_critical_info)}` : ''}
                 ${v.safety_concerns?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🚨 Safety Concerns</h4>${formatList(v.safety_concerns)}` : ''}
                 ${v.clarity_issues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">💭 Clarity Issues</h4>${formatList(v.clarity_issues)}` : ''}
+                ${v.learning_gaps?.length ? `<h4 style="color:#e83e8c;margin-top:0.75rem;">🧠 Learning Gaps (missing concepts)</h4>${formatList(v.learning_gaps)}` : ''}
+                ${v.missing_high_yield?.length ? `<h4 style="color:#fd7e14;margin-top:0.75rem;">⭐ Missing High-Yield Points</h4>${formatList(v.missing_high_yield)}` : ''}
+                ${v.missing_pitfalls?.length ? `<h4 style="color:#6f42c1;margin-top:0.75rem;">🕳️ Missing Pitfalls / Misconceptions</h4>${formatList(v.missing_pitfalls)}` : ''}
+                ${v.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Image / Table / Flowchart Issues</h4>${formatList(v.asset_issues)}` : ''}
                 ${v.distractor_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
                 ${v.vignette_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
                 ${v.explanation_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
@@ -2404,8 +2413,10 @@ function displayBatchValidationReport(report, contentType) {
                 ${a.alternative_answers?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🔀 Alternative Defensible Answers</h4>${formatList(a.alternative_answers)}` : ''}
                 ${a.distractor_defenses?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🛡️ Defensible Distractors</h4>${formatList(a.distractor_defenses)}` : ''}
                 ${a.logical_gaps?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🧩 Logical Gaps</h4>${formatList(a.logical_gaps)}` : ''}
+                ${a.learning_traps?.length ? `<h4 style="color:#e83e8c;margin-top:0.75rem;">🪤 Learning Traps</h4>${formatList(a.learning_traps)}` : ''}
                 ${a.overgeneralizations?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📢 Overgeneralizations</h4>${formatList(a.overgeneralizations)}` : ''}
                 ${a.safety_risks?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
+                ${a.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Asset Issues (adversarial)</h4>${formatList(a.asset_issues)}` : ''}
                 ${a.explanation_contradictions?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">💥 Explanation Contradictions</h4>${formatList(a.explanation_contradictions)}` : ''}
                 ${a.triviality_clues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">🔓 Triviality Clues</h4>${formatList(a.triviality_clues)}` : ''}
                 ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
@@ -2425,5 +2436,233 @@ function displayBatchValidationReport(report, contentType) {
 function toggleValAccordion(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ============================================================
+// UPLOAD & VALIDATE — parse an uploaded JSON or MD file
+// ============================================================
+
+async function runUploadValidation(items, contentType, course) {
+    const modal = document.getElementById('validation-modal');
+    const reportContent = document.getElementById('validation-report-content');
+
+    reportContent.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${items.length} ${contentType === 'qbank' ? 'question(s)' : 'section(s)'}...</p>
+        <p style="text-align:center;color:#999;font-size:0.9rem;">This may take 60-120 seconds</p>
+    `;
+    modal.style.display = 'block';
+
+    try {
+        const response = await fetch('/api/validate-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content_type: contentType,
+                items,
+                domain: 'medical education',
+                course: course || 'Uploaded Document'
+            })
+        });
+        if (!response.ok) throw new Error('Validation request failed');
+        const report = await response.json();
+        displayBatchValidationReport(report, contentType);
+    } catch (err) {
+        reportContent.innerHTML = `
+            <div style="text-align:center;padding:2rem;">
+                <h3 style="color:#dc3545;">❌ Validation Error</h3>
+                <p>${err.message}</p>
+            </div>`;
+    }
+}
+
+function parseQBankJSON(data) {
+    // Accept: array, { questions: [] }, { items: [] }, { qbank: [] }
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.questions)) return data.questions;
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.qbank)) return data.qbank;
+    return [];
+}
+
+function parseLessonsJSON(data) {
+    // Accept: { lessons: [] }, array, { topics: [] }
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.lessons)) return data.lessons;
+    if (Array.isArray(data.topics)) return data.topics;
+    return [];
+}
+
+function parseQBankMarkdown(text) {
+    // Split on Q-number patterns: "Q1.", "Q1:", "**Q1.**", "## Q1", "Question 1"
+    const blocks = text.split(/(?=(?:^|\n)(?:#{1,3}\s*)?(?:Q\d+[\.\:\)]\s*|Question\s+\d+[\.\:\)]\s*))/i).filter(b => b.trim());
+    return blocks.map((block, idx) => {
+        const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+        // Extract question stem (lines before options)
+        const optionLineIdx = lines.findIndex(l => /^[A-E][\.\)]\s+/i.test(l));
+        const questionLines = optionLineIdx > 0 ? lines.slice(0, optionLineIdx) : lines.slice(0, 2);
+        const question = questionLines.join(' ').replace(/^(?:#{1,3}\s*)?(?:Q\d+[\.\:\)]\s*|Question\s+\d+[\.\:\)]\s*)/i, '').trim();
+
+        // Extract options
+        const options = [];
+        let correctLine = -1, explLine = -1;
+        lines.forEach((l, i) => {
+            if (/^[A-E][\.\)]\s+/i.test(l)) options.push(l.replace(/^[A-E][\.\)]\s+/i, '').trim());
+            if (/correct\s*(?:answer|option)?[:=\s]/i.test(l)) correctLine = i;
+            if (/explanation[:]/i.test(l)) explLine = i;
+        });
+
+        const correct_option = correctLine >= 0
+            ? lines[correctLine].replace(/correct\s*(?:answer|option)?[:=\s]/i, '').trim()
+            : '';
+        const explanation = explLine >= 0
+            ? lines.slice(explLine).join(' ').replace(/explanation[:]/i, '').trim()
+            : '';
+
+        return { question: question || `Question ${idx + 1}`, options, correct_option, explanation, tags: [], blooms_level: '', difficulty: '' };
+    }).filter(q => q.question);
+}
+
+function parseLessonsMarkdown(text) {
+    // Detect our app's structured lesson format (has 📖 / 📝 emoji markers)
+    const hasDetailedLesson = text.includes('📖 Detailed Lesson');
+    const hasChapterRevision = text.includes('📝 Chapter-Level Rapid Revision');
+
+    if (hasDetailedLesson || hasChapterRevision) {
+        // --- Our app's exported lesson format ---
+        // Structure: ## Topic N: Name → ### 📖 Detailed Lesson → ... → ### 📝 Chapter-Level Rapid Revision → ### Chapter1 → ...
+        const items = [];
+
+        // Topic name from first "## ..." heading
+        const topicMatch = text.match(/^##\s+(.+)/m);
+        const topicName = topicMatch ? topicMatch[1].trim() : 'Topic Lesson';
+
+        // Locate the lesson-body bounds
+        const lessonMarkerIdx  = hasDetailedLesson  ? text.indexOf('📖 Detailed Lesson')           : -1;
+        const chapterDividerIdx = hasChapterRevision ? text.indexOf('📝 Chapter-Level Rapid Revision') : -1;
+
+        // Topic lesson body: from the "### 📖" line up to (not including) "### 📝" line
+        const lessonLineStart = lessonMarkerIdx !== -1
+            ? text.lastIndexOf('\n', lessonMarkerIdx)  // newline before "### 📖"
+            : 0;
+        const lessonLineEnd = chapterDividerIdx !== -1
+            ? text.lastIndexOf('\n', chapterDividerIdx)  // newline before "### 📝"
+            : text.length;
+
+        const lessonBody = text.slice(lessonLineStart, lessonLineEnd).trim();
+        if (lessonBody) {
+            items.push({ topic: topicName, topic_lesson: lessonBody, chapters: [] });
+        }
+
+        // Individual chapters: everything after the "### 📝 ..." divider line
+        if (chapterDividerIdx !== -1) {
+            const dividerLineEnd = text.indexOf('\n', chapterDividerIdx);
+            const chaptersText   = dividerLineEnd !== -1 ? text.slice(dividerLineEnd + 1) : '';
+
+            // Split on "### " at the start of a line — each is one chapter
+            const chapterSections = chaptersText.split(/(?=^###\s)/m).filter(s => s.trim());
+
+            for (const section of chapterSections) {
+                const sectionLines = section.trim().split('\n');
+                const title = sectionLines[0].replace(/^###\s*/, '').trim();
+                const body  = sectionLines.slice(1).join('\n').trim();
+                if (title && body) {
+                    items.push({ topic: title, topic_lesson: body, chapters: [] });
+                }
+            }
+        }
+
+        return items;
+    }
+
+    // --- Generic markdown: split on the dominant heading level ---
+    const h2count = (text.match(/^## /gm)  || []).length;
+    const h3count = (text.match(/^### /gm) || []).length;
+    const splitOn3 = h3count > 0 && h3count >= h2count;
+    const splitPattern = splitOn3 ? /(?=^###\s)/m : /(?=^#{1,2}\s)/m;
+
+    const sections = text.split(splitPattern).filter(s => s.trim());
+    return sections.map((section, idx) => {
+        const lines = section.trim().split('\n');
+        const titleLine = lines[0].replace(/^#{1,3}\s*/, '').trim();
+        const body = lines.slice(1).join('\n').trim();
+        return { topic: titleLine || `Section ${idx + 1}`, topic_lesson: body, chapters: [] };
+    }).filter(s => s.topic_lesson);
+}
+
+// Upload & Validate — Lessons
+const uploadValidateLessonsBtn = document.getElementById('upload-validate-lessons-btn');
+const uploadLessonsFile = document.getElementById('upload-lessons-file');
+
+if (uploadValidateLessonsBtn && uploadLessonsFile) {
+    uploadValidateLessonsBtn.addEventListener('click', () => uploadLessonsFile.click());
+
+    uploadLessonsFile.addEventListener('change', async () => {
+        const file = uploadLessonsFile.files[0];
+        if (!file) return;
+        uploadLessonsFile.value = ''; // reset so same file can be re-uploaded
+
+        const text = await file.text();
+        let items = [];
+        let course = file.name.replace(/\.[^.]+$/, '');
+
+        if (file.name.endsWith('.json')) {
+            try {
+                const data = JSON.parse(text);
+                items = parseLessonsJSON(data);
+                if (data.course) course = data.course;
+            } catch {
+                showToast('Invalid JSON file', 'error');
+                return;
+            }
+        } else if (file.name.endsWith('.md')) {
+            items = parseLessonsMarkdown(text);
+        }
+
+        if (!items.length) {
+            showToast('No lesson sections found in the file', 'error');
+            return;
+        }
+
+        await runUploadValidation(items, 'lesson', course);
+    });
+}
+
+// Upload & Validate — QBank
+const uploadValidateQBankBtn = document.getElementById('upload-validate-qbank-btn');
+const uploadQBankFile = document.getElementById('upload-qbank-file');
+
+if (uploadValidateQBankBtn && uploadQBankFile) {
+    uploadValidateQBankBtn.addEventListener('click', () => uploadQBankFile.click());
+
+    uploadQBankFile.addEventListener('change', async () => {
+        const file = uploadQBankFile.files[0];
+        if (!file) return;
+        uploadQBankFile.value = '';
+
+        const text = await file.text();
+        let items = [];
+        let course = file.name.replace(/\.[^.]+$/, '');
+
+        if (file.name.endsWith('.json')) {
+            try {
+                const data = JSON.parse(text);
+                items = parseQBankJSON(data);
+                if (data.course) course = data.course;
+            } catch {
+                showToast('Invalid JSON file', 'error');
+                return;
+            }
+        } else if (file.name.endsWith('.md')) {
+            items = parseQBankMarkdown(text);
+        }
+
+        if (!items.length) {
+            showToast('No questions found in the file', 'error');
+            return;
+        }
+
+        await runUploadValidation(items, 'qbank', course);
+    });
 }
 

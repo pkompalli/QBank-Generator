@@ -5,6 +5,7 @@ Generates MCQs for NEET PG and USMLE using Claude API
 
 import json
 import os
+import re
 import requests
 import hashlib
 import logging
@@ -3356,28 +3357,36 @@ def get_batch_validator_prompt(content_type, domain="medical education"):
     Returns a JSON array, one entry per item.
     """
     if content_type == 'lesson':
-        return f"""You are a senior {domain} content validation agent.
+        return f"""You are a senior {domain} content validation and learning design agent.
 
 You will receive multiple lesson sections numbered SECTION 1, SECTION 2, etc.
+Each section may contain text, tables, flowcharts (Mermaid), and embedded images.
+Evaluate ALL content types — text accuracy, image relevance, table correctness, and flowchart logic.
 
 For EACH section evaluate:
-1. Factual correctness
+1. Factual correctness (text, tables, image captions)
 2. Alignment with current standard {domain} understanding
 3. Internal logical consistency
 4. Missing critical contraindications or exceptions
 5. Safety implications
-6. Conceptual clarity
+6. Conceptual clarity and learning flow
 7. Over-simplification that may mislead learners
+8. LEARNING GAPS — major concepts a learner would need but are absent
+9. Missing prerequisites not explained before being used
+10. Missing high-yield exam/clinical pearls for this topic
+11. Missing common pitfalls or misconceptions learners typically encounter
+12. Image/asset relevance — if an image is embedded, does it match and support the text?
+13. Missing memory aids (mnemonics, frameworks) where they would significantly help retention
 
 Do NOT attempt adversarial breaking.
-Do NOT rewrite unless needed to show correction.
+Do NOT rewrite unless needed to show a correction.
 
 Scoring guidance:
-• 9–10 → accurate and safe
-• 7–8 → minor refinements needed
-• ≤6 → material factual issue
+• 9–10 → accurate, complete, and pedagogically sound
+• 7–8 → minor gaps or refinements needed
+• ≤6 → material factual error or significant learning gap
 
-If any major_error exists → needs_revision = true
+If any major_error OR significant learning gap exists → needs_revision = true
 
 Return a JSON ARRAY — one object per section — with this structure:
 [
@@ -3390,6 +3399,10 @@ Return a JSON ARRAY — one object per section — with this structure:
     "missing_critical_info": [<list, empty if none>],
     "safety_concerns": [<list, empty if none>],
     "clarity_issues": [<list, empty if none>],
+    "learning_gaps": [<list of major missing concepts a learner needs>],
+    "missing_high_yield": [<list of missing high-yield points or pearls>],
+    "missing_pitfalls": [<list of common misconceptions/traps not addressed>],
+    "asset_issues": [<list of image/table/flowchart problems, empty if none>],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
@@ -3446,26 +3459,27 @@ def get_batch_adversarial_prompt(content_type, domain="medical education"):
     Returns a JSON array, one entry per item.
     """
     if content_type == 'lesson':
-        return f"""You are an adversarial {domain} content reviewer.
+        return f"""You are an adversarial {domain} content and learning design reviewer.
 
 You will receive multiple lesson sections numbered SECTION 1, SECTION 2, etc.
+Each section may contain text, tables, flowcharts, and embedded images.
 
-For EACH section, aggressively identify weaknesses, ambiguity, outdated guidance, logical gaps, unsafe claims, misleading simplifications, or learning traps.
-
-Assume content may be flawed. Try to disprove, challenge, or break each section.
-
-Focus per section on:
-• Factual inaccuracies
-• Overgeneralizations
+For EACH section, aggressively identify weaknesses across:
+• Factual inaccuracies or outdated guidance
+• Overgeneralizations or dangerous simplifications
 • Missing contraindications or exceptions
-• Outdated guideline risk
 • Internal contradictions
-• Cognitive overload or unclear flow
-• Potential misinterpretation
+• Cognitive overload or unclear learning flow
+• Potential misinterpretation by a learner
+• Images/tables/flowcharts that are misleading, irrelevant, or inconsistent with the text
+• Concepts presented without sufficient context for a learner to understand them
+• Critical learning steps that a student would fail at due to a gap in this content
+
+Assume the content may be flawed and the learner may be harmed by acting on it.
 
 Scoring per section:
-0 = unbreakable
-10 = fundamentally unsafe or misleading
+0 = unbreakable, pedagogically sound
+10 = fundamentally unsafe, misleading, or a significant learning failure
 
 Return a JSON ARRAY — one object per section — with this structure:
 [
@@ -3478,6 +3492,8 @@ Return a JSON ARRAY — one object per section — with this structure:
     "overgeneralizations": [<list, empty if none>],
     "logical_gaps": [<list, empty if none>],
     "safety_risks": [<list, empty if none>],
+    "learning_traps": [<list of ways a learner could be misled or left with wrong mental model>],
+    "asset_issues": [<list of image/table/flowchart concerns>],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
@@ -3537,13 +3553,183 @@ def get_adversarial_prompt(content_type, domain="medical education"):
     return get_batch_adversarial_prompt(content_type, domain)
 
 
+def _image_available(image_url):
+    """Return True if image_url points to an accessible file or a valid http URL."""
+    if not image_url:
+        return False
+    if image_url.startswith('http'):
+        return True  # external URLs assumed reachable; we won't make an HTTP call here
+    # local path like /static/tmpXXXX.png
+    local = image_url.lstrip('/')
+    return os.path.isfile(local)
+
+
+_MD_IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
+_HTML_IMG_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _extract_image_urls_from_lesson(text):
+    """
+    Parse markdown/HTML lesson content and return a list of (url, alt_text) tuples
+    for all embedded images, in order of appearance.
+    """
+    results = []
+    for alt, url in _MD_IMG_RE.findall(text or ''):
+        results.append((url.strip(), alt.strip()))
+    for url in _HTML_IMG_RE.findall(text or ''):
+        results.append((url.strip(), ''))
+    return results
+
+
+def _sniff_media_type(raw_bytes):
+    """Detect actual image format from magic bytes — ignores file extension."""
+    if raw_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if raw_bytes[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if raw_bytes[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    if raw_bytes[:4] == b'RIFF' and raw_bytes[8:12] == b'WEBP':
+        return 'image/webp'
+    return 'image/jpeg'  # safe fallback
+
+
+def _load_image_as_base64(image_url):
+    """
+    Load an image from a local path or URL and return (base64_data, media_type).
+    Media type is detected from actual file bytes, not the extension.
+    Returns (None, None) on failure.
+    """
+    import base64 as _b64
+    try:
+        if image_url.startswith('http'):
+            import requests as _req
+            resp = _req.get(image_url, timeout=10)
+            if resp.status_code == 200:
+                raw = resp.content
+                data = _b64.b64encode(raw).decode('utf-8')
+                media_type = _sniff_media_type(raw)
+                return data, media_type
+        else:
+            local = image_url.lstrip('/')
+            if os.path.isfile(local):
+                with open(local, 'rb') as f:
+                    raw = f.read()
+                data = _b64.b64encode(raw).decode('utf-8')
+                media_type = _sniff_media_type(raw)
+                return data, media_type
+    except Exception as e:
+        logger.warning(f"Could not load image {image_url}: {e}")
+    return None, None
+
+
+_IMAGE_REF_RE = re.compile(
+    r'shown\s+(?:below|above|here)'
+    r'|in\s+the\s+(?:image|figure|photo|picture|scan|x-?ray|ct|mri)'
+    r'|as\s+seen\s+in'
+    r'|refer\s+to\s+the\s+(?:image|figure)'
+    r'|\[image\]'
+    r'|based\s+on\s+the\s+(?:image|figure|scan|x-?ray|photograph)'
+    r'|(?:chest|abdominal|pelvic|brain|head)\s+(?:x-?ray|ct|mri)\s+shown',
+    re.IGNORECASE
+)
+
+
+def _make_structural_failure(index, question_text, reason):
+    """Return a pre-scored result for a question that cannot be content-validated."""
+    return {
+        "index": index,
+        "structural_failure": True,
+        "validator": {
+            "question_number": index,
+            "question_preview": question_text[:80],
+            "overall_accuracy_score": 2,
+            "correct_answer_verified": False,
+            "needs_revision": True,
+            "factual_errors": [reason],
+            "distractor_issues": [],
+            "vignette_issues": [reason],
+            "explanation_issues": [],
+            "recommendations": ["Fix the structural issue before content review"],
+            "summary": f"Structural failure: {reason}. Content review skipped."
+        },
+        "adversarial": {
+            "question_number": index,
+            "adversarial_score": 0,
+            "breakability_rating": "N/A — structural failure, adversarial review skipped",
+            "alternative_answers": [],
+            "ambiguities": [],
+            "distractor_defenses": [],
+            "explanation_contradictions": [],
+            "triviality_clues": [],
+            "recommendations": [],
+            "summary": "Adversarial review skipped — structural failure detected by Validator."
+        },
+        "overall_assessment": {
+            "status": "❌ Structural Failure",
+            "quality_score": 1.0,
+            "validator_score": 2,
+            "adversarial_score": 0,
+            "needs_revision": True,
+            "recommendation": f"Cannot review content: {reason}"
+        }
+    }
+
+
+def _extract_json_array(text, expected_count):
+    """
+    Robustly extract a JSON array of results from a model response.
+    Uses json.JSONDecoder.raw_decode() to find the first complete JSON value
+    starting at the first '[' or '{', ignoring surrounding markdown/text.
+    """
+    if not text:
+        return []
+
+    decoder = json.JSONDecoder()
+
+    def _try_parse(s, start_char):
+        """Find the first occurrence of start_char and raw_decode from there."""
+        idx = s.find(start_char)
+        while idx != -1:
+            try:
+                parsed, _ = decoder.raw_decode(s, idx)
+                return parsed
+            except json.JSONDecodeError:
+                idx = s.find(start_char, idx + 1)
+        return None
+
+    def _normalise(parsed):
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            for key in ('sections', 'items', 'questions', 'results', 'data'):
+                if isinstance(parsed.get(key), list):
+                    return parsed[key]
+            return [parsed]
+        return None
+
+    # 1. Try to find a JSON array first (most common case)
+    result = _normalise(_try_parse(text, '['))
+    if result is not None:
+        return result
+
+    # 2. Fall back to finding a JSON object
+    result = _normalise(_try_parse(text, '{'))
+    if result is not None:
+        return result
+
+    logger.warning(f"Could not parse JSON from model response (expected {expected_count} items). "
+                   f"Response preview: {text[:300]}")
+    return []
+
+
 @app.route('/api/validate-content', methods=['POST'])
 def validate_content():
     """
     Council of Models validation: Sequential batch Validator → Adversarial Reviewer
     Accepts an array of items and returns per-item results.
-    content_type: 'lesson' or 'qbank'
-    items: array of lesson or question objects
+    Image-based questions with missing images are pre-screened as structural failures
+    and bypass the adversarial review entirely.
     """
     try:
         data = request.json
@@ -3560,104 +3746,217 @@ def validate_content():
 
         client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
-        # ---- Format all items as a numbered block ----
+        import re as _re
+
+        # ---- Pre-screen QBank for structural failures (missing images) ----
+        pre_scored = {}   # original_index → result dict
+        valid_indices = list(range(len(items)))  # indices to actually send to models
+
+        if content_type == 'qbank':
+            valid_indices = []
+            for i, q in enumerate(items):
+                question_text = q.get('question', '')
+                image_url = q.get('image_url', '')
+                needs_image = bool(image_url) or bool(_IMAGE_REF_RE.search(question_text))
+
+                if needs_image and image_url and not _image_available(image_url):
+                    reason = "Image file referenced in question is missing or unavailable"
+                    pre_scored[i] = _make_structural_failure(i + 1, question_text, reason)
+                    logger.info(f"   ⚠️  Q{i+1}: structural failure — {reason}")
+                elif needs_image and not image_url:
+                    reason = "Question references an image but no image is attached"
+                    pre_scored[i] = _make_structural_failure(i + 1, question_text, reason)
+                    logger.info(f"   ⚠️  Q{i+1}: structural failure — {reason}")
+                else:
+                    valid_indices.append(i)
+
+        valid_items = [items[i] for i in valid_indices]
+
+        # ---- Format valid items as content blocks (multimodal for both types) ----
+        # section_block_ranges[i] = (start_block_idx, end_block_idx) for valid_items[i]
+        section_block_ranges = []
+
         if content_type == 'lesson':
-            sections_text = ""
-            for i, lesson in enumerate(items, start=1):
-                title = lesson.get('topic', f'Section {i}')
+            lesson_blocks = []
+            images_embedded = 0
+
+            for pos, lesson in enumerate(valid_items, start=1):
+                orig_idx = valid_indices[pos - 1]
+                block_start = len(lesson_blocks)
+                title = lesson.get('topic', f'Section {orig_idx + 1}')
                 body = lesson.get('topic_lesson', '')
                 if isinstance(body, dict):
                     body = json.dumps(body, indent=2)
+                body_str = str(body)
+
+                # Collect all image URLs from topic body + all chapters
+                all_texts = [body_str]
                 chapters_text = ""
                 if lesson.get('chapters'):
                     for ch in lesson['chapters']:
                         ch_title = ch.get('chapter', '')
-                        ch_body = ch.get('lesson', '')
-                        chapters_text += f"\n  Chapter: {ch_title}\n  {ch_body[:500]}\n"
-                sections_text += f"\n\n--- SECTION {i}: {title} ---\n{str(body)[:1500]}{chapters_text}"
-            content_block = sections_text
+                        ch_body = ch.get('lesson', '') or ''
+                        chapters_text += f"\n  Chapter: {ch_title}\n  {ch_body[:1500]}\n"
+                        all_texts.append(ch_body)
+
+                section_header = f"\n\n--- SECTION {pos}: {title} ---\n{body_str[:8000]}{chapters_text}"
+                lesson_blocks.append({"type": "text", "text": section_header})
+
+                # Extract and embed all images found in this section
+                seen_urls = set()
+                for text_chunk in all_texts:
+                    for url, alt in _extract_image_urls_from_lesson(text_chunk):
+                        if url in seen_urls:
+                            continue
+                        seen_urls.add(url)
+                        if not _image_available(url):
+                            lesson_blocks.append({"type": "text",
+                                "text": f"[IMAGE MISSING: '{alt or url}' — referenced in section but file not found]\n"})
+                            continue
+                        img_data, media_type = _load_image_as_base64(url)
+                        if img_data:
+                            lesson_blocks.append({"type": "text",
+                                "text": f"[IMAGE: '{alt or os.path.basename(url)}' embedded below]\n"})
+                            lesson_blocks.append({
+                                "type": "image",
+                                "source": {"type": "base64", "media_type": media_type, "data": img_data}
+                            })
+                            images_embedded += 1
+                        else:
+                            lesson_blocks.append({"type": "text",
+                                "text": f"[IMAGE LOAD FAILED: '{alt or url}']\n"})
+
+                section_block_ranges.append((block_start, len(lesson_blocks)))
+
+            logger.info(f"   📸 {images_embedded} lesson image(s) embedded across {len(valid_items)} section(s)")
+            content_payload = lesson_blocks
 
         elif content_type == 'qbank':
-            questions_text = ""
-            for i, q in enumerate(items, start=1):
+            q_blocks = []
+            images_embedded = 0
+            for pos, q in enumerate(valid_items, start=1):
+                block_start = len(q_blocks)
                 opts = '\n'.join([f"  {chr(65+j)}. {opt}" for j, opt in enumerate(q.get('options', []))])
-                questions_text += f"""
---- Q{i} ---
-Question: {q.get('question', '')}
+                image_url = q.get('image_url', '')
+                has_image = image_url and _image_available(image_url)
+
+                image_marker = "[IMAGE FOR THIS QUESTION IS EMBEDDED BELOW — evaluate it as part of the question]\n" if has_image else ""
+                q_text = f"""
+--- Q{pos} ---
+{image_marker}Question: {q.get('question', '')}
 Options:
 {opts}
 Correct Answer: {q.get('correct_option', '')}
 Explanation: {q.get('explanation', '')}
 Tags: {', '.join(q.get('tags', []))}
 """
-            content_block = questions_text
+                q_blocks.append({"type": "text", "text": q_text})
+
+                if has_image:
+                    img_data, media_type = _load_image_as_base64(image_url)
+                    if img_data:
+                        q_blocks.append({
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": media_type, "data": img_data}
+                        })
+                        images_embedded += 1
+                        logger.info(f"   🖼️  Q{pos}: embedded image ({media_type})")
+                    else:
+                        q_blocks.append({"type": "text", "text": "[IMAGE LOAD FAILED — treat question as having a missing image]\n"})
+                        logger.warning(f"   ⚠️  Q{pos}: image present but failed to load")
+
+                section_block_ranges.append((block_start, len(q_blocks)))
+
+            logger.info(f"   📸 {images_embedded}/{len(valid_items)} questions have embedded images")
+            content_payload = q_blocks
         else:
             return jsonify({'error': 'Invalid content_type. Must be "lesson" or "qbank"'}), 400
 
-        import re
+        validator_results = []
+        adversarial_results = []
 
-        # STEP 1: Batch Validator Agent
-        logger.info(f"   📋 Step 1: Running batch Validator Agent on {len(items)} items...")
-        validator_prompt = get_batch_validator_prompt(content_type, domain)
+        # Lessons have large bodies — batch 5 at a time so response fits in 8k tokens.
+        # QBank questions are small — batch 15 at a time.
+        BATCH_SIZE = 5 if content_type == 'lesson' else 15
 
-        validator_response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=8000,
-            temperature=0.3,
-            messages=[{
-                "role": "user",
-                "content": f"{validator_prompt}\n\nContent to validate:\n{content_block}"
-            }]
-        )
+        if valid_items:
+            # Helper to build user message content (string or list)
+            def _make_user_content(prompt_text, payload):
+                if isinstance(payload, list):
+                    return [{"type": "text", "text": f"{prompt_text}\n\nContent to validate:\n"}] + payload
+                else:
+                    return f"{prompt_text}\n\nContent to validate:\n{payload}"
 
-        validator_text = validator_response.content[0].text.strip()
-        logger.info("   ✓ Batch Validator completed")
+            def _call_agent(prompt, payload, temperature, label):
+                response = client.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=8000,
+                    temperature=temperature,
+                    messages=[{"role": "user", "content": _make_user_content(prompt, payload)}]
+                )
+                return response.content[0].text.strip()
 
-        try:
-            json_match = re.search(r'\[[\s\S]*\]', validator_text)
-            validator_results = json.loads(json_match.group()) if json_match else []
-        except Exception:
-            validator_results = []
+            # STEP 1: Batch Validator
+            logger.info(f"   📋 Step 1: Validator on {len(valid_items)} item(s) in batches of {BATCH_SIZE}...")
+            validator_prompt = get_batch_validator_prompt(content_type, domain)
 
-        # STEP 2: Batch Adversarial Agent
-        logger.info(f"   ⚔️  Step 2: Running batch Adversarial Agent on {len(items)} items...")
-        adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)
+            for b_start in range(0, len(valid_items), BATCH_SIZE):
+                b_end = min(b_start + BATCH_SIZE, len(valid_items))
+                batch_count = b_end - b_start
+                first_block = section_block_ranges[b_start][0]
+                last_block  = section_block_ranges[b_end - 1][1]
+                batch_payload = content_payload[first_block:last_block]
+                logger.info(f"      Validator batch {b_start // BATCH_SIZE + 1}: sections {b_start+1}–{b_end}...")
+                v_text = _call_agent(validator_prompt, batch_payload, 0.3, 'validator')
+                batch_results = _extract_json_array(v_text, batch_count)
+                logger.info(f"      → Parsed {len(batch_results)}/{batch_count} validator result(s)")
+                validator_results.extend(batch_results)
 
-        adversarial_response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=8000,
-            temperature=0.5,
-            messages=[{
-                "role": "user",
-                "content": f"{adversarial_prompt}\n\nContent to review:\n{content_block}"
-            }]
-        )
+            logger.info(f"   ✓ Validator done: {len(validator_results)} total result(s)")
 
-        adversarial_text = adversarial_response.content[0].text.strip()
-        logger.info("   ✓ Batch Adversarial completed")
+            # STEP 2: Batch Adversarial
+            logger.info(f"   ⚔️  Step 2: Adversarial on {len(valid_items)} item(s) in batches of {BATCH_SIZE}...")
+            adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)
 
-        try:
-            json_match = re.search(r'\[[\s\S]*\]', adversarial_text)
-            adversarial_results = json.loads(json_match.group()) if json_match else []
-        except Exception:
-            adversarial_results = []
+            for b_start in range(0, len(valid_items), BATCH_SIZE):
+                b_end = min(b_start + BATCH_SIZE, len(valid_items))
+                batch_count = b_end - b_start
+                first_block = section_block_ranges[b_start][0]
+                last_block  = section_block_ranges[b_end - 1][1]
+                batch_payload = content_payload[first_block:last_block]
+                logger.info(f"      Adversarial batch {b_start // BATCH_SIZE + 1}: sections {b_start+1}–{b_end}...")
+                a_text = _call_agent(adversarial_prompt, batch_payload, 0.5, 'adversarial')
+                batch_results = _extract_json_array(a_text, batch_count)
+                logger.info(f"      → Parsed {len(batch_results)}/{batch_count} adversarial result(s)")
+                adversarial_results.extend(batch_results)
 
-        # ---- Merge per-item results ----
+            logger.info(f"   ✓ Adversarial done: {len(adversarial_results)} total result(s)")
+
+        # ---- Merge results back in original order ----
         merged_items = []
+        valid_pos = 0
         for i in range(len(items)):
-            v = validator_results[i] if i < len(validator_results) else {}
-            a = adversarial_results[i] if i < len(adversarial_results) else {}
-            assessment = generate_overall_assessment(v, a, content_type)
-            merged_items.append({
-                "index": i + 1,
-                "validator": v,
-                "adversarial": a,
-                "overall_assessment": assessment
-            })
+            if i in pre_scored:
+                merged_items.append(pre_scored[i])
+            else:
+                v = validator_results[valid_pos] if valid_pos < len(validator_results) else {}
+                a = adversarial_results[valid_pos] if valid_pos < len(adversarial_results) else {}
+                # Guard: ensure v and a are dicts (model may occasionally return strings)
+                if not isinstance(v, dict): v = {}
+                if not isinstance(a, dict): a = {}
+                assessment = generate_overall_assessment(v, a, content_type)
+                merged_items.append({
+                    "index": i + 1,
+                    "validator": v,
+                    "adversarial": a,
+                    "overall_assessment": assessment
+                })
+                valid_pos += 1
 
-        # ---- Summary across all items ----
+        # ---- Summary ----
         total = len(merged_items)
         needs_revision_count = sum(1 for item in merged_items if item["overall_assessment"].get("needs_revision"))
+        structural_count = sum(1 for item in merged_items if item.get("structural_failure"))
         approved_count = total - needs_revision_count
         avg_quality = round(
             sum(item["overall_assessment"].get("quality_score", 0) for item in merged_items) / total, 2
@@ -3673,11 +3972,12 @@ Tags: {', '.join(q.get('tags', []))}
                 "total": total,
                 "approved": approved_count,
                 "needs_revision": needs_revision_count,
+                "structural_failures": structural_count,
                 "avg_quality_score": avg_quality
             }
         }
 
-        logger.info(f"   ✅ Batch validation done — {approved_count}/{total} approved, avg score {avg_quality}")
+        logger.info(f"   ✅ Done — {approved_count}/{total} approved, {structural_count} structural failures, avg {avg_quality}")
         return jsonify(report)
 
     except Exception as e:
