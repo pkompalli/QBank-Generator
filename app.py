@@ -3368,33 +3368,39 @@ def get_batch_validator_prompt(content_type, domain="medical education"):
         return f"""You are a senior {domain} content validation and learning design agent.
 
 You will receive multiple lesson sections numbered SECTION 1, SECTION 2, etc.
-Each section may contain text, tables, flowcharts (Mermaid), and embedded images.
-Evaluate ALL content types — text accuracy, image relevance, table correctness, and flowchart logic.
+Sections come in two formats — calibrate your evaluation accordingly:
 
-For EACH section evaluate:
-1. Factual correctness (text, tables, image captions)
-2. Alignment with current standard {domain} understanding
+• TOPIC LESSON (~800-1200 words, multiple sub-sections, flowcharts, tables):
+  Evaluate for completeness, depth, learning flow, and coverage of the topic.
+
+• CHAPTER RAPID REVISION NOTE (~300-500 words, cheat-sheet format with Quick Overview /
+  Core Facts / Problem-Solving / Key Points structure):
+  Evaluate for ACCURACY and CLINICAL UTILITY only. Do NOT penalise for missing depth,
+  missing prerequisites, or short length — that is by design. A well-written rapid
+  revision note with accurate, high-density facts should score 8-9.
+
+For EACH section evaluate (calibrated to its format):
+1. Factual correctness — are all stated facts, numbers, thresholds correct?
+2. Alignment with current {domain} guidelines/standards
 3. Internal logical consistency
-4. Missing critical contraindications or exceptions
-5. Safety implications
-6. Conceptual clarity and learning flow
-7. Over-simplification that may mislead learners
-8. LEARNING GAPS — major concepts a learner would need but are absent
-9. Missing prerequisites not explained before being used
-10. Missing high-yield exam/clinical pearls for this topic
-11. Missing common pitfalls or misconceptions learners typically encounter
-12. Image/asset relevance — if an image is embedded, does it match and support the text?
-13. Missing memory aids (mnemonics, frameworks) where they would significantly help retention
+4. Missing critical safety information or contraindications
+5. Over-simplification that could actively mislead (not just "incomplete")
+6. Image/asset relevance — does any embedded image match the surrounding text?
+7. For topic lessons only: learning flow, coverage of sub-topics, memory aids
 
 Do NOT attempt adversarial breaking.
-Do NOT rewrite unless needed to show a correction.
+Do NOT penalise rapid revision sections for being concise.
 
 Scoring guidance:
-• 9–10 → accurate, complete, and pedagogically sound
-• 7–8 → minor gaps or refinements needed
-• ≤6 → material factual error or significant learning gap
+• 9–10 → accurate, well-structured, appropriate for its format
+• 7–8 → minor factual gaps or refinements needed
+• 5–6 → notable inaccuracies or missing critical safety information
+• ≤4  → material factual errors or dangerous oversimplifications
 
-If any major_error OR significant learning gap exists → needs_revision = true
+needs_revision = true only if: factual error, dangerous omission, or seriously misleading content.
+Do NOT set needs_revision = true merely because a rapid revision note lacks depth.
+
+If any major_error OR dangerous omission exists → needs_revision = true
 
 Return a JSON ARRAY — one object per section — with this structure:
 [
@@ -3470,24 +3476,30 @@ def get_batch_adversarial_prompt(content_type, domain="medical education"):
         return f"""You are an adversarial {domain} content and learning design reviewer.
 
 You will receive multiple lesson sections numbered SECTION 1, SECTION 2, etc.
-Each section may contain text, tables, flowcharts, and embedded images.
+Sections come in two formats — score relative to what the format promises:
 
-For EACH section, aggressively identify weaknesses across:
+• TOPIC LESSON (~800-1200 words): hold it to a high completeness and depth standard.
+• CHAPTER RAPID REVISION NOTE (~300-500 words, cheat-sheet): evaluate ONLY for factual
+  accuracy, dangerous omissions, and active misinformation. Do NOT penalise for brevity
+  or missing depth — being concise is the point. A dense, accurate cheat sheet with no
+  factual errors should score 1-2 (near unbreakable for its format).
+
+For EACH section, identify genuine weaknesses:
 • Factual inaccuracies or outdated guidance
-• Overgeneralizations or dangerous simplifications
-• Missing contraindications or exceptions
+• Dangerous simplifications that could cause patient harm or wrong clinical decisions
+• Missing critical contraindications or safety warnings
 • Internal contradictions
-• Cognitive overload or unclear learning flow
-• Potential misinterpretation by a learner
-• Images/tables/flowcharts that are misleading, irrelevant, or inconsistent with the text
-• Concepts presented without sufficient context for a learner to understand them
-• Critical learning steps that a student would fail at due to a gap in this content
+• Images/tables/flowcharts that actively mislead (not just "could be better")
+• Statements that would leave a learner with a dangerously wrong mental model
 
-Assume the content may be flawed and the learner may be harmed by acting on it.
+Do NOT flag content as a weakness just because it is brief or omits depth.
 
-Scoring per section:
-0 = unbreakable, pedagogically sound
-10 = fundamentally unsafe, misleading, or a significant learning failure
+Scoring per section (relative to format):
+0–2 = accurate, safe, appropriate for its format
+3–4 = minor inaccuracies or suboptimal phrasing; no safety risk
+5–6 = notable inaccuracy or potentially misleading statement
+7–8 = significant factual error or dangerous oversimplification
+9–10 = fundamentally unsafe or seriously misleading
 
 Return a JSON ARRAY — one object per section — with this structure:
 [
@@ -3883,9 +3895,10 @@ Tags: {', '.join(q.get('tags', []))}
         validator_results = []
         adversarial_results = []
 
-        # Lessons: batch 2 — smaller batches finish faster, all run fully in parallel.
-        # QBank: batch 10 — still parallelised, keeps response well within token limits.
-        BATCH_SIZE = 2 if content_type == 'lesson' else 10
+        # Lessons: batch 4 — enough context for the model to calibrate scores across sections,
+        # still fast because all batches run in parallel.
+        # QBank: batch 10 — small items, plenty of context.
+        BATCH_SIZE = 4 if content_type == 'lesson' else 10
 
         if valid_items:
             # Helper to build user message content (string or list)
@@ -4019,24 +4032,34 @@ Tags: {', '.join(q.get('tags', []))}
 
 
 def generate_overall_assessment(validator_result, adversarial_result, content_type):
-    """Generate a combined assessment from both agents"""
+    """Generate a combined assessment from both agents."""
 
-    validator_score = validator_result.get('overall_accuracy_score', 0)
+    validator_score  = validator_result.get('overall_accuracy_score', 0)
     adversarial_score = adversarial_result.get('adversarial_score', 0)
-    needs_revision = validator_result.get('needs_revision', False)
 
-    # Calculate overall quality score (inverse of adversarial score)
-    quality_score = (validator_score + (10 - adversarial_score)) / 2
+    # needs_revision is raised if EITHER agent flags it
+    needs_revision = (
+        validator_result.get('needs_revision', False) or
+        adversarial_result.get('needs_revision', False)
+    )
 
-    if quality_score >= 8 and not needs_revision:
+    # Quality score: validator weighted 60%, adversarial (inverted) weighted 40%
+    # Adversarial scale is now 0–10 where 0=perfect, so invert it for quality
+    quality_score = (validator_score * 0.6) + ((10 - adversarial_score) * 0.4)
+
+    # Approved: quality ≥ 7 and neither agent flagged revision
+    if quality_score >= 7 and not needs_revision:
         status = "✅ Approved"
-        recommendation = "Content is of high quality and safe to use."
-    elif quality_score >= 6:
+        recommendation = "Content is accurate and appropriate for use."
+    elif quality_score >= 5.5 and not needs_revision:
         status = "⚠️ Conditional"
-        recommendation = "Content has minor issues. Review recommendations and consider revisions."
-    else:
+        recommendation = "Content has minor issues worth reviewing before use."
+    elif needs_revision:
         status = "❌ Needs Revision"
-        recommendation = "Content has significant issues and requires revision before use."
+        recommendation = "One or both reviewers flagged factual errors or dangerous omissions."
+    else:
+        status = "⚠️ Conditional"
+        recommendation = "Quality score is below threshold — review recommendations."
 
     return {
         "status": status,
