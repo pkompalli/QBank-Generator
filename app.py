@@ -3991,26 +3991,71 @@ def fix_content():
         recommendations = item.get('recommendations', [])
         missing_images  = item.get('missing_images', [])
         topic           = item.get('topic', title)
+        search_subject  = subject or course
 
         issues_text = '\n'.join(f'  • {i}' for i in issues) if issues else '  (none specified)'
         recs_text   = '\n'.join(f'  • {r}' for r in recommendations) if recommendations else '  (none specified)'
 
+        # ── LESSONS: search images FIRST, pass real URLs to Claude ─────────────
         if content_type == 'lesson':
-            missing_img_text = ''
+            found_images = []
             if missing_images:
-                missing_img_text = f"""
-─── MISSING IMAGES TO ADD ───
-{chr(10).join(f"  • {img}" for img in missing_images)}
+                from concurrent.futures import ThreadPoolExecutor as _ITP
 
-IMAGE INSERTION RULES:
-- For each missing image listed above, insert a placeholder at the most educationally appropriate position
-- Use EXACTLY this format (no deviations): **Figure N: [Image: <concise specific description>]**
-  where N is a sequential number starting after any existing figures
-- The description must be SPECIFIC and SEARCHABLE (e.g. "ECG strip showing atrial fibrillation with irregularly irregular rhythm"
-  NOT "ECG of the arrhythmia" — be precise enough that a medical image search would find it)
-- Only insert images that are concrete, searchable medical images (ECGs, X-rays, histology slides,
-  clinical photos, etc.); do NOT add placeholders for flowcharts, diagrams, or conceptual illustrations
+                def _fetch_missing(desc):
+                    q_data = {
+                        'image_description': desc,
+                        'image_type': 'Medical illustration',
+                        'image_search_terms': [
+                            desc,
+                            f"{topic} {desc}",
+                            f"{search_subject} {desc}",
+                        ],
+                        'question': f"Medical educational image: {desc}",
+                    }
+                    try:
+                        result = search_and_validate_image(q_data, search_subject)
+                        if result:
+                            return {'description': desc, 'url': result['url']}
+                    except Exception as e:
+                        logger.warning(f"  [fix] Image search failed for '{desc}': {e}")
+                    return None
+
+                with _ITP(max_workers=max(1, len(missing_images))) as pool:
+                    for r in pool.map(_fetch_missing, missing_images):
+                        if r:
+                            found_images.append(r)
+                logger.info(f"  [fix] Found {len(found_images)}/{len(missing_images)} images for '{title}'")
+
+            # Build image embed section with real URLs so Claude can insert ![alt](url) directly
+            img_section = ''
+            if found_images:
+                lines = '\n'.join(
+                    f"  • {img['description']} → {img['url']}"
+                    for img in found_images
+                )
+                img_section = f"""
+─── IMAGES TO EMBED ───
+These images were found — insert each one IMMEDIATELY AFTER the paragraph or heading that
+discusses that topic (not all at the end). Use this exact markdown format:
+
+![Description](url)
+*Figure N: Description*
+
+(N = next sequential figure number after any already in the content)
+
+{lines}
 """
+            elif missing_images:
+                # Nothing found — ask Claude to compensate with rich descriptive text
+                img_section = f"""
+─── IMAGES UNAVAILABLE ───
+These images were flagged as needed but could not be found in our library:
+{chr(10).join(f"  • {i}" for i in missing_images)}
+Where each image would appear, add a rich descriptive sentence conveying the key visual
+finding in words (e.g. "The ECG classically shows ...", "On histology one sees ...").
+"""
+
             prompt = f"""You are a medical education content editor. Revise the lesson section below to fix every identified issue.
 
 SECTION: {title}
@@ -4024,13 +4069,27 @@ COURSE: {course}
 
 ─── RECOMMENDATIONS ───
 {recs_text}
-{missing_img_text}
+{img_section}
 INSTRUCTIONS:
 - Fix EVERY issue and implement EVERY recommendation listed above
+- If images are provided above, embed each one using ![Description](url) + *Figure N: Description*
+  caption, placed immediately after the most relevant paragraph
 - Preserve the existing structure (### headers, clinical pearls, mnemonics, tables, flowcharts)
 - Maintain the progressive learning flow and approximate length
 - Do NOT add a preamble or closing note — return ONLY the revised markdown content"""
 
+            msg = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=4000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            fixed = msg.content[0].text.strip()
+            return {
+                'index': idx, 'fixed_content': fixed, 'title': title,
+                'images_added': len(found_images),
+            }
+
+        # ── QBANK ──────────────────────────────────────────────────────────────
         else:
             missing_img_text = ''
             if missing_images:
@@ -4066,15 +4125,13 @@ INSTRUCTIONS:
 - Keep the same JSON structure/fields as the original
 - Return ONLY a valid JSON object, no preamble or explanation"""
 
-        msg = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=4000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        fixed = msg.content[0].text.strip()
+            msg = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=4000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            fixed = msg.content[0].text.strip()
 
-        # ── Post-process based on content type ──────────────────────────────────
-        if content_type == 'qbank':
             # Strip markdown fences if model wraps in ```
             if '```json' in fixed:
                 fixed = fixed.split('```json')[1].split('```')[0].strip()
@@ -4086,7 +4143,7 @@ INSTRUCTIONS:
                 q_obj = json.loads(fixed)
                 if q_obj.get('requires_image') and not q_obj.get('image_url'):
                     logger.info(f"  [fix] Fetching image for Q{idx}: {q_obj.get('image_description','')}")
-                    result = search_and_validate_image(q_obj, subject or course)
+                    result = search_and_validate_image(q_obj, search_subject)
                     if result:
                         q_obj['image_url']    = result['url']
                         q_obj['image_source'] = result.get('source', '')
@@ -4098,13 +4155,7 @@ INSTRUCTIONS:
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning(f"  [fix] QBank image fetch skipped: {e}")
 
-        else:  # lesson
-            # If the Claude-rewritten content contains Figure placeholders, fetch real images
-            if '**Figure' in fixed and '[Image:' in fixed:
-                logger.info(f"  [fix] Integrating images into lesson section '{title}'")
-                fixed = integrate_images_into_lesson(fixed, subject or course, topic)
-
-        return {'index': idx, 'fixed_content': fixed, 'title': title}
+            return {'index': idx, 'fixed_content': fixed, 'title': title}
 
     try:
         from concurrent.futures import ThreadPoolExecutor as _FTP

@@ -2592,7 +2592,9 @@ async function fixSelectedItems() {
 
         // Write fixed content back into memory + show "re-validating…" in accordions
         applyFixes(result.fixed_items, contentType);
-        showToast(`✅ Fixed ${result.fixed_items.length} item(s) — re-validating…`, 'success');
+        const imagesAdded = result.fixed_items.reduce((s, f) => s + (f.images_added || 0), 0);
+        const imgNote = imagesAdded > 0 ? ` (+${imagesAdded} image${imagesAdded > 1 ? 's' : ''} embedded)` : '';
+        showToast(`✅ Fixed ${result.fixed_items.length} item(s)${imgNote} — re-validating…`, 'success');
 
         // Uncheck fixed items
         toFix.forEach(({ index }) => {
