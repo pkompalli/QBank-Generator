@@ -2700,27 +2700,52 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                     <span style="font-size:0.8rem;color:#999;">▼</span>`;
             }
 
-            // Update accordion body with fresh results
+            // Update accordion body with fresh results (content-type aware)
             if (body) {
                 const allClear = status.includes('Approved');
+                const isQBank = contentType === 'qbank';
                 body.innerHTML = `
                     <div style="background:${allClear ? '#d4edda' : '#fff3cd'};border:1px solid ${allClear ? '#c3e6cb' : '#ffc107'};border-radius:6px;padding:0.75rem;margin-bottom:0.75rem;">
                         <strong style="color:${allClear ? '#155724' : '#856404'};">${allClear ? '✅ Re-validated — Approved after fix' : '⚠️ Re-validated — still needs attention'}</strong>
                     </div>
+
+                    <!-- Score row -->
                     <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.9rem;">
-                        <div>✅ <strong>Validator:</strong> <span class="validation-score ${getScoreClass(v.overall_accuracy_score||0)}" style="font-size:0.8rem;">${v.overall_accuracy_score??'N/A'}/10</span></div>
-                        <div>⚔️ <strong>Adversarial:</strong> <span class="validation-score ${getScoreClass(10-(a.adversarial_score||0))}" style="font-size:0.8rem;">${a.adversarial_score??'N/A'}/10</span></div>
+                        <div>✅ <strong>Validator:</strong>
+                            <span class="validation-score ${getScoreClass(v.overall_accuracy_score||0)}" style="font-size:0.8rem;">${v.overall_accuracy_score??'N/A'}/10</span>
+                        </div>
+                        ${isQBank ? `<div>Answer verified: <strong>${v.correct_answer_verified ? 'Yes ✅' : 'No ❌'}</strong></div>` : ''}
+                        <div>⚔️ <strong>Adversarial:</strong>
+                            <span class="validation-score ${getScoreClass(10-(a.adversarial_score||0))}" style="font-size:0.8rem;">${a.adversarial_score??'N/A'}/10</span>
+                            &nbsp;<em style="font-size:0.8rem;color:#666;">${a.breakability_rating||''}</em>
+                        </div>
                         <div>Needs revision: <strong>${oa.needs_revision ? 'Yes ❌' : 'No ✅'}</strong></div>
                     </div>
-                    <p><strong>Validator:</strong> ${v.summary || 'N/A'}</p>
-                    ${v.factual_errors?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">⚠️ Remaining Factual Errors</h4>${formatList(v.factual_errors)}` : ''}
-                    ${v.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
+
+                    <!-- Validator -->
+                    <p style="margin-bottom:0.5rem;"><strong>Validator Summary:</strong> ${v.summary||'N/A'}</p>
+                    ${v.factual_errors?.length       ? `<h4 style="color:#dc3545;margin-top:0.5rem;">⚠️ Remaining Factual Errors</h4>${formatList(v.factual_errors)}` : ''}
+                    ${v.missing_critical_info?.length? `<h4 style="color:#ffc107;margin-top:0.5rem;">📌 Missing Critical Info</h4>${formatList(v.missing_critical_info)}` : ''}
+                    ${v.safety_concerns?.length      ? `<h4 style="color:#dc3545;margin-top:0.5rem;">🚨 Safety Concerns</h4>${formatList(v.safety_concerns)}` : ''}
+                    ${v.clarity_issues?.length       ? `<h4 style="color:#17a2b8;margin-top:0.5rem;">💭 Clarity Issues</h4>${formatList(v.clarity_issues)}` : ''}
+                    ${!isQBank && v.learning_gaps?.length      ? `<h4 style="color:#e83e8c;margin-top:0.5rem;">🧠 Learning Gaps</h4>${formatList(v.learning_gaps)}` : ''}
+                    ${!isQBank && v.missing_high_yield?.length ? `<h4 style="color:#fd7e14;margin-top:0.5rem;">⭐ Missing High-Yield</h4>${formatList(v.missing_high_yield)}` : ''}
+                    ${isQBank && v.distractor_issues?.length   ? `<h4 style="color:#ffc107;margin-top:0.5rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
+                    ${isQBank && v.vignette_issues?.length     ? `<h4 style="color:#ffc107;margin-top:0.5rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
+                    ${isQBank && v.explanation_issues?.length  ? `<h4 style="color:#ffc107;margin-top:0.5rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
+                    ${v.recommendations?.length      ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
+
+                    <!-- Adversarial -->
                     <hr style="margin:0.75rem 0;border-color:#e0e0e0;">
-                    <p><strong>Adversarial:</strong> ${a.summary || 'N/A'}</p>
+                    <p style="margin-bottom:0.5rem;"><strong>Adversarial Summary:</strong> ${a.summary||'N/A'}</p>
                     ${a.identified_weaknesses?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">🔍 Remaining Weaknesses</h4>${formatList(a.identified_weaknesses)}` : ''}
-                    ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
+                    ${a.ambiguities?.length           ? `<h4 style="color:#ffc107;margin-top:0.5rem;">❓ Ambiguities</h4>${formatList(a.ambiguities)}` : ''}
+                    ${isQBank && a.alternative_answers?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">🔀 Alternative Defensible Answers</h4>${formatList(a.alternative_answers)}` : ''}
+                    ${a.safety_risks?.length          ? `<h4 style="color:#dc3545;margin-top:0.5rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
+                    ${a.recommendations?.length       ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
+
                     <div style="margin-top:0.75rem;padding:0.6rem;background:#f8f9fa;border-radius:4px;font-size:0.9rem;">
-                        <strong>Assessment:</strong> ${oa.recommendation || 'N/A'}
+                        <strong>Assessment:</strong> ${oa.recommendation||'N/A'}
                     </div>`;
                 body.style.display = 'block';
             }
