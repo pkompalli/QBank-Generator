@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from anthropic import Anthropic
-from openai import OpenAI
+from openai import AzureOpenAI
 from dotenv import load_dotenv
 from google import genai
 from PIL import Image
@@ -56,17 +56,24 @@ NEET_EXAMPLES, USMLE_EXAMPLES = load_examples()
 # Initialize Anthropic client (generation)
 client = Anthropic()
 
-# Initialize OpenAI client (validation)
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+# Initialize Azure OpenAI client (validation)
+AZURE_OPENAI_API_KEY    = os.environ.get('AZURE_OPENAI_API_KEY')
+AZURE_OPENAI_ENDPOINT   = os.environ.get('AZURE_OPENAI_ENDPOINT')        # e.g. https://YOUR-RESOURCE.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
+AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-08-01-preview')
 openai_client = None
-if OPENAI_API_KEY:
+if AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT:
     try:
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("OpenAI API initialized for validation")
+        openai_client = AzureOpenAI(
+            api_key=AZURE_OPENAI_API_KEY,
+            azure_endpoint=AZURE_OPENAI_ENDPOINT,
+            api_version=AZURE_OPENAI_API_VERSION,
+        )
+        logger.info(f"Azure OpenAI initialized (deployment={AZURE_OPENAI_DEPLOYMENT}) for validation")
     except Exception as e:
-        logger.warning(f"Failed to initialize OpenAI API: {e}")
+        logger.warning(f"Failed to initialize Azure OpenAI: {e}")
 else:
-    logger.warning("OPENAI_API_KEY not set — validator will fall back to Claude")
+    logger.warning("AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT not set — validator will fall back to Claude")
 
 # Initialize Gemini client for image generation
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
@@ -4115,7 +4122,7 @@ Tags: {', '.join(q.get('tags', []))}
                     else:
                         oai_content = content
                     resp = openai_client.chat.completions.create(
-                        model="gpt-4o",
+                        model=AZURE_OPENAI_DEPLOYMENT,
                         max_tokens=8000,
                         temperature=temperature,
                         messages=[{"role": "user", "content": oai_content}]
