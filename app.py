@@ -3937,6 +3937,97 @@ def _extract_json_array(text, expected_count):
     return []
 
 
+@app.route('/api/fix-content', methods=['POST'])
+def fix_content():
+    """
+    Fix selected validation items using Claude.
+    Reads original content + aggregated issues + recommendations, rewrites to address them.
+    All items are fixed in parallel.
+    """
+    data = request.json
+    content_type  = data.get('content_type', 'lesson')   # 'lesson' | 'qbank'
+    items_to_fix  = data.get('items', [])
+    course        = data.get('course', '')
+
+    if not items_to_fix:
+        return jsonify({'error': 'No items to fix'}), 400
+
+    def fix_one(item):
+        idx             = item.get('index', 0)
+        content         = item.get('content', '')
+        title           = item.get('title', f'Item {idx}')
+        issues          = item.get('issues', [])
+        recommendations = item.get('recommendations', [])
+
+        issues_text = '\n'.join(f'  • {i}' for i in issues) if issues else '  (none specified)'
+        recs_text   = '\n'.join(f'  • {r}' for r in recommendations) if recommendations else '  (none specified)'
+
+        if content_type == 'lesson':
+            prompt = f"""You are a medical education content editor. Revise the lesson section below to fix every identified issue.
+
+SECTION: {title}
+COURSE: {course}
+
+─── ORIGINAL CONTENT ───
+{content}
+
+─── IDENTIFIED ISSUES ───
+{issues_text}
+
+─── RECOMMENDATIONS ───
+{recs_text}
+
+INSTRUCTIONS:
+- Fix EVERY issue and implement EVERY recommendation listed above
+- Preserve the existing structure (### headers, clinical pearls, mnemonics, tables, flowcharts)
+- Maintain the progressive learning flow and approximate length
+- Do NOT add a preamble or closing note — return ONLY the revised markdown content"""
+        else:
+            prompt = f"""You are a medical education question editor. Fix the MCQ below based on the identified issues.
+
+COURSE: {course}
+
+─── ORIGINAL QUESTION (JSON) ───
+{content}
+
+─── IDENTIFIED ISSUES ───
+{issues_text}
+
+─── RECOMMENDATIONS ───
+{recs_text}
+
+INSTRUCTIONS:
+- Fix EVERY issue and implement EVERY recommendation listed above
+- Keep the same JSON structure/fields as the original
+- Return ONLY a valid JSON object, no preamble or explanation"""
+
+        msg = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        fixed = msg.content[0].text.strip()
+
+        # Strip markdown fences if model wraps in ```
+        if content_type == 'qbank':
+            if '```json' in fixed:
+                fixed = fixed.split('```json')[1].split('```')[0].strip()
+            elif '```' in fixed:
+                fixed = fixed.split('```')[1].split('```')[0].strip()
+
+        return {'index': idx, 'fixed_content': fixed, 'title': title}
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor as _FTP
+        with _FTP(max_workers=len(items_to_fix)) as pool:
+            fixed_items = list(pool.map(fix_one, items_to_fix))
+        logger.info(f"Fixed {len(fixed_items)} item(s) via /api/fix-content")
+        return jsonify({'success': True, 'fixed_items': fixed_items})
+    except Exception as e:
+        logger.error(f"fix_content error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/validate-content', methods=['POST'])
 def validate_content():
     """

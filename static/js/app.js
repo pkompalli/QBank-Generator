@@ -39,6 +39,11 @@ const attachedStructureFile = document.getElementById('attached-structure-file')
 let generatedQuestions = [];
 let courseStructure = null; // Shared structure for both Lessons and QBank tabs
 let attachedFile = null;
+let _validationState = null; // Stores report + original content for Fix Selected
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // Update Bloom's level distribution display
 function updateBloomDistribution() {
@@ -2200,19 +2205,22 @@ function showResultTab(tabName) {
 // Flatten lessons: topic lesson + each chapter become individual sections
 function flattenLessonsToSections(lessons) {
     const sections = [];
-    for (const lesson of lessons) {
+    const sectionMap = []; // parallel array: sectionMap[i] → {lessonIndex, type, chapterIndex?}
+    lessons.forEach((lesson, li) => {
         if (lesson.topic_lesson) {
             sections.push({ topic: lesson.topic, topic_lesson: lesson.topic_lesson, chapters: [] });
+            sectionMap.push({ lessonIndex: li, type: 'topic' });
         }
         if (lesson.chapters && lesson.chapters.length > 0) {
-            for (const ch of lesson.chapters) {
+            lesson.chapters.forEach((ch, ci) => {
                 if (ch.lesson) {
                     sections.push({ topic: ch.chapter, topic_lesson: ch.lesson, chapters: [] });
+                    sectionMap.push({ lessonIndex: li, chapterIndex: ci, type: 'chapter' });
                 }
-            }
+            });
         }
-    }
-    return sections;
+    });
+    return { sections, sectionMap };
 }
 
 const validateLessonsBtn = document.getElementById('validate-lessons-btn');
@@ -2225,8 +2233,9 @@ if (validateLessonsBtn) {
 
         const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
-        const sections = flattenLessonsToSections(lessonsData.lessons);
+        const { sections, sectionMap } = flattenLessonsToSections(lessonsData.lessons);
         const count = sections.length;
+        _validationState = { contentType: 'lesson', originalItems: sections, sectionMap, course: lessonsData.course || 'Unknown' };
 
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
@@ -2276,6 +2285,7 @@ if (validateQBankBtn) {
         const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
         const count = generatedQuestions.length;
+        _validationState = { contentType: 'qbank', originalItems: [...generatedQuestions], sectionMap: null, course: courseStructure?.Course || 'Unknown' };
 
         reportContent.innerHTML = `
             <div class="loading-spinner"></div>
@@ -2335,6 +2345,9 @@ function displayBatchValidationReport(report, contentType) {
         return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.85rem;">${s}</span>`;
     };
 
+    // Store report in validation state for fix
+    if (_validationState) _validationState.report = report;
+
     // ---- Summary bar ----
     const structuralCount = summary.structural_failures || 0;
     const summaryHtml = `
@@ -2352,6 +2365,16 @@ function displayBatchValidationReport(report, contentType) {
                 Domain: ${report.domain || 'N/A'} &nbsp;|&nbsp;
                 Validated: ${new Date(report.timestamp).toLocaleString()}
             </p>
+            <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;user-select:none;">
+                    <input type="checkbox" id="select-all-fixes" onchange="toggleSelectAllFixes(this)" style="width:16px;height:16px;cursor:pointer;">
+                    <span>Select All</span>
+                </label>
+                <button id="fix-selected-btn" onclick="fixSelectedItems()" disabled
+                    style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:6px;padding:0.5rem 1.5rem;cursor:pointer;font-size:0.9rem;font-weight:600;opacity:0.45;transition:opacity 0.2s;">
+                    🔧 Fix Selected (0)
+                </button>
+            </div>
         </div>
     `;
 
@@ -2377,17 +2400,24 @@ function displayBatchValidationReport(report, contentType) {
 
         return `
         <div class="val-accordion" style="border:1px solid ${isStructural ? '#f5c6cb' : '#e0e0e0'};border-radius:8px;margin-bottom:0.75rem;overflow:hidden;">
-            <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
-                style="width:100%;text-align:left;padding:0.9rem 1rem;background:${headerBg};border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
-                <span style="font-weight:600;">${headerTitle}</span>
-                <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
-                    ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Structural Failure</span>' : statusBadge(oa)}
-                    <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">
-                        ${oa.quality_score || 'N/A'}/10
+            <div style="display:flex;align-items:stretch;background:${headerBg};">
+                <label style="display:flex;align-items:center;padding:0 0.85rem;cursor:pointer;border-right:1px solid ${isStructural ? '#f5c6cb' : '#e0e0e0'};"
+                       onclick="event.stopPropagation()" title="Select for fixing">
+                    <input type="checkbox" class="fix-checkbox" data-index="${num}"
+                           onchange="updateFixButtonCount()" style="width:16px;height:16px;cursor:pointer;">
+                </label>
+                <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
+                    style="flex:1;text-align:left;padding:0.9rem 1rem;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
+                    <span style="font-weight:600;">${headerTitle}</span>
+                    <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
+                        ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Structural Failure</span>' : statusBadge(oa)}
+                        <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">
+                            ${oa.quality_score || 'N/A'}/10
+                        </span>
+                        <span style="font-size:0.8rem;color:#999;">▼</span>
                     </span>
-                    <span style="font-size:0.8rem;color:#999;">▼</span>
-                </span>
-            </button>
+                </button>
+            </div>
             <div id="${accordionId}" style="display:none;padding:1rem 1.25rem;border-top:1px solid #e0e0e0;">
 
                 <!-- Score row -->
@@ -2458,6 +2488,161 @@ function toggleValAccordion(id) {
 }
 
 // ============================================================
+// FIX SELECTED — checkbox helpers + fix dispatch
+// ============================================================
+
+function updateFixButtonCount() {
+    const checked = document.querySelectorAll('.fix-checkbox:checked').length;
+    const btn = document.getElementById('fix-selected-btn');
+    const selectAll = document.getElementById('select-all-fixes');
+    if (!btn) return;
+    btn.textContent = `🔧 Fix Selected (${checked})`;
+    btn.disabled = checked === 0;
+    btn.style.opacity = checked === 0 ? '0.45' : '1';
+    btn.style.cursor = checked === 0 ? 'not-allowed' : 'pointer';
+    // Sync select-all state
+    if (selectAll) {
+        const total = document.querySelectorAll('.fix-checkbox').length;
+        selectAll.indeterminate = checked > 0 && checked < total;
+        selectAll.checked = total > 0 && checked === total;
+    }
+}
+
+function toggleSelectAllFixes(selectAllCb) {
+    document.querySelectorAll('.fix-checkbox').forEach(cb => { cb.checked = selectAllCb.checked; });
+    updateFixButtonCount();
+}
+
+async function fixSelectedItems() {
+    if (!_validationState) return;
+    const checkboxes = [...document.querySelectorAll('.fix-checkbox:checked')];
+    if (checkboxes.length === 0) return;
+
+    const { contentType, originalItems, sectionMap, report, course } = _validationState;
+    const reportItems = (report && report.items) ? report.items : [];
+
+    const toFix = checkboxes.map(cb => {
+        const num = parseInt(cb.dataset.index); // 1-based
+        const reportItem = reportItems.find(i => (i.index ?? (reportItems.indexOf(i) + 1)) === num) || {};
+        const origItem = originalItems[num - 1];
+
+        let content = '', title = '';
+        if (contentType === 'lesson') {
+            content = origItem?.topic_lesson || '';
+            title = origItem?.topic || `Section ${num}`;
+        } else {
+            content = JSON.stringify(origItem || {}, null, 2);
+            title = (origItem?.question || `Question ${num}`).substring(0, 80);
+        }
+
+        const v = reportItem.validator || {};
+        const a = reportItem.adversarial || {};
+        const oa = reportItem.overall_assessment || {};
+
+        const issues = [
+            ...(v.factual_errors || []), ...(v.missing_critical_info || []),
+            ...(v.safety_concerns || []), ...(v.clarity_issues || []),
+            ...(v.learning_gaps || []), ...(v.missing_high_yield || []),
+            ...(v.missing_pitfalls || []), ...(v.distractor_issues || []),
+            ...(v.vignette_issues || []), ...(v.explanation_issues || []),
+            ...(a.identified_weaknesses || []), ...(a.ambiguities || []),
+            ...(a.safety_risks || []), ...(a.logical_gaps || []),
+        ].filter(Boolean);
+
+        const recommendations = [
+            ...(v.recommendations || []),
+            ...(a.recommendations || []),
+            ...(oa.recommendation ? [oa.recommendation] : []),
+        ].filter(Boolean);
+
+        return { index: num, content, title, issues, recommendations };
+    });
+
+    const btn = document.getElementById('fix-selected-btn');
+    btn.disabled = true;
+    btn.textContent = `⏳ Fixing ${toFix.length} item(s)…`;
+
+    try {
+        const resp = await fetch('/api/fix-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content_type: contentType, items: toFix, course })
+        });
+        const result = await resp.json();
+        if (!result.success) throw new Error(result.error || 'Fix failed');
+
+        applyFixes(result.fixed_items, contentType);
+        showToast(`✅ Fixed ${result.fixed_items.length} item(s) — content updated`, 'success');
+
+        // Uncheck fixed items
+        toFix.forEach(({ index }) => {
+            const cb = document.querySelector(`.fix-checkbox[data-index="${index}"]`);
+            if (cb) cb.checked = false;
+        });
+        updateFixButtonCount();
+    } catch (e) {
+        showToast('Fix failed: ' + e.message, 'error');
+        btn.disabled = false;
+        updateFixButtonCount();
+    }
+}
+
+function applyFixes(fixedItems, contentType) {
+    const { sectionMap } = _validationState || {};
+
+    for (const { index, fixed_content, title } of fixedItems) {
+        // 1. Update in-memory data
+        if (contentType === 'lesson') {
+            const map = sectionMap ? sectionMap[index - 1] : null;
+            if (map && lessonsData && lessonsData.lessons) {
+                if (map.type === 'topic') {
+                    lessonsData.lessons[map.lessonIndex].topic_lesson = fixed_content;
+                } else {
+                    lessonsData.lessons[map.lessonIndex].chapters[map.chapterIndex].lesson = fixed_content;
+                }
+            }
+            // Also update validationState originalItems so re-fix uses latest
+            if (_validationState.originalItems[index - 1]) {
+                _validationState.originalItems[index - 1].topic_lesson = fixed_content;
+            }
+        } else {
+            try {
+                const parsed = JSON.parse(fixed_content);
+                generatedQuestions[index - 1] = parsed;
+                if (_validationState.originalItems[index - 1]) {
+                    _validationState.originalItems[index - 1] = parsed;
+                }
+            } catch (e) { /* keep original if JSON parse fails */ }
+        }
+
+        // 2. Update the accordion body with fixed content preview
+        const accordionId = `val-item-${index}`;
+        const body = document.getElementById(accordionId);
+        if (body) {
+            const preview = contentType === 'lesson'
+                ? `<pre style="margin-top:0.75rem;font-size:0.82rem;white-space:pre-wrap;max-height:350px;overflow-y:auto;background:#f8f9fa;padding:0.75rem;border-radius:4px;">${escapeHtml(fixed_content)}</pre>`
+                : `<pre style="margin-top:0.75rem;font-size:0.82rem;white-space:pre-wrap;max-height:350px;overflow-y:auto;background:#f8f9fa;padding:0.75rem;border-radius:4px;">${escapeHtml(fixed_content)}</pre>`;
+            body.innerHTML = `
+                <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:1rem;">
+                    <strong style="color:#155724;">✅ Fixed — "${escapeHtml(title)}" updated in memory</strong>
+                    <p style="font-size:0.82rem;color:#155724;margin:0.25rem 0 0.5rem;">Download/export to save the updated content.</p>
+                    ${preview}
+                </div>`;
+            body.style.display = 'block';
+        }
+
+        // 3. Update header badge to show fixed
+        const header = document.querySelector(`[onclick="toggleValAccordion('${accordionId}')"]`);
+        if (header) {
+            const badgeSpan = header.querySelector('span > span:first-child');
+            if (badgeSpan) {
+                badgeSpan.innerHTML = '<span style="background:#28a745;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Fixed</span>';
+            }
+        }
+    }
+}
+
+// ============================================================
 // UPLOAD & VALIDATE — parse an uploaded JSON or MD file
 // ============================================================
 
@@ -2466,7 +2651,14 @@ async function runUploadValidation(items, contentType, course) {
     const reportContent = document.getElementById('validation-report-content');
 
     // For lessons, flatten topic + chapters into individual sections
-    const sendItems = (contentType === 'lesson') ? flattenLessonsToSections(items) : items;
+    let sendItems = items;
+    let sectionMap = null;
+    if (contentType === 'lesson') {
+        const flat = flattenLessonsToSections(items);
+        sendItems = flat.sections;
+        sectionMap = flat.sectionMap;
+    }
+    _validationState = { contentType, originalItems: sendItems, sectionMap, course };
 
     reportContent.innerHTML = `
         <div class="loading-spinner"></div>
