@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from anthropic import Anthropic
+from openai import OpenAI
 from dotenv import load_dotenv
 from google import genai
 from PIL import Image
@@ -52,8 +53,20 @@ def load_examples():
 NEET_DATA, USMLE_DATA = load_subjects_data()
 NEET_EXAMPLES, USMLE_EXAMPLES = load_examples()
 
-# Initialize Anthropic client
+# Initialize Anthropic client (generation)
 client = Anthropic()
+
+# Initialize OpenAI client (validation)
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+openai_client = None
+if OPENAI_API_KEY:
+    try:
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        logger.info("OpenAI API initialized for validation")
+    except Exception as e:
+        logger.warning(f"Failed to initialize OpenAI API: {e}")
+else:
+    logger.warning("OPENAI_API_KEY not set — validator will fall back to Claude")
 
 # Initialize Gemini client for image generation
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
@@ -4082,14 +4095,70 @@ Tags: {', '.join(q.get('tags', []))}
                 else:
                     return f"{prompt_text}\n\nContent to validate:\n{payload}"
 
-            def _call_agent(prompt, payload, temperature, label):
-                response = client.messages.create(
-                    model="claude-sonnet-4-5-20250929",
-                    max_tokens=8000,
-                    temperature=temperature,
-                    messages=[{"role": "user", "content": _make_user_content(prompt, payload)}]
-                )
-                return response.content[0].text.strip()
+            def _call_validator(prompt, payload, temperature):
+                """OpenAI GPT-4o — validator agent."""
+                content = _make_user_content(prompt, payload)
+                if openai_client:
+                    # Convert Anthropic-style content list to OpenAI format if needed
+                    if isinstance(content, list):
+                        oai_content = []
+                        for block in content:
+                            if block.get('type') == 'text':
+                                oai_content.append({"type": "text", "text": block['text']})
+                            elif block.get('type') == 'image':
+                                src = block.get('source', {})
+                                if src.get('type') == 'base64':
+                                    oai_content.append({
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:{src['media_type']};base64,{src['data']}"}
+                                    })
+                    else:
+                        oai_content = content
+                    resp = openai_client.chat.completions.create(
+                        model="gpt-4o",
+                        max_tokens=8000,
+                        temperature=temperature,
+                        messages=[{"role": "user", "content": oai_content}]
+                    )
+                    return resp.choices[0].message.content.strip()
+                else:
+                    # Fallback to Claude if OpenAI key not set
+                    resp = client.messages.create(
+                        model="claude-sonnet-4-5-20250929",
+                        max_tokens=8000,
+                        temperature=temperature,
+                        messages=[{"role": "user", "content": content}]
+                    )
+                    return resp.content[0].text.strip()
+
+            def _call_adversarial(prompt, payload, temperature):
+                """Gemini 2.0 Flash — adversarial agent."""
+                content = _make_user_content(prompt, payload)
+                if gemini_client:
+                    # Build a single text string for Gemini
+                    if isinstance(content, list):
+                        text_parts = [b['text'] for b in content if b.get('type') == 'text']
+                        full_text = "\n".join(text_parts)
+                    else:
+                        full_text = content
+                    resp = gemini_client.models.generate_content(
+                        model='gemini-2.0-flash',
+                        contents=full_text,
+                        config=genai.types.GenerateContentConfig(
+                            temperature=temperature,
+                            max_output_tokens=8000,
+                        )
+                    )
+                    return resp.text.strip()
+                else:
+                    # Fallback to Claude if Gemini not available
+                    resp = client.messages.create(
+                        model="claude-sonnet-4-5-20250929",
+                        max_tokens=8000,
+                        temperature=temperature,
+                        messages=[{"role": "user", "content": content}]
+                    )
+                    return resp.content[0].text.strip()
 
             validator_prompt = get_batch_validator_prompt(content_type, domain)
             adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)
@@ -4116,16 +4185,16 @@ Tags: {', '.join(q.get('tags', []))}
 
             def _run_validator_batch(b_start, b_end, batch_count, payload):
                 batch_num = b_start // BATCH_SIZE + 1
-                logger.info(f"      [V{batch_num}] Validator sections {b_start+1}–{b_end}...")
-                text = _call_agent(validator_prompt, payload, 0.3, 'validator')
+                logger.info(f"      [V{batch_num}] Validator (OpenAI GPT-4o) sections {b_start+1}–{b_end}...")
+                text = _call_validator(validator_prompt, payload, 0.3)
                 results = _extract_json_array(text, batch_count)[:batch_count]
                 logger.info(f"      [V{batch_num}] → Parsed {len(results)}/{batch_count}")
                 return 'validator', b_start, b_end, results
 
             def _run_adversarial_batch(b_start, b_end, batch_count, payload):
                 batch_num = b_start // BATCH_SIZE + 1
-                logger.info(f"      [A{batch_num}] Adversarial sections {b_start+1}–{b_end}...")
-                text = _call_agent(adversarial_prompt, payload, 0.5, 'adversarial')
+                logger.info(f"      [A{batch_num}] Adversarial (Gemini 2.0 Flash) sections {b_start+1}–{b_end}...")
+                text = _call_adversarial(adversarial_prompt, payload, 0.5)
                 results = _extract_json_array(text, batch_count)[:batch_count]
                 logger.info(f"      [A{batch_num}] → Parsed {len(results)}/{batch_count}")
                 return 'adversarial', b_start, b_end, results
