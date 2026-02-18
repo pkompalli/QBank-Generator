@@ -3970,13 +3970,15 @@ def _extract_json_array(text, expected_count):
 def fix_content():
     """
     Fix selected validation items using Claude.
-    Reads original content + aggregated issues + recommendations, rewrites to address them.
+    Reads original content + aggregated issues + recommendations + missing_images,
+    rewrites to address them, then fetches/embeds real images where needed.
     All items are fixed in parallel.
     """
     data = request.json
     content_type  = data.get('content_type', 'lesson')   # 'lesson' | 'qbank'
     items_to_fix  = data.get('items', [])
     course        = data.get('course', '')
+    subject       = data.get('subject', '')
 
     if not items_to_fix:
         return jsonify({'error': 'No items to fix'}), 400
@@ -3987,11 +3989,28 @@ def fix_content():
         title           = item.get('title', f'Item {idx}')
         issues          = item.get('issues', [])
         recommendations = item.get('recommendations', [])
+        missing_images  = item.get('missing_images', [])
+        topic           = item.get('topic', title)
 
         issues_text = '\n'.join(f'  • {i}' for i in issues) if issues else '  (none specified)'
         recs_text   = '\n'.join(f'  • {r}' for r in recommendations) if recommendations else '  (none specified)'
 
         if content_type == 'lesson':
+            missing_img_text = ''
+            if missing_images:
+                missing_img_text = f"""
+─── MISSING IMAGES TO ADD ───
+{chr(10).join(f"  • {img}" for img in missing_images)}
+
+IMAGE INSERTION RULES:
+- For each missing image listed above, insert a placeholder at the most educationally appropriate position
+- Use EXACTLY this format (no deviations): **Figure N: [Image: <concise specific description>]**
+  where N is a sequential number starting after any existing figures
+- The description must be SPECIFIC and SEARCHABLE (e.g. "ECG strip showing atrial fibrillation with irregularly irregular rhythm"
+  NOT "ECG of the arrhythmia" — be precise enough that a medical image search would find it)
+- Only insert images that are concrete, searchable medical images (ECGs, X-rays, histology slides,
+  clinical photos, etc.); do NOT add placeholders for flowcharts, diagrams, or conceptual illustrations
+"""
             prompt = f"""You are a medical education content editor. Revise the lesson section below to fix every identified issue.
 
 SECTION: {title}
@@ -4005,13 +4024,30 @@ COURSE: {course}
 
 ─── RECOMMENDATIONS ───
 {recs_text}
-
+{missing_img_text}
 INSTRUCTIONS:
 - Fix EVERY issue and implement EVERY recommendation listed above
 - Preserve the existing structure (### headers, clinical pearls, mnemonics, tables, flowcharts)
 - Maintain the progressive learning flow and approximate length
 - Do NOT add a preamble or closing note — return ONLY the revised markdown content"""
+
         else:
+            missing_img_text = ''
+            if missing_images:
+                missing_img_text = f"""
+─── MISSING / WRONG IMAGES ───
+{chr(10).join(f"  • {img}" for img in missing_images)}
+
+IMAGE FIX RULES:
+- If an image is needed, set "requires_image": true in the JSON
+- Set "image_type" to the exact imaging modality (e.g. "ECG", "Chest X-ray", "Histology slide",
+  "Dermatoscopy image", "CT abdomen", "MRI brain" — be specific)
+- Set "image_description" to a precise description of what the image should show
+- Set "image_search_terms" to 3 specific search queries that would find this image on Wikimedia
+  (e.g. ["atrial fibrillation ECG strip", "AF irregularly irregular rhythm ECG", "ECG atrial fibrillation example"])
+- If the question references an image but the scenario doesn't need one, remove the image reference
+  from the question text and set "requires_image": false
+"""
             prompt = f"""You are a medical education question editor. Fix the MCQ below based on the identified issues.
 
 COURSE: {course}
@@ -4024,7 +4060,7 @@ COURSE: {course}
 
 ─── RECOMMENDATIONS ───
 {recs_text}
-
+{missing_img_text}
 INSTRUCTIONS:
 - Fix EVERY issue and implement EVERY recommendation listed above
 - Keep the same JSON structure/fields as the original
@@ -4037,12 +4073,36 @@ INSTRUCTIONS:
         )
         fixed = msg.content[0].text.strip()
 
-        # Strip markdown fences if model wraps in ```
+        # ── Post-process based on content type ──────────────────────────────────
         if content_type == 'qbank':
+            # Strip markdown fences if model wraps in ```
             if '```json' in fixed:
                 fixed = fixed.split('```json')[1].split('```')[0].strip()
             elif '```' in fixed:
                 fixed = fixed.split('```')[1].split('```')[0].strip()
+
+            # If the fixed question now requires an image but has no URL, fetch one
+            try:
+                q_obj = json.loads(fixed)
+                if q_obj.get('requires_image') and not q_obj.get('image_url'):
+                    logger.info(f"  [fix] Fetching image for Q{idx}: {q_obj.get('image_description','')}")
+                    result = search_and_validate_image(q_obj, subject or course)
+                    if result:
+                        q_obj['image_url']    = result['url']
+                        q_obj['image_source'] = result.get('source', '')
+                        q_obj['image_title']  = result.get('title', '')
+                        logger.info(f"  [fix] Image found for Q{idx}")
+                    else:
+                        logger.warning(f"  [fix] No image found for Q{idx}")
+                fixed = json.dumps(q_obj, ensure_ascii=False)
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(f"  [fix] QBank image fetch skipped: {e}")
+
+        else:  # lesson
+            # If the Claude-rewritten content contains Figure placeholders, fetch real images
+            if '**Figure' in fixed and '[Image:' in fixed:
+                logger.info(f"  [fix] Integrating images into lesson section '{title}'")
+                fixed = integrate_images_into_lesson(fixed, subject or course, topic)
 
         return {'index': idx, 'fixed_content': fixed, 'title': title}
 

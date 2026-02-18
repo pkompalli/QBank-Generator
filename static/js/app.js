@@ -2547,8 +2547,10 @@ async function fixSelectedItems() {
             ...(v.learning_gaps || []), ...(v.missing_high_yield || []),
             ...(v.missing_pitfalls || []), ...(v.distractor_issues || []),
             ...(v.vignette_issues || []), ...(v.explanation_issues || []),
+            ...(v.asset_issues || []),
             ...(a.identified_weaknesses || []), ...(a.ambiguities || []),
             ...(a.safety_risks || []), ...(a.logical_gaps || []),
+            ...(a.asset_issues || []),
         ].filter(Boolean);
 
         const recommendations = [
@@ -2557,7 +2559,17 @@ async function fixSelectedItems() {
             ...(oa.recommendation ? [oa.recommendation] : []),
         ].filter(Boolean);
 
-        return { index: num, content, title, issues, recommendations };
+        // Collect missing images from both validator and adversarial (deduplicated)
+        const missingImagesSet = new Set([
+            ...(v.missing_images || []),
+            ...(a.missing_images || []),
+        ]);
+        const missing_images = [...missingImagesSet].filter(Boolean);
+
+        return {
+            index: num, content, title, issues, recommendations, missing_images,
+            topic: origItem?.topic || title
+        };
     });
 
     const btn = document.getElementById('fix-selected-btn');
@@ -2568,7 +2580,12 @@ async function fixSelectedItems() {
         const resp = await fetch('/api/fix-content', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content_type: contentType, items: toFix, course })
+            body: JSON.stringify({
+                content_type: contentType,
+                items: toFix,
+                course,
+                subject: lessonsData?.subject || courseStructure?.Subject || ''
+            })
         });
         const result = await resp.json();
         if (!result.success) throw new Error(result.error || 'Fix failed');
