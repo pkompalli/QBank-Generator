@@ -1252,6 +1252,32 @@ main {
     display: block;
 }
 
+/* Fix-changed diff highlight — marks blocks that were altered by the Fix action */
+.fix-changed {
+    background: #fffde7;
+    border-left: 3px solid #f9a825;
+    padding-left: 0.6rem;
+    border-radius: 0 4px 4px 0;
+    position: relative;
+}
+.fix-changed::before {
+    content: '✏️';
+    position: absolute;
+    left: -1.4rem;
+    top: 0.1rem;
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+/* Image blocks added by Fix get a distinct teal border */
+.fix-changed.fix-image-added {
+    background: #e8f5e9;
+    border-left-color: #43a047;
+}
+.fix-changed.fix-image-added::before {
+    content: '🖼️';
+}
+
 /* Highlight Boxes */
 .highlight-box {
     padding: 1.2rem;

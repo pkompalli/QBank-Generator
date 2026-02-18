@@ -2613,6 +2613,33 @@ async function fixSelectedItems() {
     }
 }
 
+// Diff two rendered HTML strings at block level — returns new HTML with .fix-changed on altered blocks
+function _diffHtmlBlocks(oldHtml, newHtml) {
+    const scratch = document.createElement('div');
+
+    scratch.innerHTML = oldHtml || '';
+    const oldTexts = new Set(
+        [...scratch.children].map(el => el.textContent.trim()).filter(Boolean)
+    );
+    const oldImgSrcs = new Set(
+        [...scratch.querySelectorAll('img')].map(img => img.src)
+    );
+
+    scratch.innerHTML = newHtml || '';
+    for (const el of scratch.children) {
+        const text = el.textContent.trim();
+        if (!text) continue;
+        const imgs = [...el.querySelectorAll('img')];
+        const hasNewImg = imgs.some(img => !oldImgSrcs.has(img.src));
+        if (hasNewImg) {
+            el.classList.add('fix-changed', 'fix-image-added');
+        } else if (!oldTexts.has(text)) {
+            el.classList.add('fix-changed');
+        }
+    }
+    return scratch.innerHTML;
+}
+
 function applyFixes(fixedItems, contentType) {
     const { sectionMap } = _validationState || {};
 
@@ -2647,28 +2674,38 @@ function applyFixes(fixedItems, contentType) {
             } catch (e) { /* keep original if JSON fails */ }
         }
 
-        // 2. Refresh the live lesson/question DOM so user sees updated content immediately
+        // 2. Refresh the live lesson/question DOM, highlighting what changed
         if (contentType === 'lesson') {
             const map = sectionMap ? sectionMap[index - 1] : null;
             if (map) {
+                let el, newHtml;
                 if (map.type === 'topic') {
-                    const el = document.querySelector(`#topic-${map.lessonIndex}-topic .lesson-text`);
-                    if (el) el.innerHTML = formatLessonContent(
+                    el = document.querySelector(`#topic-${map.lessonIndex}-topic .lesson-text`);
+                    newHtml = formatLessonContent(
                         fixed_content,
                         lessonsData?.lessons?.[map.lessonIndex]?.chapters,
                         `topic-${map.lessonIndex}`
                     );
                 } else {
-                    const el = document.querySelector(`#topic-${map.lessonIndex}-chapter-${map.chapterIndex} .lesson-text`);
-                    if (el) el.innerHTML = formatLessonContent(fixed_content);
+                    el = document.querySelector(`#topic-${map.lessonIndex}-chapter-${map.chapterIndex} .lesson-text`);
+                    newHtml = formatLessonContent(fixed_content);
+                }
+                if (el) {
+                    el.innerHTML = _diffHtmlBlocks(el.innerHTML, newHtml);
                 }
             }
         } else {
-            // QBank: re-render the affected question card in-place
-            const card = document.querySelectorAll('.question-card')[index - 1];
-            const q = _validationState?.originalItems?.[index - 1];
+            // QBank: capture old question before overwrite, then highlight changed fields
+            const origIdx = index - 1;
+            const oldQ = { ...(generatedQuestions[origIdx] || {}) }; // snapshot before write
+            const q = _validationState?.originalItems?.[origIdx];
+            const card = document.querySelectorAll('.question-card')[origIdx];
             if (card && q) {
                 const diffLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+                const ch = (newVal, oldVal) => newVal !== oldVal ? ' fix-changed' : '';
+                const optCh = (opt) => !(oldQ.options || []).includes(opt) ? ' fix-changed' : '';
+                const imgAdded = q.image_url && !oldQ.image_url;
+
                 card.innerHTML = `
                     <div class="question-header">
                         <span class="question-number">Q${index}</span>
@@ -2680,12 +2717,16 @@ function applyFixes(fixedItems, contentType) {
                             ${(q.tags||[]).map(t => `<span class="tag tag-exam">${t}</span>`).join('')}
                         </div>
                     </div>
-                    ${q.image_url ? `<div class="question-image"><img src="${q.image_url}" alt="${q.image_description||''}" loading="lazy"></div>` : ''}
-                    <p class="question-text">${q.question}</p>
+                    ${q.image_url
+                        ? `<div class="question-image${imgAdded ? ' fix-changed fix-image-added' : ''}"><img src="${q.image_url}" alt="${q.image_description||''}" loading="lazy"></div>`
+                        : ''}
+                    <p class="question-text${ch(q.question, oldQ.question)}">${q.question}</p>
                     <ul class="options-list">
-                        ${(q.options||[]).map(opt => `<li class="${opt===q.correct_option?'correct':''}">${opt}</li>`).join('')}
+                        ${(q.options||[]).map(opt =>
+                            `<li class="${opt===q.correct_option?'correct':''}${optCh(opt)}">${opt}</li>`
+                        ).join('')}
                     </ul>
-                    <div class="explanation"><strong>Explanation:</strong> ${q.explanation||''}</div>`;
+                    <div class="explanation${ch(q.explanation, oldQ.explanation)}"><strong>Explanation:</strong> ${q.explanation||''}</div>`;
             }
         }
 
