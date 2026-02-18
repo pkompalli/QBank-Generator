@@ -2626,7 +2626,49 @@ function applyFixes(fixedItems, contentType) {
             } catch (e) { /* keep original if JSON fails */ }
         }
 
-        // 2. Show "re-validating" spinner in accordion body
+        // 2. Refresh the live lesson/question DOM so user sees updated content immediately
+        if (contentType === 'lesson') {
+            const map = sectionMap ? sectionMap[index - 1] : null;
+            if (map) {
+                if (map.type === 'topic') {
+                    const el = document.querySelector(`#topic-${map.lessonIndex}-topic .lesson-text`);
+                    if (el) el.innerHTML = formatLessonContent(
+                        fixed_content,
+                        lessonsData?.lessons?.[map.lessonIndex]?.chapters,
+                        `topic-${map.lessonIndex}`
+                    );
+                } else {
+                    const el = document.querySelector(`#topic-${map.lessonIndex}-chapter-${map.chapterIndex} .lesson-text`);
+                    if (el) el.innerHTML = formatLessonContent(fixed_content);
+                }
+            }
+        } else {
+            // QBank: re-render the affected question card in-place
+            const card = document.querySelectorAll('.question-card')[index - 1];
+            const q = _validationState?.originalItems?.[index - 1];
+            if (card && q) {
+                const diffLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+                card.innerHTML = `
+                    <div class="question-header">
+                        <span class="question-number">Q${index}</span>
+                        <div class="question-tags">
+                            <span class="tag tag-bloom">Bloom's L${q.blooms_level}</span>
+                            <span class="tag tag-difficulty">${diffLabels[q.difficulty]||''}</span>
+                            ${(q.image_url||q.image_description) ? '<span class="tag tag-image">Image</span>' : ''}
+                            <span style="background:#28a745;color:#fff;padding:1px 8px;border-radius:10px;font-size:0.75rem;">🔧 Fixed</span>
+                            ${(q.tags||[]).map(t => `<span class="tag tag-exam">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    ${q.image_url ? `<div class="question-image"><img src="${q.image_url}" alt="${q.image_description||''}" loading="lazy"></div>` : ''}
+                    <p class="question-text">${q.question}</p>
+                    <ul class="options-list">
+                        ${(q.options||[]).map(opt => `<li class="${opt===q.correct_option?'correct':''}">${opt}</li>`).join('')}
+                    </ul>
+                    <div class="explanation"><strong>Explanation:</strong> ${q.explanation||''}</div>`;
+            }
+        }
+
+        // 3. Show "re-validating" spinner in validation accordion body
         const accordionId = `val-item-${index}`;
         const body = document.getElementById(accordionId);
         if (body) {
