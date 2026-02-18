@@ -2448,6 +2448,7 @@ function displayBatchValidationReport(report, contentType) {
                 ${v.missing_high_yield?.length ? `<h4 style="color:#fd7e14;margin-top:0.75rem;">⭐ Missing High-Yield Points</h4>${formatList(v.missing_high_yield)}` : ''}
                 ${v.missing_pitfalls?.length ? `<h4 style="color:#6f42c1;margin-top:0.75rem;">🕳️ Missing Pitfalls / Misconceptions</h4>${formatList(v.missing_pitfalls)}` : ''}
                 ${v.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Image / Table / Flowchart Issues</h4>${formatList(v.asset_issues)}` : ''}
+                ${v.missing_images?.length ? `<h4 style="color:#8b5cf6;margin-top:0.75rem;">🖼️➕ Missing Images (recommended)</h4>${formatList(v.missing_images)}` : ''}
                 ${v.distractor_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
                 ${v.vignette_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
                 ${v.explanation_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
@@ -2466,6 +2467,7 @@ function displayBatchValidationReport(report, contentType) {
                 ${a.overgeneralizations?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📢 Overgeneralizations</h4>${formatList(a.overgeneralizations)}` : ''}
                 ${a.safety_risks?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
                 ${a.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Asset Issues (adversarial)</h4>${formatList(a.asset_issues)}` : ''}
+                ${a.missing_images?.length ? `<h4 style="color:#8b5cf6;margin-top:0.75rem;">🖼️➕ Missing Images (adversarial)</h4>${formatList(a.missing_images)}` : ''}
                 ${a.explanation_contradictions?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">💥 Explanation Contradictions</h4>${formatList(a.explanation_contradictions)}` : ''}
                 ${a.triviality_clues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">🔓 Triviality Clues</h4>${formatList(a.triviality_clues)}` : ''}
                 ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
@@ -2775,6 +2777,8 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                     ${isQBank && v.distractor_issues?.length   ? `<h4 style="color:#ffc107;margin-top:0.5rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
                     ${isQBank && v.vignette_issues?.length     ? `<h4 style="color:#ffc107;margin-top:0.5rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
                     ${isQBank && v.explanation_issues?.length  ? `<h4 style="color:#ffc107;margin-top:0.5rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
+                    ${v.asset_issues?.length         ? `<h4 style="color:#6c757d;margin-top:0.5rem;">🖼️ Image / Asset Issues</h4>${formatList(v.asset_issues)}` : ''}
+                    ${v.missing_images?.length       ? `<h4 style="color:#8b5cf6;margin-top:0.5rem;">🖼️➕ Missing Images (recommended)</h4>${formatList(v.missing_images)}` : ''}
                     ${v.recommendations?.length      ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
 
                     <!-- Adversarial -->
@@ -2784,6 +2788,8 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                     ${a.ambiguities?.length           ? `<h4 style="color:#ffc107;margin-top:0.5rem;">❓ Ambiguities</h4>${formatList(a.ambiguities)}` : ''}
                     ${isQBank && a.alternative_answers?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">🔀 Alternative Defensible Answers</h4>${formatList(a.alternative_answers)}` : ''}
                     ${a.safety_risks?.length          ? `<h4 style="color:#dc3545;margin-top:0.5rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
+                    ${a.asset_issues?.length          ? `<h4 style="color:#6c757d;margin-top:0.5rem;">🖼️ Asset Issues (adversarial)</h4>${formatList(a.asset_issues)}` : ''}
+                    ${a.missing_images?.length        ? `<h4 style="color:#8b5cf6;margin-top:0.5rem;">🖼️➕ Missing Images (adversarial)</h4>${formatList(a.missing_images)}` : ''}
                     ${a.recommendations?.length       ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
 
                     <div style="margin-top:0.75rem;padding:0.6rem;background:#f8f9fa;border-radius:4px;font-size:0.9rem;">
