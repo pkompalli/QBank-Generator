@@ -3579,7 +3579,12 @@ For EACH section evaluate (calibrated to its format):
 3. Internal logical consistency
 4. Missing critical safety information or contraindications
 5. Over-simplification that could actively mislead (not just "incomplete")
-6. Image/asset relevance — does any embedded image match the surrounding text?
+6. Image/asset evaluation:
+   a. RELEVANCE — does each embedded image directly illustrate the surrounding text?
+   b. PEDAGOGICAL FIT — is the modality correct (e.g., ECG for arrhythmia, histology for pathology)?
+   c. MISSING IMAGES — identify specific images that are absent but would significantly aid learning
+      (e.g., "No ECG example for atrial fibrillation section", "No dermatoscopy image for melanoma criteria",
+       "No flowchart for the diagnostic algorithm described"). Flag concrete, high-value visual gaps only.
 7. For topic lessons only: learning flow, coverage of sub-topics, memory aids
 
 Do NOT attempt adversarial breaking.
@@ -3610,7 +3615,10 @@ Return a JSON ARRAY — one object per section — with this structure:
     "learning_gaps": [<list of major missing concepts a learner needs>],
     "missing_high_yield": [<list of missing high-yield points or pearls>],
     "missing_pitfalls": [<list of common misconceptions/traps not addressed>],
-    "asset_issues": [<list of image/table/flowchart problems, empty if none>],
+    "asset_issues": [<list of image/table/flowchart relevance or fit problems, empty if none>],
+    "missing_images": [<list of specific images absent but would significantly aid learning, e.g.
+                        "ECG strip showing AF for the rhythm identification section",
+                        "Diagnostic flowchart for the algorithm described" — empty if none>],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
@@ -3632,6 +3640,11 @@ For EACH question independently verify:
 5. No factual inaccuracies
 6. Lab values and details are realistic
 7. The question tests the stated learning objective
+8. IMAGE VALIDATION (for image-based questions):
+   a. If the question references "the image shown" or "based on the image", an image MUST be present
+   b. If an image is present, verify the image_type and image_description are consistent with the clinical scenario
+   c. Flag if the wrong imaging modality is specified (e.g., CT described but X-ray would be standard)
+   d. If no image is present but the question clearly requires one, flag as a structural issue
 
 Reason through each case independently before judging it.
 Do NOT attempt adversarial ambiguity testing.
@@ -3639,6 +3652,7 @@ Do NOT attempt adversarial ambiguity testing.
 Scoring per question:
 • ≥8 AND correct_answer_verified = true → acceptable
 • Any factual_error OR incorrect answer → needs_revision = true
+• Missing required image OR wrong modality → needs_revision = true
 
 Return a JSON ARRAY — one object per question — with this structure:
 [
@@ -3652,6 +3666,8 @@ Return a JSON ARRAY — one object per question — with this structure:
     "distractor_issues": [<list, empty if none>],
     "vignette_issues": [<list, empty if none>],
     "explanation_issues": [<list, empty if none>],
+    "asset_issues": [<image relevance/fit/modality problems, empty if none>],
+    "missing_images": [<specific image absent but required or highly beneficial, empty if none>],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
@@ -3683,7 +3699,12 @@ For EACH section, identify genuine weaknesses:
 • Dangerous simplifications that could cause patient harm or wrong clinical decisions
 • Missing critical contraindications or safety warnings
 • Internal contradictions
-• Images/tables/flowcharts that actively mislead (not just "could be better")
+• Visual asset problems — flag any of:
+  - Images that actively mislead or show the wrong pathology/anatomy
+  - Wrong imaging modality (e.g., CXR shown for a CT-diagnosis topic)
+  - Image present but irrelevant to the specific learning point
+  - High-value image clearly absent (e.g., no ECG in an arrhythmia section,
+    no histology in a pathology section, no diagnostic flowchart for an algorithm)
 • Statements that would leave a learner with a dangerously wrong mental model
 
 Do NOT flag content as a weakness just because it is brief or omits depth.
@@ -3707,7 +3728,8 @@ Return a JSON ARRAY — one object per section — with this structure:
     "logical_gaps": [<list, empty if none>],
     "safety_risks": [<list, empty if none>],
     "learning_traps": [<list of ways a learner could be misled or left with wrong mental model>],
-    "asset_issues": [<list of image/table/flowchart concerns>],
+    "asset_issues": [<image/table/flowchart relevance, modality, or misleading concerns>],
+    "missing_images": [<high-value images clearly absent, e.g. "No ECG strip for arrhythmia section">],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
@@ -3731,6 +3753,11 @@ For EACH question, aggressively test for:
 7. Clues that make the question trivial
 8. Unrealistic scenario
 9. Misalignment between learning objective and tested concept
+10. IMAGE ISSUES:
+    - Question references an image but none is provided
+    - Image modality described is wrong for the clinical context
+    - Image description does not match the diagnosis being tested
+    - A clearer or more canonical image would make a better teaching point
 
 If you can construct a reasonable argument for an alternative answer, you must report it.
 
@@ -3749,6 +3776,8 @@ Return a JSON ARRAY — one object per question — with this structure:
     "distractor_defenses": [<list, empty if none>],
     "explanation_contradictions": [<list, empty if none>],
     "triviality_clues": [<list, empty if none>],
+    "asset_issues": [<image modality/relevance/fit problems, empty if none>],
+    "missing_images": [<image absent but needed for this question type, empty if none>],
     "recommendations": [<list, empty if none>],
     "summary": "<1-2 sentence summary>"
   }},
