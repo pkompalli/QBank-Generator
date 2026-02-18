@@ -2571,8 +2571,9 @@ async function fixSelectedItems() {
         const result = await resp.json();
         if (!result.success) throw new Error(result.error || 'Fix failed');
 
+        // Write fixed content back into memory + show "re-validating…" in accordions
         applyFixes(result.fixed_items, contentType);
-        showToast(`✅ Fixed ${result.fixed_items.length} item(s) — content updated`, 'success');
+        showToast(`✅ Fixed ${result.fixed_items.length} item(s) — re-validating…`, 'success');
 
         // Uncheck fixed items
         toFix.forEach(({ index }) => {
@@ -2580,6 +2581,10 @@ async function fixSelectedItems() {
             if (cb) cb.checked = false;
         });
         updateFixButtonCount();
+
+        // Auto re-validate just the fixed items and update their accordions
+        await revalidateFixed(result.fixed_items.map(f => f.index), contentType, course);
+
     } catch (e) {
         showToast('Fix failed: ' + e.message, 'error');
         btn.disabled = false;
@@ -2591,54 +2596,150 @@ function applyFixes(fixedItems, contentType) {
     const { sectionMap } = _validationState || {};
 
     for (const { index, fixed_content, title } of fixedItems) {
-        // 1. Update in-memory data
+        // 1. Write back into lessonsData / generatedQuestions
         if (contentType === 'lesson') {
             const map = sectionMap ? sectionMap[index - 1] : null;
             if (map && lessonsData && lessonsData.lessons) {
+                const lessonObj = lessonsData.lessons[map.lessonIndex];
                 if (map.type === 'topic') {
-                    lessonsData.lessons[map.lessonIndex].topic_lesson = fixed_content;
+                    lessonObj.topic_lesson = fixed_content;
                 } else {
-                    lessonsData.lessons[map.lessonIndex].chapters[map.chapterIndex].lesson = fixed_content;
+                    const ch = lessonObj.chapters?.[map.chapterIndex];
+                    if (ch) {
+                        // handle both property names
+                        if ('chapter_lesson' in ch) ch.chapter_lesson = fixed_content;
+                        ch.lesson = fixed_content;
+                    }
                 }
             }
-            // Also update validationState originalItems so re-fix uses latest
-            if (_validationState.originalItems[index - 1]) {
+            // Also update _validationState.originalItems so next fix uses latest
+            if (_validationState && _validationState.originalItems[index - 1]) {
                 _validationState.originalItems[index - 1].topic_lesson = fixed_content;
             }
         } else {
             try {
                 const parsed = JSON.parse(fixed_content);
                 generatedQuestions[index - 1] = parsed;
-                if (_validationState.originalItems[index - 1]) {
+                if (_validationState && _validationState.originalItems[index - 1]) {
                     _validationState.originalItems[index - 1] = parsed;
                 }
-            } catch (e) { /* keep original if JSON parse fails */ }
+            } catch (e) { /* keep original if JSON fails */ }
         }
 
-        // 2. Update the accordion body with fixed content preview
+        // 2. Show "re-validating" spinner in accordion body
         const accordionId = `val-item-${index}`;
         const body = document.getElementById(accordionId);
         if (body) {
-            const preview = contentType === 'lesson'
-                ? `<pre style="margin-top:0.75rem;font-size:0.82rem;white-space:pre-wrap;max-height:350px;overflow-y:auto;background:#f8f9fa;padding:0.75rem;border-radius:4px;">${escapeHtml(fixed_content)}</pre>`
-                : `<pre style="margin-top:0.75rem;font-size:0.82rem;white-space:pre-wrap;max-height:350px;overflow-y:auto;background:#f8f9fa;padding:0.75rem;border-radius:4px;">${escapeHtml(fixed_content)}</pre>`;
             body.innerHTML = `
-                <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:1rem;">
-                    <strong style="color:#155724;">✅ Fixed — "${escapeHtml(title)}" updated in memory</strong>
-                    <p style="font-size:0.82rem;color:#155724;margin:0.25rem 0 0.5rem;">Download/export to save the updated content.</p>
-                    ${preview}
+                <div style="text-align:center;padding:1.5rem;color:#999;">
+                    <div class="loading-spinner" style="margin:0 auto 0.75rem;"></div>
+                    <p style="margin:0;font-size:0.9rem;">Re-validating fixed content…</p>
                 </div>`;
             body.style.display = 'block';
         }
+    }
+}
 
-        // 3. Update header badge to show fixed
-        const header = document.querySelector(`[onclick="toggleValAccordion('${accordionId}')"]`);
-        if (header) {
-            const badgeSpan = header.querySelector('span > span:first-child');
-            if (badgeSpan) {
-                badgeSpan.innerHTML = '<span style="background:#28a745;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Fixed</span>';
+async function revalidateFixed(fixedIndices, contentType, course) {
+    // Build mini-batch from the now-updated _validationState.originalItems
+    const { originalItems, sectionMap } = _validationState || {};
+    if (!originalItems) return;
+
+    // items to send: just the fixed ones, in order
+    // We track the mapping: sent position → original accordion index
+    const miniItems = [];
+    const indexMap  = []; // indexMap[sent-0-based] = original 1-based accordion index
+
+    for (const origIdx of fixedIndices) {         // origIdx is 1-based
+        const item = originalItems[origIdx - 1];
+        if (!item) continue;
+        miniItems.push(item);
+        indexMap.push(origIdx);
+    }
+    if (miniItems.length === 0) return;
+
+    try {
+        const resp = await fetch('/api/validate-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content_type: contentType,
+                items: miniItems,
+                domain: 'medical education',
+                course
+            })
+        });
+        const report = await resp.json();
+        const returnedItems = report.items || [];
+
+        // Patch each fixed accordion with the fresh result
+        returnedItems.forEach((item, sentIdx) => {
+            const origIdx = indexMap[sentIdx]; // original 1-based
+            if (!origIdx) return;
+
+            const v  = item.validator || {};
+            const a  = item.adversarial || {};
+            const oa = item.overall_assessment || {};
+            const accordionId = `val-item-${origIdx}`;
+            const body = document.getElementById(accordionId);
+
+            const getScoreClass = s => s >= 8 ? 'score-high' : s >= 6 ? 'score-medium' : 'score-low';
+            const formatList = arr => arr && arr.length
+                ? `<ul class="validation-list">${arr.map(i => `<li>${i}</li>`).join('')}</ul>`
+                : '';
+            const status = oa.status || '';
+            const badgeColor = status.includes('Approved') ? '#28a745' : status.includes('Conditional') ? '#ffc107' : '#dc3545';
+
+            // Update the header badge + score
+            const accBtn = document.querySelector(`[onclick="toggleValAccordion('${accordionId}')"]`);
+            if (accBtn) {
+                const badgeArea = accBtn.querySelector('span[style*="margin-left"]');
+                if (badgeArea) badgeArea.innerHTML = `
+                    <span style="background:${badgeColor};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">${status}</span>
+                    <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">${oa.quality_score || 'N/A'}/10</span>
+                    <span style="font-size:0.8rem;color:#999;">▼</span>`;
             }
-        }
+
+            // Update accordion body with fresh results
+            if (body) {
+                const allClear = status.includes('Approved');
+                body.innerHTML = `
+                    <div style="background:${allClear ? '#d4edda' : '#fff3cd'};border:1px solid ${allClear ? '#c3e6cb' : '#ffc107'};border-radius:6px;padding:0.75rem;margin-bottom:0.75rem;">
+                        <strong style="color:${allClear ? '#155724' : '#856404'};">${allClear ? '✅ Re-validated — Approved after fix' : '⚠️ Re-validated — still needs attention'}</strong>
+                    </div>
+                    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.9rem;">
+                        <div>✅ <strong>Validator:</strong> <span class="validation-score ${getScoreClass(v.overall_accuracy_score||0)}" style="font-size:0.8rem;">${v.overall_accuracy_score??'N/A'}/10</span></div>
+                        <div>⚔️ <strong>Adversarial:</strong> <span class="validation-score ${getScoreClass(10-(a.adversarial_score||0))}" style="font-size:0.8rem;">${a.adversarial_score??'N/A'}/10</span></div>
+                        <div>Needs revision: <strong>${oa.needs_revision ? 'Yes ❌' : 'No ✅'}</strong></div>
+                    </div>
+                    <p><strong>Validator:</strong> ${v.summary || 'N/A'}</p>
+                    ${v.factual_errors?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">⚠️ Remaining Factual Errors</h4>${formatList(v.factual_errors)}` : ''}
+                    ${v.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
+                    <hr style="margin:0.75rem 0;border-color:#e0e0e0;">
+                    <p><strong>Adversarial:</strong> ${a.summary || 'N/A'}</p>
+                    ${a.identified_weaknesses?.length ? `<h4 style="color:#dc3545;margin-top:0.5rem;">🔍 Remaining Weaknesses</h4>${formatList(a.identified_weaknesses)}` : ''}
+                    ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.5rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
+                    <div style="margin-top:0.75rem;padding:0.6rem;background:#f8f9fa;border-radius:4px;font-size:0.9rem;">
+                        <strong>Assessment:</strong> ${oa.recommendation || 'N/A'}
+                    </div>`;
+                body.style.display = 'block';
+            }
+
+            // Also update report in _validationState so future fix uses fresh issues
+            if (_validationState && _validationState.report) {
+                const ri = (_validationState.report.items || []).findIndex(
+                    r => (r.index ?? 0) === origIdx
+                );
+                if (ri >= 0) _validationState.report.items[ri] = { ...item, index: origIdx };
+            }
+        });
+
+        const approved = returnedItems.filter(i => (i.overall_assessment?.status || '').includes('Approved')).length;
+        showToast(`Re-validation: ${approved}/${returnedItems.length} now Approved`, approved === returnedItems.length ? 'success' : 'info');
+
+    } catch (e) {
+        console.error('Re-validation error:', e);
+        showToast('Re-validation failed: ' + e.message, 'error');
     }
 }
 
