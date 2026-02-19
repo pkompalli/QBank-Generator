@@ -1679,6 +1679,13 @@ QUESTION REQUIREMENTS:
    - Use appropriate terminology and conventions for {course}
    - Ensure accuracy and current best practices
 
+4. CLINICAL VIGNETTE STRUCTURE (for Bloom's L3/L4/L5 questions):
+   Use this exact format for the question stem:
+   "A [age]-year-old [male/female] presents with [complaint]. [1-2 sentences of relevant
+   history and examination findings]. [1 investigation result if relevant].
+   [Single specific question ending in '?']"
+   Bloom's L1/L2 may use direct knowledge questions without a full vignette.
+
 OUTPUT FORMAT (JSON array):
 [
   {{
@@ -1835,6 +1842,13 @@ QUESTION REQUIREMENTS:
    - Use appropriate terminology and conventions for {course}
    - Ensure accuracy and current best practices
 
+4. CLINICAL VIGNETTE STRUCTURE (for Bloom's L3/L4/L5 questions):
+   Use this exact format for the question stem:
+   "A [age]-year-old [male/female] presents with [complaint]. [1-2 sentences of relevant
+   history and examination findings]. [1 investigation result if relevant].
+   [Single specific question ending in '?']"
+   Bloom's L1/L2 may use direct knowledge questions without a full vignette.
+
 OUTPUT FORMAT (JSON array):
 [
   {{
@@ -1883,6 +1897,7 @@ The question text should reference "the image shown" or "based on the image"."""
     message = client.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=max(2048, count * 600),
+        temperature=0.2,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -2533,6 +2548,313 @@ def _get_domain_specific_requirements(course, is_medical, chapter_list):
 """
 
 
+def _get_lesson_flow_structure(course, is_medical):
+    """Return the LESSON FLOW STRUCTURE block with domain-appropriate section headers,
+    opening paragraph template, and per-section RHYTHM/bullet descriptions."""
+
+    # ── SHARED: High Yield Summary is identical across all domains ──────────────
+    high_yield_block = """### High Yield Summary
+🔴🔴🔴 ABSOLUTELY MANDATORY FINAL SECTION - DO NOT SKIP THIS! 🔴🔴🔴
+
+**Key Take-Aways:**
+* 5-7 bullet points with the most critical concepts for this topic
+* Include specific numbers, formulas, thresholds, and key parameters
+* Critical points that cannot be missed
+* Domain-specific recommendations and best practices
+
+**Essential Numbers/Formulas:**
+* Critical values, thresholds, or key equations (table format)
+* Most commonly used formulas or parameters
+* Key quantitative relationships and their significance
+
+**Key Principles/Pearls:**
+* 3-5 practical insights from expert practice
+* Common mistakes and how to avoid them
+* Pattern recognition tips and heuristics
+
+**Quick Reference:**
+* SUMMARY TABLE with key numbers/formulas/thresholds (MANDATORY)
+* ```mermaid flowchart for quick reference algorithm if needed (OPTIONAL)
+* Decision rules, frameworks, or scoring systems
+* Critical points and important caveats
+* 🔴 NO images needed in summary - tables and mermaid only
+* 🔴 DO NOT add a "Red Flag" column to any table here — **Red Flags:** is a standalone callout box (already placed in earlier sections above)
+
+**Related Chapters:**
+* ONLY list chapters from ChaptersJSON that were NOT already integrated into the text above
+* If all chapters were already mentioned in the lesson, write "All chapters covered above"
+* Do NOT repeat chapters that were already woven into the narrative
+* Note: "For rapid revision of individual chapters, refer to the dedicated chapter-level notes included with this topic."
+"""
+
+    # ── MEDICAL ─────────────────────────────────────────────────────────────────
+    if is_medical:
+        return f"""===========  LESSON FLOW STRUCTURE  ===========
+CRITICAL RULES FOR SECTION HEADERS:
+✗ NO section numbers ("1 —", "2 —", "Section 1", etc.)
+✗ NO Bloom's labels ("Remember", "Understand", "Apply", "Analyze", "Level 1", etc.)
+✗ NO "Page 1", "Page 2" etc.
+✓ Use EXACTLY these section headers, in this order — do not rename, reorder, or add sections
+
+OPENING PARAGRAPH (MANDATORY — appears BEFORE the first ### header):
+Write EXACTLY 3 sentences using this template:
+  Sentence 1: "A [age]-year-old [male/female] [presents/arrives/collapses] with [specific complaint + urgency detail]."
+  Sentence 2: "[The specific decision/skill/action] is what [determines outcome / the next X minutes hinge on / separates a good clinician from a great one]."
+  Sentence 3: "This lesson builds exactly that." (use this phrase or a close equivalent)
+
+EXAMPLE — write a version for THIS topic, using the same 3-sentence structure (do not copy this example):
+  "A 58-year-old man collapses in triage with crushing central chest pain and ST elevation across V1–V4. The next 90 minutes — and your ability to read this ECG and activate the right pathway — determine whether his myocardium survives. This lesson builds exactly that."
+
+The opening must begin with a patient. Do not begin with a statistic, a definition, or a disease overview.
+
+### Overview & Foundations
+RHYTHM: 1 intro sentence → bullet list (key facts/classifications) → classification table → [image if a characteristic finding defines this topic] → **Mnemonic:** box
+* Core definition with the diagnostic threshold or key criterion (e.g., "EF <40% defines HFrEF")
+* Essential subtypes/classifications — each with its clinical implication, not just the label
+* 2-3 key epidemiology facts only if they directly change clinical suspicion (e.g., "PE: 60-70/100,000 — always consider in breathless patients post-surgery")
+* Diagnostic criteria with specific numbers (not "elevated markers" — name the marker and cut-off)
+* TABLE: key classification or criteria table (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — a characteristic finding or hallmark image for this topic
+* **Mnemonic:** [a specific, memorable aid for THIS topic — ≤12 words] (MANDATORY)
+* 🔴 Integrate 1-2 chapter names NATURALLY IN SENTENCES
+
+### Pathophysiology & Mechanisms
+RHYTHM: 1 paragraph (core mechanism) → mermaid flowchart (cascade) → [image if anatomy/histology illuminates the mechanism] → table (mechanism → clinical manifestation) → **Key Points:** box
+* Explain the central mechanism in 2-3 sentences with specific molecular/cellular detail
+* Link each pathophysiological step to a clinical sign, symptom, or investigation finding
+* WHY specific investigations are diagnostic (what they detect mechanistically)
+* WHY specific treatments work (their mechanism, not just their name)
+* Quantitative relationships where they exist (e.g., Starling curve, V/Q ratio, Fick equation)
+* ```mermaid flowchart: pathophysiological cascade, max 8 nodes (MANDATORY)
+* IMAGE (if applicable): place AFTER the mermaid — anatomical or histological image that makes the mechanism visible
+* TABLE: mechanism → clinical manifestation (MANDATORY)
+* **Key Points:** 3-5 mechanism-to-clinical-feature links a student must know (MANDATORY)
+* 🔴 Integrate 1-3 chapter names INSIDE sentences
+
+### Clinical Presentation & Diagnosis
+RHYTHM: 1 clinical scenario sentence → bullet list (symptoms/signs with discriminating features) → investigation table → [diagnostic images here — ECG, X-ray, CT, histology, blood film, etc.] → mermaid (diagnostic algorithm) → **Red Flags:** box
+* Open with a concrete clinical scenario: "A [age]-year-old [sex] presents with..." — specific to THIS topic
+* Key symptoms with their sensitivity/specificity where known (e.g., "pleuritic chest pain: 66% sensitive for PE")
+* Examination findings that change management — not exhaustive lists, only discriminating signs
+* First-line investigations with expected findings and diagnostic thresholds
+* TABLE: investigation → what it shows → sensitivity/specificity or clinical utility (MANDATORY)
+* IMAGE (if applicable): place AFTER the investigation table — the key diagnostic image for this topic (ECG printout, chest X-ray, CT/MRI slice, histology slide, blood film, fundoscopy photo, dermatology photo). This is the highest-priority section for images. 🔴 DO NOT use this slot for spirometry traces, graphs, flow-volume curves, or any plotted data — use mermaid for those.
+* ```mermaid flowchart: diagnostic algorithm from presentation to diagnosis (MANDATORY)
+* **Red Flags:** symptoms/signs requiring immediate action for THIS specific topic (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Differential Diagnosis
+RHYTHM: 1 paragraph (the key discriminating theme — what makes THIS diagnosis vs the mimics) → comparison table → bullet list (common pitfalls/cognitive traps) → **Clinical Pearl:** box
+* State the 3-4 most important differentials for THIS topic and the single best discriminating feature for each
+* Focus on features that CHANGE MANAGEMENT — not just academic differences
+* Clinical prediction rules or scoring systems with their thresholds (e.g., Wells score, CURB-65)
+* Common diagnostic errors: what gets missed and why
+* TABLE: differential → key discriminating feature → investigation to confirm/exclude (MANDATORY)
+* **Clinical Pearl:** one expert insight that prevents a common diagnostic error (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Management
+RHYTHM: mermaid (treatment algorithm — first, sets the structure) → dosing table → bullet list (monitoring, targets, escalation) → **Red Flags:** box (when to escalate urgently)
+* ```mermaid flowchart: treatment algorithm from diagnosis to step-up therapy (MANDATORY — place FIRST in this section)
+* TABLE: drug/intervention → dose → frequency → monitoring → key contraindication (MANDATORY)
+* Treatment targets with specific numbers (e.g., "target SBP <130 mmHg in high cardiovascular risk")
+* When to escalate: specific thresholds, not vague "if not responding"
+* Key drug interactions and adverse effects that require monitoring or dose adjustment
+* Non-pharmacological interventions with evidence level (e.g., "CPAP reduces AHI by 50% — NICE NG202")
+* Referral criteria: which specialty, when, and what triggers urgent vs routine referral
+* **Red Flags:** specific findings that demand immediate escalation of care (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences with guideline references
+
+### Special Situations & Complications
+RHYTHM: 1 paragraph (the highest-stakes special scenario for THIS topic) → table (special populations or complications with specific management differences) → [image only if a complication has a characteristic appearance] → bullet list (follow-up, long-term sequelae) → **Clinical Pearl:** box
+* Focus on 2-3 genuinely important special scenarios — not a generic list of populations
+* Pregnancy, elderly, renal/hepatic impairment ONLY if there are specific dose/management changes for THIS topic
+* Complications: name them, state their incidence where known, and how to detect early
+* Follow-up: what to monitor, at what interval, and what triggers re-referral
+* TABLE: special population/complication → specific management change or threshold (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — only if a complication has a highly specific visual appearance worth recognising
+* **Clinical Pearl:** one high-value nuance that a generalist commonly misses (MANDATORY)
+* 🔴 Integrate 1-2 chapter names INSIDE sentences with guideline refs
+
+{high_yield_block}"""
+
+    # ── ENGINEERING / CS ────────────────────────────────────────────────────────
+    elif any(kw in course.lower() for kw in ['engineering', 'cs', 'computer', 'software', 'data science']):
+        return f"""===========  LESSON FLOW STRUCTURE  ===========
+CRITICAL RULES FOR SECTION HEADERS:
+✗ NO section numbers ("1 —", "2 —", "Section 1", etc.)
+✗ NO "Page 1", "Page 2" etc.
+✓ Use EXACTLY these section headers, in this order — do not rename, reorder, or add sections
+
+OPENING PARAGRAPH (MANDATORY — appears BEFORE the first ### header):
+Write EXACTLY 3 sentences using this template:
+  Sentence 1: Describe a specific, high-stakes technical problem or scenario directly relevant to THIS topic.
+  Sentence 2: State the specific skill, decision, or knowledge that determines the outcome.
+  Sentence 3: "This lesson builds exactly that." (use this phrase or a close equivalent)
+
+EXAMPLE — write a version for THIS topic (do not copy this example):
+  "A distributed service is dropping requests under peak load and the on-call engineer has 5 minutes to decide: scale horizontally, increase cache TTL, or roll back the last deploy. Understanding concurrency limits, backpressure, and thread-pool exhaustion is what separates a correct diagnosis from an expensive guess. This lesson builds exactly that."
+
+### Overview & Foundations
+RHYTHM: 1 intro sentence → bullet list (key concepts/variants) → classification table → [diagram if a structure defines this topic] → **Mnemonic:** box
+* Core definition with the key invariant or criterion (e.g., "O(log n) lookup defines a balanced BST")
+* Essential variants/subtypes — each with its primary use case, not just the label
+* 2-3 key performance or design constraints that directly change implementation choices
+* Formal specifications with specific values (not "efficient" — state exact complexity or bounds)
+* TABLE: key classification or comparison table (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — a characteristic architecture or structure diagram
+* **Mnemonic:** [a specific, memorable aid for THIS topic — ≤12 words] (MANDATORY)
+* 🔴 Integrate 1-2 chapter names NATURALLY IN SENTENCES
+
+### Theory & Mechanisms
+RHYTHM: 1 paragraph (core algorithm/principle) → mermaid flowchart (process flow) → [diagram if structure illuminates the mechanism] → table (operation → complexity/behaviour) → **Key Points:** box
+* Explain the core algorithm or mechanism in 2-3 sentences with specific step-by-step logic
+* Link each step to its observable outcome or performance characteristic
+* WHY specific data structures or patterns are used (what property they exploit)
+* WHY specific algorithms are correct (their invariant or proof sketch)
+* Quantitative relationships where they exist (e.g., master theorem, Amdahl's law)
+* ```mermaid flowchart: algorithmic or process flow, max 8 nodes (MANDATORY)
+* IMAGE (if applicable): place AFTER the mermaid — structural diagram that makes the mechanism visible
+* TABLE: operation → time complexity → space complexity → notes (MANDATORY)
+* **Key Points:** 3-5 mechanism-to-behaviour links a student must know (MANDATORY)
+* 🔴 Integrate 1-3 chapter names INSIDE sentences
+
+### Implementation & Analysis
+RHYTHM: 1 problem scenario sentence → bullet list (key factors with discriminating features) → analysis table → [structural diagram if applicable] → mermaid (decision/analysis algorithm) → **Red Flags:** box
+* Open with a concrete implementation or analysis scenario specific to THIS topic
+* Key indicators or signals with their precision/utility where known
+* Implementation details that change outcomes — not exhaustive lists, only discriminating factors
+* Primary analysis or measurement methods with expected results and decision thresholds
+* TABLE: method/tool → what it reveals → complexity or utility (MANDATORY)
+* IMAGE (if applicable): place AFTER the analysis table — a key architectural or structural diagram
+* ```mermaid flowchart: decision or analysis algorithm (MANDATORY)
+* **Red Flags:** anti-patterns or failure modes requiring immediate attention (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Trade-offs & Alternatives
+RHYTHM: 1 paragraph (the key discriminating theme — what makes THIS approach vs alternatives) → comparison table → bullet list (common pitfalls/misconceptions) → **Clinical Pearl:** box
+* State the 3-4 most important alternatives and the single best discriminating criterion for each
+* Focus on trade-offs that CHANGE THE DESIGN DECISION — not just academic differences
+* Decision heuristics with their applicability criteria
+* Common implementation errors: what breaks and why
+* TABLE: alternative → key discriminating criterion → scenario to prefer it (MANDATORY)
+* **Clinical Pearl:** one expert insight that prevents a common design mistake (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Optimization & Best Practices
+RHYTHM: mermaid (decision algorithm — first, sets the structure) → specification table → bullet list (tuning, targets, escalation) → **Red Flags:** box (failure conditions)
+* ```mermaid flowchart: optimisation decision from problem to solution (MANDATORY — place FIRST in this section)
+* TABLE: technique → parameters → constraints → monitoring (MANDATORY)
+* Performance targets with specific numbers (e.g., "target p99 latency <10ms")
+* When to escalate: specific thresholds, not vague "if slow"
+* Key parameter interactions and side effects requiring monitoring or adjustment
+* Non-algorithmic optimisations with evidence or benchmark data
+* Escalation criteria: when to choose a different approach
+* **Red Flags:** specific conditions that demand immediate architectural change (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences with standards or RFC references
+
+### Edge Cases & Advanced Scenarios
+RHYTHM: 1 paragraph (the highest-stakes edge case for THIS topic) → table (special scenarios with specific handling) → [diagram only if a variant has a characteristic structure] → bullet list (maintenance, long-term considerations) → **Clinical Pearl:** box
+* Focus on 2-3 genuinely important edge cases — not a generic list of scenarios
+* Concurrency, distributed, or resource-constraint scenarios ONLY if there are specific handling changes
+* Failure modes: name them, state their frequency, and how to detect early
+* Maintenance: what to monitor and what triggers redesign
+* TABLE: edge case → specific handling change or threshold (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — only if a variant has a highly specific structural appearance
+* **Clinical Pearl:** one high-value nuance that a practitioner commonly misses (MANDATORY)
+* 🔴 Integrate 1-2 chapter names INSIDE sentences with standards references
+
+{high_yield_block}"""
+
+    # ── GENERIC (Law, Business, Finance, and all other domains) ─────────────────
+    else:
+        return f"""===========  LESSON FLOW STRUCTURE  ===========
+CRITICAL RULES FOR SECTION HEADERS:
+✗ NO section numbers ("1 —", "2 —", "Section 1", etc.)
+✗ NO "Page 1", "Page 2" etc.
+✓ Use EXACTLY these section headers, in this order — do not rename, reorder, or add sections
+
+OPENING PARAGRAPH (MANDATORY — appears BEFORE the first ### header):
+Write EXACTLY 3 sentences using this template:
+  Sentence 1: Describe a specific, high-stakes real-world scenario or situation directly relevant to THIS topic.
+  Sentence 2: State the specific skill, decision, or knowledge that determines the outcome.
+  Sentence 3: "This lesson builds exactly that." (use this phrase or a close equivalent)
+
+EXAMPLE — write a version for THIS topic (do not copy this example):
+  "A company is hours away from signing a major acquisition agreement when due diligence reveals an undisclosed liability that could void the deal. Knowing exactly which representations and warranties apply — and which contractual remedies are available — is what separates a prepared adviser from a costly mistake. This lesson builds exactly that."
+
+### Overview & Foundations
+RHYTHM: 1 intro sentence → bullet list (key concepts/categories) → classification table → [image/diagram if a characteristic feature defines this topic] → **Mnemonic:** box
+* Core definition with the key criterion or distinguishing feature
+* Essential subtypes/variants — each with its primary implication, not just the label
+* 2-3 key contextual facts that directly change how this topic is applied
+* Formal criteria or thresholds with specific values
+* TABLE: key classification or criteria table (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — a characteristic image or diagram for this topic
+* **Mnemonic:** [a specific, memorable aid for THIS topic — ≤12 words] (MANDATORY)
+* 🔴 Integrate 1-2 chapter names NATURALLY IN SENTENCES
+
+### Theory & Core Principles
+RHYTHM: 1 paragraph (core theory/principle) → mermaid flowchart (causal or logical flow) → [image/diagram if it illuminates the principle] → table (principle → practical implication) → **Key Points:** box
+* Explain the core theory or principle in 2-3 sentences with specific conceptual detail
+* Link each theoretical step to a real-world outcome or observable implication
+* WHY specific tools, methods, or frameworks are used (what property they exploit)
+* WHY specific approaches work (their underlying rationale)
+* Quantitative or formal relationships where they exist
+* ```mermaid flowchart: causal or logical process chain, max 8 nodes (MANDATORY)
+* IMAGE (if applicable): place AFTER the mermaid — diagram that makes the principle visible
+* TABLE: principle → practical implication (MANDATORY)
+* **Key Points:** 3-5 theory-to-practice links a student must know (MANDATORY)
+* 🔴 Integrate 1-3 chapter names INSIDE sentences
+
+### Application & Analysis
+RHYTHM: 1 scenario sentence → bullet list (key indicators with discriminating features) → evidence/analysis table → [relevant image/diagram if applicable] → mermaid (decision/analysis algorithm) → **Red Flags:** box
+* Open with a concrete applied scenario specific to THIS topic
+* Key indicators or signals with their utility/reliability where known
+* Factors that change the analysis — not exhaustive lists, only discriminating elements
+* Primary methods or tools with expected outcomes and decision thresholds
+* TABLE: method/tool → what it reveals → utility or reliability (MANDATORY)
+* IMAGE (if applicable): place AFTER the analysis table — a key illustrative image or diagram
+* ```mermaid flowchart: decision or analysis algorithm from scenario to conclusion (MANDATORY)
+* **Red Flags:** critical warning signs requiring immediate attention (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Comparative Analysis
+RHYTHM: 1 paragraph (the key discriminating theme — what makes THIS approach vs alternatives) → comparison table → bullet list (common pitfalls/misconceptions) → **Clinical Pearl:** box
+* State the 3-4 most important alternatives and the single best discriminating criterion for each
+* Focus on differences that CHANGE THE DECISION — not just academic distinctions
+* Decision frameworks or heuristics with their applicability criteria
+* Common errors: what gets confused and why
+* TABLE: alternative → key discriminating criterion → evidence to prefer it (MANDATORY)
+* **Clinical Pearl:** one expert insight that prevents a common error (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences
+
+### Implementation & Practice
+RHYTHM: mermaid (process/decision algorithm — first, sets the structure) → specification table → bullet list (monitoring, targets, escalation) → **Red Flags:** box (critical failure conditions)
+* ```mermaid flowchart: implementation or decision process (MANDATORY — place FIRST in this section)
+* TABLE: approach/action → parameters → constraints → monitoring (MANDATORY)
+* Outcome targets with specific numbers or thresholds
+* When to escalate: specific triggers, not vague "if not working"
+* Key interactions and side effects requiring monitoring
+* Supporting approaches with evidence level where available
+* Escalation criteria: when and what triggers re-evaluation
+* **Red Flags:** specific findings demanding immediate escalation (MANDATORY)
+* 🔴 Integrate 2-3 chapter names INSIDE sentences with authoritative references
+
+### Special Cases & Advanced Scenarios
+RHYTHM: 1 paragraph (the highest-stakes special case for THIS topic) → table (special scenarios with specific handling differences) → [image only if a variant has a characteristic appearance] → bullet list (follow-up, long-term implications) → **Clinical Pearl:** box
+* Focus on 2-3 genuinely important special cases — not a generic list of scenarios
+* Edge cases or special contexts ONLY if there are specific handling changes for THIS topic
+* Failure modes or exceptions: name them and how to detect them
+* Ongoing considerations: what to monitor and what triggers re-evaluation
+* TABLE: special case → specific handling change or threshold (MANDATORY)
+* IMAGE (if applicable): place AFTER the table — only if a variant has a highly specific visual appearance
+* **Clinical Pearl:** one high-value nuance that a practitioner commonly misses (MANDATORY)
+* 🔴 Integrate 1-2 chapter names INSIDE sentences with authoritative references
+
+{high_yield_block}"""
+
+
 def generate_chapters_for_topic(course_name, subject_name, topic_name):
     """
     Dynamically generate chapter names for a topic when they're missing.
@@ -2680,7 +3002,7 @@ def generate_lessons():
                 msg = client_ref.messages.create(
                     model="claude-sonnet-4-5",
                     max_tokens=max_tok,
-                    temperature=0.7,
+                    temperature=0.1,
                     messages=[{"role": "user", "content": prompt}]
                 )
                 text = msg.content[0].text.strip()
@@ -2763,7 +3085,7 @@ def generate_lessons():
 - Subject      : {subject}
 - Topic        : {topic_name}
 - ChaptersJSON : {chapter_list_json}
-- WordTarget   : 1000-1200 words max | 7 pages max
+- WordTarget   : 3500-4500 words | 7-8 A4 pages
 - Audience     : {audience_desc}
 - Depth Level  : {depth_desc}
 ==========================================================================
@@ -2775,11 +3097,11 @@ def generate_lessons():
 
    Format: (see **Chapter Name**)
 
-   ✅ EXAMPLES OF CORRECT FORMAT:
-   - "Ischemic heart disease (see **Acute Coronary Syndromes: STEMI and NSTEMI**) accounts for..."
-   - "Management of arrhythmias (see **Atrial Fibrillation, Flutter and Supraventricular Tachycardias**) requires..."
-   - "Hypertensive crisis (see **Hypertension: Assessment and Treatment Strategies**) demands..."
-   - "Systolic dysfunction (see **Heart Failure: Acute and Chronic Management**) is characterized by..."
+   ✅ EXAMPLES OF CORRECT FORMAT (substitute your actual chapter names from ChaptersJSON):
+   - "[Key concept from this topic] (see **[Exact Chapter Name]**) accounts for..."
+   - "Management of [X] (see **[Exact Chapter Name]**) requires understanding that..."
+   - "The mechanism of [Y] (see **[Exact Chapter Name]**) explains why..."
+   - "As described in (see **[Exact Chapter Name]**), [specific implication relevant here]..."
 
    ❌ WRONG FORMATS (DO NOT USE):
    - "(see Acute Coronary Syndromes)" - MISSING bold markers **
@@ -2793,12 +3115,15 @@ def generate_lessons():
 3. 🔴 IMAGES (CRITICAL): MINIMUM {image_reqs['min_images']} images required, up to {image_reqs['max_images']} recommended
    {image_reqs['guidance']}
    - Format: **Figure N: [Image: SPECIFIC modality + exact finding/structure]**
-   - Examples of SPECIFIC descriptions:
-     ✅ "Chest X-ray PA view showing cardiomegaly with increased cardiothoracic ratio"
-     ✅ "ECG showing ST elevation in leads V1-V4 indicating anterior STEMI"
-     ✅ "Histology section showing non-caseating granulomas with multinucleated giant cells"
-     ❌ "Heart anatomy diagram" (too vague - use Mermaid instead)
-     ❌ "Treatment flowchart" (use Mermaid flowchart, not image)
+   - Examples of SPECIFIC descriptions (adapt to the modalities relevant to {course}):
+     ✅ "[Imaging/photography modality] showing [specific finding with anatomical or structural detail]"
+        e.g. "Chest X-ray PA view showing cardiomegaly with increased cardiothoracic ratio"
+        e.g. "Histology slide showing [cell type] with [specific morphological feature]"
+        e.g. "Photograph of [tissue/surface] demonstrating [named sign or finding]"
+     ❌ "[Topic] anatomy/structure diagram" (too vague — use Mermaid instead)
+     ❌ "[Topic] flowchart or algorithm" (use Mermaid flowchart, not image)
+     ❌ "Spirometry trace" / "Flow-volume curve" / "V/Q graph" — graphs, function plots, and physiological curves CANNOT be embedded as images — use Mermaid instead
+     ❌ Any waveform, trace, or plotted curve (spirometry, ECG waveform schematic, dose-response) — use Mermaid for diagrams, only use [Image:...] for real photographic modalities (X-ray, CT, MRI, histology, ECG printout, blood film, fundoscopy, dermatology photo)
    - Include image numbers sequentially (Figure 1, Figure 2, etc.)
    - Place images strategically throughout lesson, not clustered
 4. MUST include 2-3 ```mermaid flowcharts for algorithms/workflows/processes
@@ -2837,176 +3162,43 @@ def generate_lessons():
 
 ===========  FORMATTING REQUIREMENTS (CRITICAL)  ===========
 🔴 PARAGRAPH BREAKS (MANDATORY):
-✓ MAXIMUM 3-4 sentences per paragraph - then MUST add blank line
+✓ MAXIMUM 3 sentences per paragraph - then MUST add blank line
 ✓ Use DOUBLE newlines (blank lines) between ALL paragraphs
-✓ Never write more than 5 lines without a blank line break
-✓ Each major point should be a separate paragraph with blank line before and after
+
+🔴 ANTI-WALL-OF-TEXT RULE (MANDATORY):
+✗ Never write more than 2 consecutive prose paragraphs without a visual break
+✓ Strict rhythm: prose → visual element → prose → visual element
+✓ Visual elements = bullet list, table, callout box, or mermaid flowchart
+✓ If you have written 2 paragraphs in a row, the next element MUST be visual
+
+🔴 NO FILLER RULE (MANDATORY):
+Every prose paragraph must contain at least ONE of:
+- A specific number, threshold, parameter, or formula
+- A named mechanism, process, or causal relationship
+- A named technique, tool, concept, or domain-specific entity
+- A key decision point or discriminating feature
+❌ Cut any paragraph that only restates what the section header says
+❌ Cut any paragraph that could apply to ANY medical topic (not specific to THIS one)
 
 VISUAL MARKERS:
-✓ Use emojis sparingly for visual markers (🎯 for key points, 🚩 for red flags, 💎 for clinical pearls, ⚠️ for warnings)
+✓ Use emojis sparingly (🎯 key points, 🚩 red flags, 💎 clinical pearls, ⚠️ warnings)
 ✓ Bold key terms and concepts: **term**
-✓ Use bullet points (• or *) for lists with proper line breaks
+✓ Use bullet points for lists with proper line breaks
 
-SPECIAL SECTIONS:
-  - **Key Points:** at the end (will be highlighted in blue box)
-  - **Mnemonic:** for memory aids (will be highlighted in purple box)
-  - **Red Flags:** for urgent warnings (will be highlighted in red box)
-  - **Clinical Pearl:** for expert tips (will be highlighted in green box)
+CALLOUT BOXES (rendered as highlighted boxes in the app):
+  - **Key Points:** → highlighted blue box
+  - **Mnemonic:** → highlighted purple box
+  - **Red Flags:** → highlighted red box
+  - **Clinical Pearl:** → highlighted green box
+🔴 Callout boxes MUST be STANDALONE blocks — NEVER embed them inside table cells or as table columns.
+   ❌ WRONG: a markdown table with a "Red Flag" column
+   ✅ RIGHT: a **Red Flags:** block placed AFTER the table, on its own line
 ✓ Use markdown tables with | separators for comparisons
 ✓ Ensure each section has clear spacing - double newlines between major elements
 
-===========  LESSON FLOW STRUCTURE  ===========
-CRITICAL RULES FOR SECTION HEADERS:
-✗ NO section numbers ("1 —", "2 —", "Section 1", etc.)
-✗ NO Bloom's labels ("Remember", "Understand", "Apply", "Analyze", "Level 1", etc.)
-✗ NO "Page 1", "Page 2" etc.
-✓ ONLY use short, topic-specific memorable titles that read naturally to a learner
-
-OPENING PARAGRAPH (MANDATORY — appears BEFORE the first ### header):
-Write a single paragraph of exactly 25-30 words — a vivid scenario, clinical moment,
-or compelling question that immediately anchors WHY this topic matters. No heading.
-This is the reader's entry point into the lesson. Make it memorable.
-Example style: "A 52-year-old arrives breathless at 3am. The next 20 minutes of decisions
-hinge on one skill: reading this topic fluently. Here is how you build it."
-
-### [Short Topic-Specific Title — Foundation]
-**Core Knowledge Building**
-* Essential classifications with clinical significance (not just lists)
-* Evidence-based definitions and diagnostic criteria with specific thresholds
-* Epidemiology with absolute numbers (incidence, prevalence, mortality where relevant)
-* Must-know mnemonics linked to clinical decision-making
-* TABLE with key classifications or criteria
-* 🔴 IMAGES: Include 1-2 diagnostic images in this section:
-  → **Figure 1: [Image: specific investigation + exact visible findings]**
-  → Examples: "ECG showing sinus rhythm with normal axis", "Chest X-ray PA view showing normal heart size and clear lung fields"
-  → Be ULTRA-SPECIFIC - mention modality, view, and visible features
-* 🔴 MANDATORY: Integrate 1-2 chapter names NATURALLY IN SENTENCES (not at section end):
-  → "Acute coronary syndromes (see Acute coronary syndrome management) present with..."
-  → "Hypertension diagnosis (see Hypertension diagnosis and management) requires BP >140/90..."
-
-### [Short Topic-Specific Title — Mechanisms]
-**Pathophysiology & Clinical Mechanisms**
-* Mechanistic understanding that explains clinical presentations
-* Molecular/cellular basis linked to macroscopic clinical findings
-* WHY certain investigations work, WHY certain treatments target specific pathways
-* Pharmacodynamics and pharmacokinetics with clinical implications
-* Quantitative relationships (e.g., Starling forces, oxygen delivery equations)
-* ```mermaid flowchart showing pathophysiological pathway/cascade (MANDATORY - use simple syntax, max 8 nodes)
-* Table linking mechanisms to clinical manifestations
-* 🔴 IMAGES: Include anatomical/histological images if relevant to mechanism:
-  → Examples: "Histology showing specific cellular changes", "Anatomical diagram showing affected structures"
-* 🔴 Integrate 1-3 chapter names INSIDE sentences (e.g., "RAAS activation in heart failure (see Heart failure pathophysiology) leads to...")
-
-### [Short Topic-Specific Title — Clinical Application]
-**Clinical Presentations & Diagnostic Approach**
-* Real clinical scenarios with presenting complaints and examination findings
-* Diagnostic approach with pre-test probability considerations
-* Investigation sequence with sensitivity/specificity/PPV/NPV where relevant
-* Interpretation of results in clinical context (not just normal ranges)
-* When to investigate further vs when to act on clinical diagnosis
-* ```mermaid flowchart for diagnostic algorithm (MANDATORY - use simple syntax, max 8 nodes)
-* Table with likelihood ratios and diagnostic accuracy
-* Red flags requiring urgent action
-* 🔴 IMAGES: Include 2-3 diagnostic investigation images (CRITICAL for clinical diagnosis):
-  → Examples: "ECG showing specific abnormality", "CT scan showing characteristic finding", "Blood film showing specific cells"
-  → **Figure 2-4: [Image: modality + view + specific visible diagnostic feature]**
-  → These are essential for pattern recognition in exams and clinical practice
-* 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Acute coronary syndromes (see ACS diagnosis and risk stratification) present with...")
-
-### [Short Topic-Specific Title — Differential Thinking]
-**Differential Diagnosis & Clinical Reasoning**
-* Systematic approach to distinguishing between similar presentations
-* Key discriminating features with clinical significance (not just lists of differences)
-* Likelihood ratios, Bayesian reasoning, or clinical prediction rules where applicable
-* Time course, age, comorbidities, and other contextual factors
-* Common diagnostic errors and cognitive biases to avoid
-* When similar conditions require different urgent interventions
-* COMPARISON TABLE showing key differentiators (MANDATORY)
-* ```mermaid decision tree for differentiation if algorithm-based (OPTIONAL)
-* Quantitative differentiators with specific thresholds
-* 🔴 NO images needed in this section - tables are clearer for differentials
-* 🔴 Integrate 2-3 chapter names INSIDE sentences (e.g., "Unlike stable angina (see Stable angina management), ACS presents...")
-
-### [Short Topic-Specific Title — Management]
-**Evidence-Based Management & Treatment**
-* Evidence-based treatment algorithms with NICE/guideline references
-* Specific drug names, dosages, routes, frequencies, durations
-* Monitoring requirements (what to check, when, and why)
-* Treatment targets and when to escalate/switch therapy
-* Contraindications, drug interactions, and adverse effects requiring action
-* Non-pharmacological interventions with evidence level
-* When to refer and to which specialty (primary vs secondary care)
-* ```mermaid flowchart for treatment algorithm (MANDATORY)
-* Evidence-based treatment table with specific dosing (MANDATORY)
-* Cost-effectiveness and NHS formulary considerations
-* 🔴 NO images needed - use mermaid flowcharts and tables only
-* 🔴 Integrate 2-3 chapter names INSIDE sentences with NICE refs (e.g., "Heart failure pharmacotherapy (see Heart failure drug therapy - NICE NG106) includes...")
-
-### [Short Topic-Specific Title — Advanced Integration]
-**Advanced Clinical Integration & Special Scenarios**
-* Pick one clinically important but less emphasized chapter from ChaptersJSON
-* Complex cases: multimorbidity, atypical presentations, special populations
-* Pregnancy, elderly, renal/hepatic impairment considerations where relevant
-* Emerging evidence or recent guideline changes
-* Complications, long-term sequelae, and follow-up requirements
-* Integration with other conditions/systems (holistic clinical thinking)
-* ADVANCED TABLE for complex data (MANDATORY)
-* Mnemonic for complex decisions (≤10 words with clinical context)
-* 🔴 OPTIONAL: Include 1 specialist investigation ONLY if truly essential
-  → Examples: "MRI brain showing MS plaques", "Bone marrow biopsy showing leukaemia"
-  → Most topics won't need an image here
-* 🔴 Integrate 1-2 chapter names INSIDE sentences with NICE refs (e.g., "In pregnancy (see Hypertension in pregnancy), target BP is lower...")
-
-### High Yield Summary
-🔴🔴🔴 ABSOLUTELY MANDATORY FINAL SECTION - DO NOT SKIP THIS! 🔴🔴🔴
-
-**Key Take-Aways:**
-* 5-7 bullet points with the most critical concepts for this topic
-* Include specific numbers, formulas, thresholds, and key parameters
-* Critical points that cannot be missed
-* Domain-specific recommendations and best practices
-
-**Essential {topic_name} Numbers/Formulas:**
-* Critical values, thresholds, or key equations (table format)
-* Most commonly used formulas or parameters
-* Key quantitative relationships and their significance
-
-**Key Principles/Pearls:**
-* 3-5 practical insights from expert practice
-* Common mistakes and how to avoid them
-* Pattern recognition tips and heuristics
-
-**Quick Reference:**
-* SUMMARY TABLE with key numbers/formulas/thresholds (MANDATORY)
-* ```mermaid flowchart for quick reference algorithm if needed (OPTIONAL)
-* Decision rules, frameworks, or scoring systems
-* Critical points and important caveats
-* 🔴 NO images needed in summary - tables and mermaid only
-
-**Related Chapters:**
-* ONLY list chapters from ChaptersJSON that were NOT already integrated into the text above
-* If all chapters were already mentioned in the lesson, write "All chapters covered above"
-* Do NOT repeat chapters that were already woven into the narrative
-* Note: "For rapid revision of individual chapters, refer to the dedicated chapter-level notes included with this topic."
-
-===========  ESSENTIAL FOR EXAM PREPAREDNESS (STEALTH MODE)  ===========
-✓ High-yield concept prioritization (without labeling as "high-yield")
-✓ Pattern recognition frameworks ("Master X, and you unlock...")
-✓ Memory aids naturally embedded (mnemonics, decision trees)
-✓ Quick recall formats (calculation tables, criteria lists)
-✓ Common pitfall identification ("Don't confuse X with Y")
-✓ Essential numbers for memorization ("Critical thresholds")
-✓ Rapid problem-solving approaches (decision algorithms)
-✓ Integration points between concepts (connects to clinical thinking)
+{_get_lesson_flow_structure(course, is_medical)}
 
 ===========  MANDATORY ELEMENTS  ===========
-✓ IMAGES (Topic-dependent - use strategic judgment):
-  → Format: **Figure N: [Image: highly specific description with visible features]**
-  → Include 0-3 images based on what's visually essential for THIS topic
-  → If topic has key visual elements (domain-specific diagrams, patterns, structures) → Include them
-  → If topic is theoretical/conceptual without essential images → Skip images, use mermaid/tables
-  → Quality over quantity - only essential visual aids
-
 ✓ 2-3 ```mermaid flowcharts for algorithms/workflows/processes (MANDATORY)
 ✓ Tables with quantitative data in every section (MANDATORY)
 ✓ Concrete numbers, formulas, parameters, thresholds throughout (MANDATORY)
@@ -3024,108 +3216,12 @@ hinge on one skill: reading this topic fluently. Here is how you build it."
 ✓ NEVER create separate "Related Chapters:" lists within sections
 ✓ NEVER list chapters as bullet points at section ends
 ✓ Chapters should feel like natural cross-references, not forced insertions
-✓ Visual elements should enhance understanding, not just fill space
-✓ For images: Use format [Image: specific description] - be precise about what structures, patterns, features, or relationships are shown
-✓ End lesson with "High Yield Summary" section containing most important concepts
-✓ Prioritize clear, informative visuals over decorative images
-
-===========  IMAGE STRATEGY (COURSE-AGNOSTIC PRINCIPLE-BASED)  ===========
-
-STEP 1: Strategic Image Identification
-Before writing, ask yourself these questions about THIS SPECIFIC TOPIC:
-
-1. "What are the KEY VISUAL ELEMENTS that define or illustrate this concept?"
-   → Medical: ECGs, X-rays, scans, histology, clinical photos
-   → Engineering: Circuit diagrams, waveforms, stress-strain curves, system architectures
-   → Science: Molecular structures, experimental setups, microscopy images, spectra
-   → Mathematics: Graphs of functions, geometric constructions, visual proofs
-   → Other fields: Domain-specific diagrams, photographs, visualizations
-
-2. "Are there CHARACTERISTIC visual patterns/features that learners MUST recognize?"
-   → If YES and the visual is diagnostic/definitional → Include it
-
-3. "Would a learner be unable to understand/apply this concept without seeing certain images?"
-   → If YES → That image is essential, include it
-   → If NO → Skip the image, use table/mermaid instead
-
-STEP 2: Apply Domain-Specific Rules
-
-✅ INCLUDE images for (adapt to your course domain):
-- **Medical**: Diagnostic imaging (ECG, X-ray, CT/MRI), histopathology, clinical photos, lab results
-- **Engineering**: Circuit diagrams, oscilloscope traces, CAD drawings, system diagrams, equipment photos
-- **Science**: Molecular structures, experimental apparatus, microscopy, chromatograms, spectra
-- **Mathematics**: Graphs of key functions, geometric diagrams, visual proofs
-- **Law**: Flowcharts of legal processes (but use mermaid instead)
-- **Business**: Real charts/data (not generic icons), organizational structures
-- **Other**: Domain-appropriate visualizations that aid understanding
-
-❌ NEVER include images for (universal across all courses):
-- Calculators, interfaces, software screenshots (unless demonstrating specific UI functionality)
-- Generic charts, graphs, or icon-based visualizations
-- Flowcharts, algorithms, process diagrams (use ```mermaid instead)
-- Conceptual illustrations that don't show specific detail
-- Decorative or motivational graphics
-
-STEP 3: Image Count Decision (Topic-Dependent)
-- If topic has 2-3 essential visual elements → Include 2-3 images
-- If topic has 1 key visual element → Include 1 image
-- If topic is primarily conceptual/theoretical with no essential images → 0 images, use mermaid/tables
-
-STEP 4: Image Format - Be ULTRA-SPECIFIC about visible features:
-**Figure N: [Image: Type + specific visible features/details]**
-
-GOOD examples (highly specific, domain-adapted):
-- Medical: "12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals"
-- Engineering: "Bode plot showing -20dB/decade roll-off with phase margin of 45° at unity gain frequency"
-- Chemistry: "Mass spectrum showing molecular ion peak at m/z 180 with base peak at m/z 107"
-- Physics: "Double-slit interference pattern showing bright fringes at d·sinθ = nλ intervals"
-
-BAD examples (will be rejected, universal):
-- "System overview diagram" (too vague, use mermaid)
-- "Calculator interface" (not useful)
-- "Concept illustration" (use mermaid/table)
-
-✓ ALSO MANDATORY: Include 2-3 ```mermaid flowcharts for algorithms/workflows/processes
-
-===========  WRITING STYLE REQUIREMENTS  ===========
-✓ Storytelling hooks that paint visual scenarios
-✓ Conversational tone ("Here's the thing...", "Think of it this way...")
-✓ Concrete examples over abstract concepts
-✓ Strategic use of formatting (bold, bullets, tables)
-✓ Smooth transitions between Bloom's levels
-✓ Make learning exciting through discovery, not pressure
-✓ Stealth preparation through strategic content organization
-
-🔴 1. IMAGES: Use strategic judgment - include 0-3 images based on topic
-     → Ask: "What investigations would a clinician NEED to see to diagnose/manage this?"
-     → Format: **Figure N: [Image: Investigation + specific visible diagnostic features]**
-     → Example: **Figure 1: [Image: 12-lead ECG showing atrial fibrillation with absent P waves and irregularly irregular RR intervals]**
-     → Topics with key investigations (ECG, X-ray, histology, endoscopy) → Include them (1-3 images)
-     → Topics that are clinical/theoretical without essential images → Skip images (0 images)
-     → Quality over quantity - only truly essential diagnostic images
-     → NO calculators, NO generic charts, NO concept diagrams
-     → YES actual medical investigations showing pathology
-
-🔴 2. FLOWCHARTS: Include 2-3 ```mermaid code blocks (MANDATORY)
-     → Use for: diagnostic algorithms, treatment pathways, decision trees
-     → NOT images - actual mermaid code blocks
-
-🔴 3. TABLES: Include tables in EVERY section (MANDATORY)
-     → Classifications, differentials, dosing, thresholds, criteria
-
-🔴 4. CHAPTERS: Weave chapter names NATURALLY INTO SENTENCES throughout ALL sections
-     ✅ DO: "Heart failure (see Heart failure pharmacological therapy) management involves..."
-     ❌ DON'T: Separate "Related Chapters:" lists
-
-🔴 5. HIGH YIELD SUMMARY: MUST end with "### High Yield Summary" with all subsections
-
-🔴 6. WORD COUNT: 1000-1200 words total
-
-🔴 7. NO PAGE NUMBERS in headers - use topic-specific memorable titles
+✓ End lesson with "### High Yield Summary" section containing most important concepts
 
 ===========  OUTPUT FORMAT  ===========
 Markdown only. No meta commentary. No apologies. No "here's the lesson".
-Start directly with first section header."""
+Start directly with the opening paragraph (no header before it).
+🔴 WORD COUNT: 3500-4500 words total | 7-8 A4 pages"""
 
                 # Build chapter prompts up-front so we can fire all in parallel
                 chapter_specs = []  # (chapter_name, nice_refs, chapter_prompt)
@@ -3217,7 +3313,7 @@ Brief context and why this chapter matters clinically/practically.
 
                 with _TP(max_workers=max_workers) as pool:
                     topic_future = pool.submit(
-                        _gen_and_integrate, client, lesson_prompt, 8000, subject, topic_name
+                        _gen_and_integrate, client, lesson_prompt, 16000, subject, topic_name
                     )
                     ch_futures = [
                         (ch_name, nice_refs,
