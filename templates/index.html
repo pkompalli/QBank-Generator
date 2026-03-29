@@ -39,9 +39,21 @@
                 </div>
 
                 <div class="form-group">
-                    <input type="text" id="lesson-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, MRCP"
-                           style="width: 100%; padding: 1rem; font-size: 1.1rem; border: 2px solid var(--border); border-radius: 8px;">
-                    <button id="generate-subjects-btn" class="btn-primary" style="margin-top: 1rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" id="lesson-course" placeholder="e.g., UKMLA AKT, USMLE Step 1, NEET PG, MRCP"
+                               style="flex: 1; padding: 1rem; font-size: 1.1rem; border: 2px solid var(--border); border-radius: 8px;">
+                        <input type="file" id="lesson-json-file" accept=".json" style="display: none;">
+                        <button id="upload-structure-btn" class="btn-icon" title="Attach course structure JSON"
+                                style="padding: 0.85rem 1rem; font-size: 1.3rem; background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; flex-shrink: 0;">
+                            📎
+                        </button>
+                    </div>
+                    <div id="uploaded-structure-info" style="display: none; margin-top: 0.5rem; padding: 0.4rem 0.75rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; display: none; align-items: center; gap: 0.5rem;">
+                        <span style="color: var(--success);">✓</span>
+                        <span id="uploaded-filename" style="color: var(--text-muted); flex: 1;"></span>
+                        <button id="clear-structure-btn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0;">×</button>
+                    </div>
+                    <button id="generate-subjects-btn" class="btn-primary" style="margin-top: 1rem; width: 100%; padding: 1rem; font-size: 1.1rem;">
                         🔍 Analyze Course & Generate Structure
                     </button>
                 </div>
@@ -136,11 +148,6 @@
 
                 <!-- QBank specific controls -->
                 <div class="form-group" style="margin-top: 1rem;">
-                    <label for="num-questions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span>Questions per Topic</span>
-                        <span id="num-display" style="font-size: 1.2rem; font-weight: 600; color: var(--primary);">10</span>
-                    </label>
-                    <input type="range" id="num-questions" min="5" max="50" value="10" step="5" style="width: 100%;">
                     <div id="total-questions-info" style="margin-top: 0.5rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;"></div>
                     <div id="bloom-distribution" style="margin-top: 1rem;"></div>
                 </div>
@@ -151,7 +158,7 @@
                         📖 Generate Lessons
                     </button>
                     <button id="generate-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
-                        📝 Generate QBank
+                        📝 Generate 20 Questions
                     </button>
                 </div>
             </section>
@@ -205,6 +212,18 @@
                     </div>
                     <div class="stats" id="stats"></div>
                     <div id="questions-container"></div>
+                    <!-- Generate More bar -->
+                    <div id="generate-more-bar" style="display: none; margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+                        <p style="margin: 0 0 0.75rem; font-weight: 600; color: var(--text);">➕ Generate More Questions</p>
+                        <p style="margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--text-muted);">New questions will be appended with no duplicates, balanced across Bloom's levels and difficulty.</p>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-more-questions btn-secondary" data-count="20">+20</button>
+                            <button class="btn-more-questions btn-secondary" data-count="40">+40</button>
+                            <button class="btn-more-questions btn-secondary" data-count="60">+60</button>
+                            <button class="btn-more-questions btn-secondary" data-count="80">+80</button>
+                        </div>
+                        <p id="generate-more-status" style="margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--text-muted);"></p>
+                    </div>
                 </div>
             </section>
 
@@ -212,16 +231,36 @@
             <!-- End Main Tab -->
 
             <!-- Utility Tab -->
-            <div class="tab-content" id="utility-tab" style="display: none;">
+            <div class="tab-content" id="utility-tab">
                 <section class="form-section">
                     <h2>🔧 Add Images to Your Questions</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Upload a JSON file with questions and the system will automatically add appropriate medical images.</p>
+                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Upload a JSON file or paste JSON with questions and the system will automatically add appropriate medical images.</p>
 
-                    <input type="file" id="json-file-input" accept=".json" style="display: none;">
-                    <button type="button" id="add-images-btn" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
-                        🖼️ Add Images to Your Questions
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="batch-course" class="form-label">Course / Exam</label>
+                        <select id="batch-course" class="form-select">
+                            <option value="">-- Select Course --</option>
+                            <option value="USMLE Step 1">USMLE Step 1</option>
+                            <option value="USMLE Step 2">USMLE Step 2</option>
+                            <option value="USMLE Step 3">USMLE Step 3</option>
+                            <option value="UKMLA AKT">UKMLA AKT</option>
+                            <option value="NEET PG">NEET PG</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label class="form-label">Upload or Paste JSON</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                            <input type="file" id="json-file-input" accept=".json" style="display: none;">
+                            <button type="button" id="upload-json-btn" class="btn-secondary">📂 Upload JSON File</button>
+                            <span id="file-name" style="color: var(--text-muted); font-size: 0.9rem;"></span>
+                        </div>
+                        <textarea id="json-input" class="form-textarea" rows="8" placeholder='Paste your questions JSON here, e.g. [{"question": "...", ...}]'></textarea>
+                    </div>
+
+                    <button type="button" id="add-image-btn" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                        🖼️ Add Images to Questions
                     </button>
-                    <p id="processing-status" style="margin-top: 1rem; color: var(--text-muted);"></p>
 
                 <div class="results-section" id="image-result" style="display: none; margin-top: 1rem;">
                     <div class="results-header">
@@ -247,7 +286,7 @@
         <div class="toast" id="toast"></div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=8"></script>
     <style>
         .tabs {
             display: flex;

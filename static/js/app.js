@@ -10,11 +10,11 @@ const qbankSubjectsContainer = document.getElementById('qbank-subjects-container
 const subjectSelect = document.getElementById('subject-select');
 const topicsSelect = document.getElementById('topics-select');
 const includeImagesCheckbox = document.getElementById('include-images');
-const numQuestionsInput = document.getElementById('num-questions');
-const numDisplay = document.getElementById('num-display');
+const numQuestionsInput = null; // slider removed
+const numDisplay = null;
 const bloomInfo = document.getElementById('bloom-distribution');
 const totalQuestionsInfo = document.getElementById('total-questions-info');
-const perTopicLabel = document.getElementById('per-topic-label');
+const perTopicLabel = null;
 const generateBtn = document.getElementById('generate-btn');
 const resultsSection = document.getElementById('results');
 const questionsContainer = document.getElementById('questions-container');
@@ -38,6 +38,7 @@ const attachedStructureFile = document.getElementById('attached-structure-file')
 
 let generatedQuestions = [];
 let courseStructure = null; // Shared structure for both Lessons and QBank tabs
+let uploadedStructureData = null; // Holds normalized structure from uploaded JSON file
 let attachedFile = null;
 let _validationState = null; // Stores report + original content for Fix Selected
 
@@ -552,51 +553,48 @@ if (topicsSelect) {
         if (generateBtn) generateBtn.disabled = !hasSelection;
         if (generateLessonsBtn) generateLessonsBtn.disabled = !hasSelection;
 
+        updateTotalCount();
         updateBloomDistribution();
     });
 }
 
-// Number of questions slider
-if (numQuestionsInput) {
-    numQuestionsInput.addEventListener('input', () => {
-        if (numDisplay) numDisplay.textContent = numQuestionsInput.value;
-        updateBloomDistribution();
-    });
+function updateTotalCount() {
+    if (!totalQuestionsInfo) return;
+    const num = numQuestionsInput ? parseInt(numQuestionsInput.value) : 10;
+    const selected = topicsSelect ? Array.from(topicsSelect.selectedOptions).length : 0;
+    if (selected > 0) {
+        totalQuestionsInfo.innerHTML = `<strong>Total: ${num * selected} questions</strong> (${num} per topic × ${selected} topic${selected !== 1 ? 's' : ''})`;
+    } else {
+        totalQuestionsInfo.innerHTML = '';
+    }
 }
 
-// Generate button handler
-if (generateBtn) {
-    generateBtn.addEventListener('click', async () => {
-    // Get course name from the loaded structure (not from input field)
+// ─── Shared QBank generate helper ────────────────────────────────────────────
+async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
     if (!courseStructure) {
-        showToast('Please generate course structure in Lessons tab first', 'error');
+        showToast('Please generate course structure first', 'error');
         return;
     }
-
     const course = courseStructure.Course || 'Unknown Course';
     const subjectIdx = subjectSelect ? subjectSelect.value : '';
     const topics = topicsSelect ? Array.from(topicsSelect.selectedOptions).map(opt => opt.value) : [];
-    const numQuestions = numQuestionsInput ? parseInt(numQuestionsInput.value) : 10;
-    const includeImages = includeImagesCheckbox ? includeImagesCheckbox.checked : true;
+    const includeImages = includeImagesCheckbox ? includeImagesCheckbox.checked : false;
 
-    if (!subjectIdx) {
-        showToast('Please select a subject', 'error');
-        return;
-    }
-
-    if (topics.length === 0) {
-        showToast('Please select at least one topic', 'error');
-        return;
-    }
+    if (!subjectIdx) { showToast('Please select a subject', 'error'); return; }
+    if (topics.length === 0) { showToast('Please select at least one topic', 'error'); return; }
 
     const subject = courseStructure.subjects[subjectIdx].name;
 
-    // Debug logging
-    console.log('courseStructure:', courseStructure);
-    console.log('exam_format being sent:', courseStructure?.exam_format);
-
+    // Disable all generate buttons
+    if (generateBtn) generateBtn.disabled = true;
+    document.querySelectorAll('.btn-more-questions').forEach(b => b.disabled = true);
+    if (isAppend) {
+        const statusEl = document.getElementById('generate-more-status');
+        if (statusEl) statusEl.textContent = `⏳ Generating ${numQuestionsPerTopic} more per topic…`;
+    }
     loading.style.display = 'flex';
-    generateBtn.disabled = true;
+    document.getElementById('loading-message').textContent =
+        isAppend ? `Adding ${numQuestionsPerTopic * topics.length} more questions…` : 'Generating questions…';
 
     try {
         const response = await fetch('/api/generate', {
@@ -606,38 +604,56 @@ if (generateBtn) {
                 course,
                 subject,
                 topics,
-                num_questions: numQuestions,
+                num_questions: numQuestionsPerTopic,
                 include_images: includeImages,
-                exam_format: courseStructure?.exam_format
+                exam_format: courseStructure?.exam_format,
+                existing_questions: isAppend ? generatedQuestions : []
             })
         });
-        
+
         const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        generatedQuestions = data.questions;
-        displayResults(data.questions, course, data.image_stats);
+        if (data.error) throw new Error(data.error);
 
-        // Show results section and switch to qbank tab
-        showResultTab('qbank');
-
-        let message = `Generated ${data.count} questions across ${topics.length} topic(s)!`;
-        if (data.image_stats) {
-            message += ` | ${data.image_stats.image_based_count} image-based (${data.image_stats.image_percentage}), ${data.image_stats.images_found} images found`;
+        if (isAppend) {
+            generatedQuestions = [...generatedQuestions, ...data.questions];
+            appendResults(data.questions, course, data.image_stats);
+            showToast(`Added ${data.count} questions — total: ${generatedQuestions.length}`, 'success');
+            const statusEl = document.getElementById('generate-more-status');
+            if (statusEl) statusEl.textContent = `✓ Added ${data.count} questions. Total: ${generatedQuestions.length}`;
+        } else {
+            generatedQuestions = data.questions;
+            displayResults(data.questions, course, data.image_stats);
+            showResultTab('qbank');
+            showToast(`Generated ${data.count} questions across ${topics.length} topic(s)`, 'success');
         }
-        showToast(message, 'success');
-        
+
+        // Show "generate more" bar
+        const moreBar = document.getElementById('generate-more-bar');
+        if (moreBar) moreBar.style.display = 'block';
+
     } catch (error) {
         showToast(error.message || 'Error generating questions', 'error');
+        const statusEl = document.getElementById('generate-more-status');
+        if (statusEl) statusEl.textContent = '';
     } finally {
         loading.style.display = 'none';
-        generateBtn.disabled = false;
+        if (generateBtn) generateBtn.disabled = false;
+        document.querySelectorAll('.btn-more-questions').forEach(b => b.disabled = false);
     }
-    });
 }
+
+// Generate button (initial 20)
+if (generateBtn) {
+    generateBtn.addEventListener('click', () => runQBankGenerate(20, false));
+}
+
+// Generate More buttons (+20, +40, +60, +80)
+document.querySelectorAll('.btn-more-questions').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const count = parseInt(btn.dataset.count);
+        runQBankGenerate(count, true);
+    });
+});
 
 // Display results
 function displayResults(questions, course, imageStats = null) {
@@ -732,6 +748,68 @@ function displayResults(questions, course, imageStats = null) {
     `).join('');
     
     resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Append new questions to existing results without re-rendering everything
+function appendResults(newQuestions, course, imageStats = null) {
+    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+    const startIdx = generatedQuestions.length - newQuestions.length; // offset into full array
+
+    // Add a separator
+    const separator = document.createElement('div');
+    separator.style.cssText = 'margin: 2rem 0 1rem; padding: 0.5rem 1rem; background: var(--primary); color: white; border-radius: 6px; font-weight: 600; font-size: 0.9rem;';
+    separator.textContent = `➕ ${newQuestions.length} new questions added (Q${startIdx + 1}–Q${generatedQuestions.length})`;
+    questionsContainer.appendChild(separator);
+
+    newQuestions.forEach((q, i) => {
+        const idx = startIdx + i;
+        const div = document.createElement('div');
+        div.className = 'question-card';
+        div.innerHTML = `
+            <div class="question-header">
+                <span class="question-number">Q${idx + 1}</span>
+                <div class="question-tags">
+                    <span class="tag tag-bloom">Bloom's L${q.blooms_level}</span>
+                    <span class="tag tag-difficulty">${difficultyLabels[q.difficulty]}</span>
+                    ${(q.image_url || q.image_description) ? '<span class="tag tag-image">Image</span>' : ''}
+                    ${(q.tags||[]).map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
+                </div>
+            </div>
+            <p class="question-text">${q.question}</p>
+            <ul class="options-list">
+                ${q.options.map(opt => `<li class="${opt === q.correct_option ? 'correct' : ''}">${opt}</li>`).join('')}
+            </ul>
+            <div class="explanation"><strong>Explanation:</strong> ${q.explanation}</div>
+        `;
+        questionsContainer.appendChild(div);
+    });
+
+    // Update stats header
+    updateQBankStats(generatedQuestions);
+
+    separator.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateQBankStats(questions) {
+    if (!statsContainer) return;
+    const bloomCounts = {};
+    const difficultyCounts = { 1: 0, 2: 0, 3: 0 };
+    questions.forEach(q => {
+        bloomCounts[q.blooms_level] = (bloomCounts[q.blooms_level] || 0) + 1;
+        difficultyCounts[q.difficulty] = (difficultyCounts[q.difficulty] || 0) + 1;
+    });
+    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+    const course = courseStructure?.Course || '';
+    statsContainer.innerHTML = `
+        <div class="stat-item"><div class="label">Total Questions</div><div class="value">${questions.length}</div></div>
+        <div class="stat-item"><div class="label">Course</div><div class="value">${course}</div></div>
+        ${Object.entries(bloomCounts).map(([l, c]) => `
+            <div class="stat-item"><div class="label">Bloom's L${l}</div><div class="value">${c}</div></div>
+        `).join('')}
+        ${Object.entries(difficultyCounts).filter(([,c]) => c > 0).map(([d, c]) => `
+            <div class="stat-item"><div class="label">${difficultyLabels[d]}</div><div class="value">${c}</div></div>
+        `).join('')}
+    `;
 }
 
 // Download button
@@ -1259,17 +1337,23 @@ if (generateSubjectsBtn) {
         return;
     }
 
-    structureStatus.textContent = '⏳ Generating course structure...';
+    structureStatus.textContent = uploadedStructureData
+        ? '⏳ Using uploaded structure, fetching question format from web...'
+        : '⏳ Searching web for official curriculum and question format...';
     generateSubjectsBtn.disabled = true;
 
     try {
         // Call backend to generate comprehensive structure
         console.log('🎓 Lessons: Calling API to generate structure for:', course);
 
+        const payload = { course };
+        if (uploadedStructureData) {
+            payload.uploaded_structure = uploadedStructureData;
+        }
         const response = await fetch('/api/generate-subjects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ course })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -1308,6 +1392,49 @@ if (uploadStructureBtn) {
     });
 }
 
+// Normalize any uploaded JSON into the expected { Course, subjects, exam_format } shape
+function normalizeStructureJson(json, fallbackCourseName) {
+    // Format 1: flat array of subjects [{subject/name, topics}]
+    if (Array.isArray(json)) {
+        return {
+            Course: fallbackCourseName || '',
+            subjects: json.map(s => ({
+                name: s.subject || s.name || 'Unknown',
+                description: s.description || '',
+                topics: (s.topics || []).map(t =>
+                    typeof t === 'string'
+                        ? { name: t, chapters: [] }
+                        : { name: t.name || t.topic || 'Unknown', chapters: t.chapters || [], high_yield: t.high_yield || false }
+                )
+            })),
+            exam_format: null
+        };
+    }
+
+    // Format 2: object with subjects array using "subject" key instead of "name"
+    if (json.subjects && json.subjects.length > 0 && json.subjects[0].subject) {
+        return {
+            ...json,
+            Course: json.Course || fallbackCourseName || '',
+            subjects: json.subjects.map(s => ({
+                ...s,
+                name: s.subject || s.name,
+                topics: (s.topics || []).map(t =>
+                    typeof t === 'string'
+                        ? { name: t, chapters: [] }
+                        : { name: t.name || t.topic || 'Unknown', chapters: t.chapters || [], high_yield: t.high_yield || false }
+                )
+            }))
+        };
+    }
+
+    // Format 3: already correct shape — just fill in missing Course
+    return {
+        ...json,
+        Course: json.Course || fallbackCourseName || ''
+    };
+}
+
 // File selection handler for lessons
 if (lessonJsonFile) {
     lessonJsonFile.addEventListener('change', async (e) => {
@@ -1316,34 +1443,39 @@ if (lessonJsonFile) {
 
     try {
         const text = await file.text();
-        const json = JSON.parse(text);
+        const raw = JSON.parse(text);
+        const fallbackName = lessonCourse ? lessonCourse.value.trim() : '';
+        uploadedStructureData = normalizeStructureJson(raw, fallbackName);
 
-        // Store the full JSON
-        courseStructure = json;
-
-        // Auto-fill course field
-        if (json.Course) {
-            lessonCourse.value = json.Course;
+        // Auto-fill course name from JSON if not already typed
+        if (uploadedStructureData.Course && lessonCourse && !lessonCourse.value.trim()) {
+            lessonCourse.value = uploadedStructureData.Course;
         }
 
-        // Populate subjects dropdown
-        populateSubjects(json);
+        // Show the attached file indicator
+        const infoDiv = document.getElementById('uploaded-structure-info');
+        const nameSpan = document.getElementById('uploaded-filename');
+        if (infoDiv) infoDiv.style.display = 'flex';
+        if (nameSpan) nameSpan.textContent = `${file.name} (${uploadedStructureData.subjects?.length || 0} subjects)`;
 
-        // Display info
-        if (json.subjects) {
-            const totalTopics = json.subjects.reduce((sum, subj) =>
-                sum + (subj.topics?.length || 0), 0);
-            structureStatus.textContent = `✓ Loaded: ${json.subjects.length} subjects, ${totalTopics} topics`;
-            showToast(`JSON loaded: ${file.name}`, 'success');
-        } else {
-            showToast('JSON file loaded successfully', 'success');
-        }
+        showToast(`Structure attached: ${file.name}`, 'success');
     } catch (error) {
         console.error('Error parsing JSON:', error);
         showToast('Invalid JSON file', 'error');
-        structureStatus.textContent = '✗ Invalid JSON file';
-        courseStructure = null;
+        uploadedStructureData = null;
     }
+    // Reset file input so same file can be re-selected
+    lessonJsonFile.value = '';
+    });
+}
+
+// Clear attached structure
+const clearStructureBtn = document.getElementById('clear-structure-btn');
+if (clearStructureBtn) {
+    clearStructureBtn.addEventListener('click', () => {
+        uploadedStructureData = null;
+        const infoDiv = document.getElementById('uploaded-structure-info');
+        if (infoDiv) infoDiv.style.display = 'none';
     });
 }
 
@@ -1400,7 +1532,8 @@ function updateTopics() {
 
     subject.topics.forEach((topic, idx) => {
         const option = document.createElement('option');
-        option.value = idx;
+        option.value = topic.name;
+        option.dataset.idx = idx;
         const highYieldMarker = topic.high_yield ? ' ⭐' : '';
         option.textContent = `${topic.name}${highYieldMarker}`;
         if (lessonTopicsSelect) lessonTopicsSelect.appendChild(option);
@@ -1416,18 +1549,19 @@ function updateChapters() {
     const subject = courseStructure.subjects[selectedSubjectIdx];
     if (!subject || !subject.topics) return;
 
-    const selectedTopicIndices = lessonTopicsSelect
-        ? Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value))
+    const selectedTopicNames = lessonTopicsSelect
+        ? Array.from(lessonTopicsSelect.selectedOptions).map(opt => opt.value)
         : [];
 
     lessonChaptersSelect.innerHTML = '';
 
     // If no topics selected, don't show chapters
-    if (selectedTopicIndices.length === 0) return;
+    if (selectedTopicNames.length === 0) return;
 
     // Collect chapters from selected topics
-    selectedTopicIndices.forEach(topicIdx => {
-        const topic = subject.topics[topicIdx];
+    selectedTopicNames.forEach(topicName => {
+        const topicIdx = subject.topics.findIndex(t => t.name === topicName);
+        const topic = topicIdx >= 0 ? subject.topics[topicIdx] : null;
         if (topic && topic.chapters && topic.chapters.length > 0) {
             topic.chapters.forEach((chapter, chIdx) => {
                 const option = document.createElement('option');
@@ -1504,9 +1638,12 @@ if (generateLessonsBtn) {
         requestData.selected_subject_idx = parseInt(selectedSubjectIdx);
 
         // Get selected topics (empty means all topics in subject)
-        const selectedTopicIndices = Array.from(lessonTopicsSelect.selectedOptions).map(opt => parseInt(opt.value));
-        if (selectedTopicIndices.length > 0) {
-            requestData.selected_topic_indices = selectedTopicIndices;
+        const selectedTopicNames = Array.from(lessonTopicsSelect.selectedOptions).map(opt => opt.value);
+        if (selectedTopicNames.length > 0) {
+            const subjectData = courseStructure.subjects[parseInt(selectedSubjectIdx)];
+            requestData.selected_topic_indices = selectedTopicNames.map(name =>
+                subjectData.topics.findIndex(t => t.name === name)
+            ).filter(idx => idx >= 0);
         }
 
         // Get selected chapters (optional)

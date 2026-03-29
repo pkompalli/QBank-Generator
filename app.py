@@ -136,6 +136,60 @@ def cache_image(search_terms, image_type, image_data):
 # MODULAR ARCHITECTURE - REUSABLE COMPONENTS
 # =============================================================================
 
+def _call_with_web_search(client, user_prompt, max_tokens=8000, max_rounds=5):
+    """Call Claude with web_search_20250305 tool. Returns final text response."""
+    tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
+    messages = [{"role": "user", "content": user_prompt}]
+    last_response = None
+
+    for _ in range(max_rounds):
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=max_tokens,
+            tools=tools,
+            messages=messages,
+            timeout=120.0,
+        )
+        last_response = response
+
+        if response.stop_reason == "end_turn":
+            break
+
+        if response.stop_reason == "tool_use":
+            messages.append({"role": "assistant", "content": response.content})
+            tool_results = []
+            for block in response.content:
+                if getattr(block, 'type', None) == "tool_use":
+                    # Collect any web_search_result blocks as the tool result content
+                    result_texts = []
+                    for rb in response.content:
+                        if getattr(rb, 'type', None) == "web_search_result":
+                            for r in getattr(rb, 'results', [])[:5]:
+                                snippet = r.get('page_content') or r.get('snippet', '')
+                                result_texts.append(
+                                    f"Title: {r.get('title','')}\nURL: {r.get('url','')}\n{snippet[:600]}"
+                                )
+                    content = "\n\n---\n\n".join(result_texts) if result_texts else "Search completed."
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": content
+                    })
+            if tool_results:
+                messages.append({"role": "user", "content": tool_results})
+            else:
+                break
+        else:
+            break
+
+    if last_response is None:
+        raise ValueError("No response from Claude")
+
+    return "\n".join(
+        b.text for b in last_response.content if getattr(b, 'text', None)
+    )
+
+
 def generate_course_structure(course_name, reference_docs=None):
     """
     MODULE 1: Course Structure Generator
@@ -319,15 +373,13 @@ OUTPUT FORMAT (strict JSON):
 Generate ONLY the JSON, no other text."""
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=8000,  # Sufficient for subjects + topics (chapters generated on-demand)
-            temperature=0.7,
-            timeout=120.0,  # 2 minute timeout for fast structure generation
-            messages=[{"role": "user", "content": structure_prompt}]
+        web_prompt = (
+            f"Search the internet for the official syllabus and curriculum for '{course_name}'. "
+            f"Look for the official exam body website, accreditation documents, and published blueprints. "
+            f"Then use what you find plus your knowledge to produce the complete structure.\n\n"
+            + structure_prompt
         )
-
-        response_text = message.content[0].text.strip()
+        response_text = _call_with_web_search(client, web_prompt, max_tokens=8000).strip()
 
         # Extract JSON if wrapped in markdown
         if '```json' in response_text:
@@ -546,14 +598,13 @@ OUTPUT FORMAT (strict JSON):
 Generate ONLY the JSON, no other text."""
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=3000,
-            temperature=0.7,
-            messages=[{"role": "user", "content": format_prompt}]
+        web_format_prompt = (
+            f"Search the internet for the official question format and exam specifications for '{course_name}'. "
+            f"Look for the official exam board website, published blueprints, and candidate handbooks. "
+            f"Then use what you find plus your knowledge to answer:\n\n"
+            + format_prompt
         )
-
-        response_text = message.content[0].text.strip()
+        response_text = _call_with_web_search(client, web_format_prompt, max_tokens=4000).strip()
         if '```json' in response_text:
             response_text = response_text.split('```json')[1].split('```')[0].strip()
         elif '```' in response_text:
@@ -1769,7 +1820,7 @@ def _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_imag
     return batches
 
 
-def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, include_images):
+def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, include_images, existing_summaries=None):
     """
     Call Claude for one Bloom's-level batch. Returns list of question dicts (no images yet).
     """
@@ -1873,7 +1924,7 @@ CRITICAL REQUIREMENTS:
 - "course", "subject", and "topic" are separate fields
 - "tags": Array containing ONLY the course name (e.g., ["{course}"])
 - correct_option must be one of: {', '.join(option_labels)}
-
+{"AVOID DUPLICATES — the following questions have ALREADY been generated for this topic. Do NOT repeat the same clinical scenario, drug, condition, investigation, or core concept tested:" + chr(10) + chr(10).join("- " + s for s in existing_summaries) + chr(10) + "Each new question MUST test a DIFFERENT aspect or scenario." if existing_summaries else ""}
 Generate ONLY the JSON array, no additional text."""
 
     # Append image instructions if this batch has image questions
@@ -1915,7 +1966,7 @@ The question text should reference "the image shown" or "based on the image"."""
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None):
+def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None, existing_questions=None):
     """Generate questions for a single topic using parallel Bloom's-level batches."""
     from concurrent.futures import ThreadPoolExecutor as _QTP, as_completed as _QAC
 
@@ -1962,6 +2013,16 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
         num_image_questions = round(num_questions * subject_pct / 100)
         logger.info(f"Including {num_image_questions}/{num_questions} image-based questions ({subject_pct}% for {subject})")
 
+    # ── Summarise existing questions for duplicate avoidance ─────────────────
+    existing_summaries = None
+    if existing_questions:
+        topic_existing = [q for q in existing_questions if q.get('topic') == topic]
+        if topic_existing:
+            existing_summaries = [
+                q['question'][:120].replace('\n', ' ')
+                for q in topic_existing
+            ]
+
     # ── Build parallel batch specs ────────────────────────────────────────────
     batch_specs = _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_image_questions, num_questions)
     logger.info(
@@ -1973,7 +2034,7 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     all_questions = []
     with _QTP(max_workers=len(batch_specs)) as pool:
         future_to_spec = {
-            pool.submit(_run_single_qbank_batch, course, subject, topic, spec, exam_format, include_images): spec
+            pool.submit(_run_single_qbank_batch, course, subject, topic, spec, exam_format, include_images, existing_summaries): spec
             for spec in batch_specs
         }
         for future in _QAC(future_to_spec):
@@ -2026,35 +2087,31 @@ def generate_questions():
     data = request.json
     course = data.get('course')
     subject = data.get('subject')
-    topics = data.get('topics', [])  # Now expects array of topics
-    num_questions = data.get('num_questions', 10)  # Questions per topic
-    include_images = data.get('include_images', False)  # Image-based questions
-    exam_format = data.get('exam_format')  # Exam format metadata from course structure
+    topics = data.get('topics', [])
+    num_questions = data.get('num_questions', 20)  # Default 20 per topic
+    include_images = data.get('include_images', False)
+    exam_format = data.get('exam_format')
+    existing_questions = data.get('existing_questions', [])  # For append mode
 
-    # Debug logging
     logger.info(f"Received exam_format: {exam_format}")
     if exam_format:
         logger.info(f"  num_options in exam_format: {exam_format.get('num_options', 'NOT FOUND')}")
 
-    # Validate
     if not all([course, subject]) or not topics:
         return jsonify({'error': 'Missing required fields'}), 400
 
-    if num_questions < 5 or num_questions > 50:
-        return jsonify({'error': 'Number of questions must be between 5 and 50'}), 400
-
-    # Course validation removed - now accepts any course
+    if num_questions < 1:
+        return jsonify({'error': 'num_questions must be at least 1'}), 400
 
     try:
         all_questions = []
         num_options = exam_format.get('num_options', 4) if exam_format else 4
-        logger.info(f"Generating {num_questions} questions per topic for {len(topics)} topics")
+        logger.info(f"Generating {num_questions} questions per topic for {len(topics)} topics (existing: {len(existing_questions)})")
         logger.info(f"  Format: {num_options} options, images={include_images}")
 
-        # Generate questions for all topics in parallel
         from concurrent.futures import ThreadPoolExecutor as _TQP
         def _gen_topic(t):
-            return generate_for_topic(course, subject, t, num_questions, include_images, exam_format)
+            return generate_for_topic(course, subject, t, num_questions, include_images, exam_format, existing_questions)
 
         if len(topics) == 1:
             all_questions = _gen_topic(topics[0])
@@ -3439,18 +3496,28 @@ def generate_subjects():
 
     data = request.json
     course = data.get('course')
+    uploaded_structure = data.get('uploaded_structure')  # Optional pre-parsed structure
 
     if not course:
         return jsonify({'error': 'Course is required'}), 400
 
     try:
-        logger.info(f"📚 Generating comprehensive structure for: {course}")
+        if uploaded_structure:
+            # Use uploaded structure — skip AI structure generation
+            logger.info(f"📚 Using uploaded structure for: {course} ({len(uploaded_structure.get('subjects', []))} subjects)")
+            structure = {
+                'course': course,
+                'exam_type': uploaded_structure.get('exam_type', 'general'),
+                'domain_characteristics': uploaded_structure.get('domain_characteristics', ''),
+                'subjects': uploaded_structure.get('subjects', [])
+            }
+        else:
+            # Use MODULE 1: Generate course structure via web search
+            logger.info(f"📚 Generating structure from web for: {course}")
+            structure = generate_course_structure(course)
 
-        # Use MODULE 1: Generate course structure (10-15 subjects minimum)
-        structure = generate_course_structure(course)
-
-        # Use MODULE 2: Analyze exam format
-        logger.info(f"📝 Analyzing exam format for: {course}")
+        # Always use MODULE 2: Fetch exam format from internet
+        logger.info(f"📝 Fetching exam format from web for: {course}")
         exam_format_analysis = analyze_exam_format(course, structure)
 
         # Combine into response format expected by frontend
