@@ -39,6 +39,19 @@ const attachedStructureFile = document.getElementById('attached-structure-file')
 let generatedQuestions = [];
 let courseStructure = null; // Shared structure for both Lessons and QBank tabs
 let uploadedStructureData = null; // Holds normalized structure from uploaded JSON file
+
+// Persist questions + structure to localStorage so a refresh doesn't lose work
+function persistSession() {
+    try {
+        localStorage.setItem('qbank_questions', JSON.stringify(generatedQuestions));
+        if (courseStructure) localStorage.setItem('qbank_structure', JSON.stringify(courseStructure));
+    } catch (e) { /* storage full or unavailable */ }
+}
+
+function clearPersistedSession() {
+    localStorage.removeItem('qbank_questions');
+    localStorage.removeItem('qbank_structure');
+}
 let attachedFile = null;
 let _validationState = null; // Stores report + original content for Fix Selected
 
@@ -578,7 +591,11 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
     const course = courseStructure.Course || 'Unknown Course';
     const subjectIdx = subjectSelect ? subjectSelect.value : '';
     const topics = topicsSelect ? Array.from(topicsSelect.selectedOptions).map(opt => opt.value) : [];
-    const includeImages = includeImagesCheckbox ? includeImagesCheckbox.checked : false;
+    // Auto-enable images based on exam format — no checkbox needed
+    const examImagePct = courseStructure?.exam_format?.question_format?.image_questions_percentage
+        ?? courseStructure?.exam_format?.image_questions_percentage
+        ?? 0;
+    const includeImages = examImagePct > 0;
 
     if (!subjectIdx) { showToast('Please select a subject', 'error'); return; }
     if (topics.length === 0) { showToast('Please select at least one topic', 'error'); return; }
@@ -626,6 +643,7 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
             showResultTab('qbank');
             showToast(`Generated ${data.count} questions across ${topics.length} topic(s)`, 'success');
         }
+        persistSession();
 
         // Show "generate more" bar
         const moreBar = document.getElementById('generate-more-bar');
@@ -707,47 +725,52 @@ function displayResults(questions, course, imageStats = null) {
         `).join('')}
     `;
     
-    questionsContainer.innerHTML = questions.map((q, idx) => `
+    questionsContainer.innerHTML = questions.map((q, idx) => renderQuestionCard(q, idx)).join('');
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderQuestionCard(q, idx) {
+    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+    const hasImage = q.image_url || q.image_description;
+    const imageHtml = q.image_url ? `
+        <div class="question-image">
+            <img src="${q.image_url}" alt="${q.image_description || 'Medical image'}" loading="lazy"
+                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';"
+                 onload="if(this.naturalWidth<10||this.naturalHeight<10){this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='block';}">
+            <div class="image-fallback" style="display:none;">
+                <p class="image-placeholder">${q.image_type ? `[${q.image_type}]` : '[Image]'} ${q.image_description || ''}</p>
+            </div>
+            ${q.image_source ? `<small class="image-source">Source: ${q.image_source}</small>` : ''}
+        </div>
+    ` : (q.image_description ? `
+        <div class="question-image">
+            <div class="image-placeholder-box">
+                <div class="placeholder-icon">🖼️</div>
+                <p class="image-placeholder"><strong>${q.image_type || 'Image'}:</strong> ${q.image_description}</p>
+                <small style="color:var(--text-muted)">Image could not be fetched</small>
+            </div>
+        </div>
+    ` : '');
+
+    return `
         <div class="question-card">
             <div class="question-header">
                 <span class="question-number">Q${idx + 1}</span>
                 <div class="question-tags">
                     <span class="tag tag-bloom">Bloom's L${q.blooms_level}</span>
                     <span class="tag tag-difficulty">${difficultyLabels[q.difficulty]}</span>
-                    ${(q.image_url || q.image_description) ? '<span class="tag tag-image">Image</span>' : ''}
-                    ${q.tags.map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
+                    ${hasImage ? '<span class="tag tag-image">Image</span>' : ''}
+                    ${(q.tags || []).map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
                 </div>
             </div>
-            ${q.image_url ? `
-                <div class="question-image">
-                    <img src="${q.image_url}" alt="${q.image_description || 'Medical image'}" loading="lazy" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div class="image-fallback" style="display:none;">
-                        <p class="image-placeholder">${q.image_type ? `[${q.image_type}]` : '[Image]'} ${q.image_description || ''}</p>
-                    </div>
-                    ${q.image_source ? `<small class="image-source">Source: ${q.image_source}</small>` : ''}
-                </div>
-            ` : (q.image_description ? `
-                <div class="question-image">
-                    <div class="image-placeholder-box">
-                        <div class="placeholder-icon">🖼️</div>
-                        <p class="image-placeholder"><strong>${q.image_type || 'Image'}:</strong> ${q.image_description}</p>
-                        ${q.image_search_terms ? `<small>Search: ${q.image_search_terms.slice(0,2).join(', ')}</small>` : ''}
-                    </div>
-                </div>
-            ` : '')}
+            ${imageHtml}
             <p class="question-text">${q.question}</p>
             <ul class="options-list">
-                ${q.options.map(opt => `
-                    <li class="${opt === q.correct_option ? 'correct' : ''}">${opt}</li>
-                `).join('')}
+                ${q.options.map(opt => `<li class="${opt === q.correct_option ? 'correct' : ''}">${opt}</li>`).join('')}
             </ul>
-            <div class="explanation">
-                <strong>Explanation:</strong> ${q.explanation}
-            </div>
+            <div class="explanation"><strong>Explanation:</strong> ${q.explanation}</div>
         </div>
-    `).join('');
-    
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    `;
 }
 
 // Append new questions to existing results without re-rendering everything
@@ -763,25 +786,9 @@ function appendResults(newQuestions, course, imageStats = null) {
 
     newQuestions.forEach((q, i) => {
         const idx = startIdx + i;
-        const div = document.createElement('div');
-        div.className = 'question-card';
-        div.innerHTML = `
-            <div class="question-header">
-                <span class="question-number">Q${idx + 1}</span>
-                <div class="question-tags">
-                    <span class="tag tag-bloom">Bloom's L${q.blooms_level}</span>
-                    <span class="tag tag-difficulty">${difficultyLabels[q.difficulty]}</span>
-                    ${(q.image_url || q.image_description) ? '<span class="tag tag-image">Image</span>' : ''}
-                    ${(q.tags||[]).map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
-                </div>
-            </div>
-            <p class="question-text">${q.question}</p>
-            <ul class="options-list">
-                ${q.options.map(opt => `<li class="${opt === q.correct_option ? 'correct' : ''}">${opt}</li>`).join('')}
-            </ul>
-            <div class="explanation"><strong>Explanation:</strong> ${q.explanation}</div>
-        `;
-        questionsContainer.appendChild(div);
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderQuestionCard(q, idx);
+        questionsContainer.appendChild(wrapper.firstElementChild);
     });
 
     // Update stats header
@@ -814,11 +821,23 @@ function updateQBankStats(questions) {
 
 // Download button
 if (downloadBtn) {
-    downloadBtn.addEventListener('click', () => {
+    downloadBtn.addEventListener('click', async () => {
     if (!generatedQuestions.length) return;
 
+    showToast('Embedding images, please wait…', 'info');
+
+    // Deep-copy questions and replace image_url with base64 data URIs
+    const questionsWithEmbeddedImages = await Promise.all(generatedQuestions.map(async (q) => {
+        const qCopy = { ...q };
+        if (qCopy.image_url && qCopy.image_url.startsWith('/')) {
+            const b64 = await urlToBase64(qCopy.image_url);
+            if (b64) qCopy.image_url = b64;
+        }
+        return qCopy;
+    }));
+
     const course = courseStructure?.Course || 'questions';
-    const blob = new Blob([JSON.stringify(generatedQuestions, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(questionsWithEmbeddedImages, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -826,7 +845,7 @@ if (downloadBtn) {
     a.click();
     URL.revokeObjectURL(url);
 
-    showToast('Downloaded successfully!', 'success');
+    showToast('Downloaded with embedded images!', 'success');
     });
 }
 
@@ -1194,21 +1213,26 @@ function displayBatchImageResult(questions, stats) {
 
 // Download image results as JSON
 if (downloadImageResultBtn) {
-    downloadImageResultBtn.addEventListener('click', () => {
+    downloadImageResultBtn.addEventListener('click', async () => {
     if (!imageResultData) return;
 
-    // Clean up internal metadata fields before download
-    const cleanedData = imageResultData.map(q => {
+    showToast('Embedding images, please wait…', 'info');
+
+    // Clean up internal metadata fields and embed images
+    const cleanedData = await Promise.all(imageResultData.map(async q => {
         const cleaned = { ...q };
-        // Remove internal fields
         delete cleaned.image_status;
         delete cleaned.image_error;
         delete cleaned.image_reasoning;
         delete cleaned.key_finding;
         delete cleaned.image_search_terms;
         delete cleaned.image_title;
+        if (cleaned.image_url && cleaned.image_url.startsWith('/')) {
+            const b64 = await urlToBase64(cleaned.image_url);
+            if (b64) cleaned.image_url = b64;
+        }
         return cleaned;
-    });
+    }));
 
     const blob = new Blob([JSON.stringify(cleanedData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1218,7 +1242,7 @@ if (downloadImageResultBtn) {
     a.click();
     URL.revokeObjectURL(url);
 
-    showToast('Downloaded successfully!', 'success');
+    showToast('Downloaded with embedded images!', 'success');
     });
 }
 
@@ -3250,4 +3274,35 @@ if (uploadValidateQBankBtn && uploadQBankFile) {
         await runUploadValidation(items, 'qbank', course);
     });
 }
+
+// ── Restore session from localStorage on page load ──────────────────────────
+(function restoreSession() {
+    try {
+        const savedStructure = localStorage.getItem('qbank_structure');
+        const savedQuestions = localStorage.getItem('qbank_questions');
+        if (!savedQuestions) return;
+
+        const questions = JSON.parse(savedQuestions);
+        if (!Array.isArray(questions) || questions.length === 0) return;
+
+        if (savedStructure) {
+            courseStructure = JSON.parse(savedStructure);
+        }
+
+        generatedQuestions = questions;
+        const course = courseStructure?.Course || 'Restored session';
+
+        displayResults(questions, course);
+        showResultTab('qbank');
+
+        // Re-show the generate-more bar
+        const moreBar = document.getElementById('generate-more-bar');
+        if (moreBar) moreBar.style.display = 'block';
+
+        showToast(`Restored ${questions.length} questions from last session`, 'info');
+    } catch (e) {
+        // Corrupt storage — clear and ignore
+        clearPersistedSession();
+    }
+})();
 

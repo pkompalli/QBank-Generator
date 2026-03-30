@@ -1406,7 +1406,7 @@ REQUIREMENTS:
         )
 
         for part in response.parts:
-            if part.inline_data is not None:
+            if part.inline_data is not None and part.inline_data.data:
                 image = part.as_image()
 
                 import tempfile
@@ -1414,6 +1414,16 @@ REQUIREMENTS:
                     img_path = f.name
 
                 image.save(img_path)
+
+                # Validate the saved file is non-empty (Gemini can return corrupt/zero-byte data)
+                file_size = os.path.getsize(img_path)
+                if file_size < 1000:
+                    logger.warning(f"Gemini returned near-empty image ({file_size} bytes), discarding")
+                    try:
+                        os.remove(img_path)
+                    except Exception:
+                        pass
+                    return None
 
                 return {
                     'url': f"/static/{os.path.basename(img_path)}",
@@ -1613,24 +1623,29 @@ def get_generic_prompt(course, subject, topic, num_questions, exam_format=None):
     """Generate course-specific prompt using exam format metadata."""
 
     # Get Bloom's distribution from exam_format or use equal distribution as fallback
-    if exam_format and 'blooms_distribution' in exam_format:
-        # Use course-specific percentages
-        blooms_percentages = exam_format['blooms_distribution']
-        bloom_distribution = {}
+    def _norm_blooms_keys(raw):
+        out = {}
+        for k, v in raw.items():
+            try:
+                out[int(str(k).split('_')[0])] = v
+            except (ValueError, IndexError):
+                pass
+        return out
 
-        # Convert percentages to question counts
+    if exam_format and 'blooms_distribution' in exam_format:
+        blooms_raw = _norm_blooms_keys(exam_format['blooms_distribution'])
+        blooms_percentages = {l: blooms_raw.get(l, 0) for l in range(1, 6)}
+        total_pct = sum(blooms_percentages.values()) or 100
+        bloom_distribution = {}
         total_assigned = 0
         for level in range(1, 6):
-            percentage = blooms_percentages.get(str(level), 20)  # Default 20% if missing
-            count = round(num_questions * percentage / 100)
-            bloom_distribution[level] = count
-            total_assigned += count
-
-        # Adjust for rounding errors (add/subtract from highest percentage level)
+            pct = blooms_percentages[level] / total_pct * 100
+            count = round(num_questions * pct / 100)
+            bloom_distribution[level] = max(count, 0)
+            total_assigned += bloom_distribution[level]
         if total_assigned != num_questions:
-            # Find level with highest percentage and adjust it
-            max_level = max(blooms_percentages.items(), key=lambda x: x[1])[0]
-            bloom_distribution[int(max_level)] += (num_questions - total_assigned)
+            best = max(range(1, 6), key=lambda l: blooms_percentages[l])
+            bloom_distribution[best] += num_questions - total_assigned
     else:
         # Fallback: Equal Bloom's distribution across levels 1-5
         per_level = num_questions // 5
@@ -1787,14 +1802,22 @@ def _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_imag
     if not batches:
         return []
 
-    # Distribute image slots proportionally across batches
-    total = sum(b['count'] for b in batches)
+    # Concentrate image slots in L3/L4/L5 batches (clinical vignette levels)
+    # Images make no sense on L1/L2 recall batches
+    visual_batches = [b for b in batches if b['bloom_level'] >= 3]
+    non_visual_batches = [b for b in batches if b['bloom_level'] < 3]
+    if not visual_batches:
+        visual_batches = batches  # fallback: distribute across all
+
+    visual_total = sum(b['count'] for b in visual_batches)
     img_assigned = 0
-    for b in batches[:-1]:
-        img_n = min(round(num_image_questions * b['count'] / total), b['count'])
+    for b in visual_batches[:-1]:
+        img_n = min(round(num_image_questions * b['count'] / visual_total), b['count'])
         b['img_count'] = img_n
         img_assigned += img_n
-    batches[-1]['img_count'] = max(0, min(num_image_questions - img_assigned, batches[-1]['count']))
+    visual_batches[-1]['img_count'] = max(0, min(num_image_questions - img_assigned, visual_batches[-1]['count']))
+    for b in non_visual_batches:
+        b['img_count'] = 0
 
     # Difficulty sub-distribution proportional to batch count
     for b in batches:
@@ -1832,12 +1855,13 @@ def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, inc
     bloom_name  = bloom_labels.get(bloom_level, 'Apply')
 
     if exam_format:
-        question_format = exam_format.get('question_format', {})
-        num_options   = question_format.get('num_options') or exam_format.get('num_options', 4)
-        question_style = question_format.get('type', exam_format.get('question_style', 'Single best answer'))
-        typical_length = question_format.get('avg_stem_words', exam_format.get('typical_length', 'Medium length scenarios'))
-        emphasis       = exam_format.get('emphasis', [])
-        domain_context = exam_format.get('domain_characteristics', {}).get('domain', exam_format.get('domain', 'professional examination'))
+        qf = exam_format.get('question_format', {})
+        num_options    = qf.get('num_options') or exam_format.get('num_options') or 4
+        question_style = qf.get('type') or exam_format.get('question_style') or 'Single best answer'
+        typical_length = qf.get('avg_stem_words') or exam_format.get('typical_length') or 'Medium length scenarios'
+        emphasis       = exam_format.get('emphasis') or exam_format.get('domain_characteristics', {}).get('key_features') or []
+        dc             = exam_format.get('domain_characteristics', {})
+        domain_context = dc.get('domain') or exam_format.get('domain') or 'professional examination'
     else:
         num_options    = 4
         question_style = 'Single best answer'
@@ -1945,9 +1969,11 @@ The question text should reference "the image shown" or "based on the image"."""
             image_instructions + "\n\nGenerate ONLY the JSON array, no additional text."
         )
 
+    # Each question ~1000 tokens output (long stems + 5 options + explanation), floor 6000
+    tokens_needed = max(6000, count * 1200 + (len(existing_summaries) * 30 if existing_summaries else 0))
     message = client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=max(2048, count * 600),
+        max_tokens=min(tokens_needed, 16000),
         temperature=0.2,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -1971,18 +1997,32 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     from concurrent.futures import ThreadPoolExecutor as _QTP, as_completed as _QAC
 
     # ── Bloom's distribution ──────────────────────────────────────────────────
+    # Normalise keys: "1_remember" → 1, "1" → 1
+    def _normalise_blooms(raw):
+        out = {}
+        for k, v in raw.items():
+            try:
+                out[int(str(k).split('_')[0])] = v
+            except (ValueError, IndexError):
+                pass
+        return out
+
     if exam_format and 'blooms_distribution' in exam_format:
-        blooms_pct = exam_format['blooms_distribution']
+        blooms_raw = _normalise_blooms(exam_format['blooms_distribution'])
+        # Only use levels 1-5
+        blooms_pct = {l: blooms_raw.get(l, 0) for l in range(1, 6)}
+        total_pct = sum(blooms_pct.values()) or 100
         bloom_distribution = {}
         total_assigned = 0
         for level in range(1, 6):
-            pct = blooms_pct.get(str(level), 20)
+            pct = blooms_pct[level] / total_pct * 100
             cnt = round(num_questions * pct / 100)
-            bloom_distribution[level] = cnt
-            total_assigned += cnt
+            bloom_distribution[level] = max(cnt, 0)
+            total_assigned += bloom_distribution[level]
+        # Fix rounding: adjust the level with highest percentage
         if total_assigned != num_questions:
-            max_level = int(max(blooms_pct.items(), key=lambda x: x[1])[0])
-            bloom_distribution[max_level] += num_questions - total_assigned
+            best = max(range(1, 6), key=lambda l: blooms_pct[l])
+            bloom_distribution[best] += num_questions - total_assigned
     else:
         per_level = num_questions // 5
         rem = num_questions % 5
@@ -1999,17 +2039,23 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
 
     # ── Image count ───────────────────────────────────────────────────────────
     num_image_questions = 0
-    if include_images and exam_format:
-        image_by_subject = exam_format.get('image_percentage_by_subject', {})
+    if include_images:
+        ef = exam_format or {}
         overall_pct = (
-            exam_format.get('question_format', {}).get('image_questions_percentage', 0)
-            or exam_format.get('image_questions_percentage', 0)
+            ef.get('question_format', {}).get('image_questions_percentage')
+            or ef.get('image_questions_percentage')
+            or ef.get('image_percentage')
+            or 0
         )
-        subject_pct = next(
-            (pct for subj, pct in image_by_subject.items()
-             if subj.lower() in subject.lower() or subject.lower() in subj.lower()),
-            overall_pct
-        )
+        image_by_subject = ef.get('image_percentage_by_subject', {})
+        subject_pct = overall_pct
+        for subj, pct in image_by_subject.items():
+            if subj.lower() in subject.lower() or subject.lower() in subj.lower():
+                subject_pct = pct
+                break
+        # Floor at 20% if exam format says images should be included but pct is 0
+        if subject_pct == 0 and include_images:
+            subject_pct = 20
         num_image_questions = round(num_questions * subject_pct / 100)
         logger.info(f"Including {num_image_questions}/{num_questions} image-based questions ({subject_pct}% for {subject})")
 
@@ -2050,7 +2096,7 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     if include_images:
         image_candidates = [
             (idx, q) for idx, q in enumerate(all_questions)
-            if 'image_search_terms' in q or 'image_type' in q
+            if q.get('image_search_terms') and len(q.get('image_search_terms', [])) > 0
         ]
         logger.info(f"Fetching images for {len(image_candidates)} image-tagged question(s)...")
 

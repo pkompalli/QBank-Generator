@@ -9,6 +9,12 @@ __pycache__/
 # Image cache
 image_cache.json
 
+# Temp generated images
+static/tmp*.png
+
+# Debug structure dumps
+debug_structure_*.json
+
 # Logs
 *.log
 
