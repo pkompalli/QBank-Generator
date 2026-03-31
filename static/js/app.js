@@ -40,20 +40,16 @@ let generatedQuestions = [];
 let courseStructure = null; // Shared structure for both Lessons and QBank tabs
 let uploadedStructureData = null; // Holds normalized structure from uploaded JSON file
 
-// Persist questions + structure to localStorage so a refresh doesn't lose work
-function persistSession() {
-    try {
-        localStorage.setItem('qbank_questions', JSON.stringify(generatedQuestions));
-        if (courseStructure) localStorage.setItem('qbank_structure', JSON.stringify(courseStructure));
-    } catch (e) { /* storage full or unavailable */ }
-}
-
-function clearPersistedSession() {
-    localStorage.removeItem('qbank_questions');
-    localStorage.removeItem('qbank_structure');
-}
 let attachedFile = null;
 let _validationState = null; // Stores report + original content for Fix Selected
+
+// Save / Regenerate state — QBank
+let lastSaveMeta = null;    // { questions, course, subject, topics }
+let lastRegenerateFn = null; // () => void — re-runs the last generation
+
+// Save / Regenerate state — Lessons
+let lastLessonsSaveMeta = null;    // { lessons_data, course, subject }
+let lastLessonsRegenerateFn = null; // () => void
 
 function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -425,7 +421,8 @@ if (qbankJsonFile) {
     const reader = new FileReader();
     reader.onload = async (event) => {
         try {
-            const uploadedStructure = JSON.parse(event.target.result);
+            const raw = JSON.parse(event.target.result);
+            const uploadedStructure = normalizeStructureJson(raw, '');
 
             // If exam_format is missing, research it based on course name
             if (!uploadedStructure.exam_format) {
@@ -589,13 +586,65 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
         return;
     }
     const course = courseStructure.Course || 'Unknown Course';
-    const subjectIdx = subjectSelect ? subjectSelect.value : '';
-    const topics = topicsSelect ? Array.from(topicsSelect.selectedOptions).map(opt => opt.value) : [];
-    // Auto-enable images based on exam format — no checkbox needed
+    const generateAll = generateAllCheckbox?.checked || false;
+
+    // Auto-enable images based on exam format
     const examImagePct = courseStructure?.exam_format?.question_format?.image_questions_percentage
         ?? courseStructure?.exam_format?.image_questions_percentage
         ?? 0;
     const includeImages = examImagePct > 0;
+
+    if (generateAll) {
+        // Generate for every subject and all its topics
+        if (!courseStructure.subjects?.length) {
+            showToast('No subjects in course structure', 'error');
+            return;
+        }
+        if (generateBtn) generateBtn.disabled = true;
+        loading.style.display = 'flex';
+        document.getElementById('loading-message').textContent = 'Generating questions for all subjects…';
+
+        let allQuestions = isAppend ? [...generatedQuestions] : [];
+        let totalGenerated = 0;
+        try {
+            for (const subjectObj of courseStructure.subjects) {
+                const topics = (subjectObj.topics || []).map(t => t.name).filter(Boolean);
+                if (!topics.length) continue;
+                document.getElementById('loading-message').textContent =
+                    `Generating: ${subjectObj.name} (${topics.length} topics)…`;
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        course, subject: subjectObj.name, topics,
+                        num_questions: numQuestionsPerTopic,
+                        include_images: includeImages,
+                        exam_format: courseStructure?.exam_format,
+                        existing_questions: allQuestions
+                    })
+                });
+                const data = await response.json();
+                if (data.error) { showToast(`Error on ${subjectObj.name}: ${data.error}`, 'error'); continue; }
+                allQuestions = [...allQuestions, ...data.questions];
+                totalGenerated += data.count;
+            }
+            generatedQuestions = allQuestions;
+            displayResults(allQuestions, course);
+            showResultTab('qbank');
+            showToast(`Generated ${totalGenerated} questions across all subjects`, 'success');
+            lastSaveMeta = { course, subject: 'All Subjects', topics: courseStructure.subjects.map(s => s.name) };
+            lastRegenerateFn = () => runQBankGenerate(numQuestionsPerTopic, false);
+        } catch (error) {
+            showToast(error.message || 'Error generating questions', 'error');
+        } finally {
+            loading.style.display = 'none';
+            if (generateBtn) generateBtn.disabled = false;
+        }
+        return;
+    }
+
+    const subjectIdx = subjectSelect ? subjectSelect.value : '';
+    const topics = topicsSelect ? Array.from(topicsSelect.selectedOptions).map(opt => opt.value) : [];
 
     if (!subjectIdx) { showToast('Please select a subject', 'error'); return; }
     if (topics.length === 0) { showToast('Please select at least one topic', 'error'); return; }
@@ -624,7 +673,8 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
                 num_questions: numQuestionsPerTopic,
                 include_images: includeImages,
                 exam_format: courseStructure?.exam_format,
-                existing_questions: isAppend ? generatedQuestions : []
+                existing_questions: isAppend ? generatedQuestions : [],
+                reference_examples: getPyqExamples(subject, 8),
             })
         });
 
@@ -642,8 +692,10 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
             displayResults(data.questions, course, data.image_stats);
             showResultTab('qbank');
             showToast(`Generated ${data.count} questions across ${topics.length} topic(s)`, 'success');
+            lastSaveMeta = { course, subject, topics };
+            lastRegenerateFn = () => runQBankGenerate(numQuestionsPerTopic * topics.length, false);
         }
-        persistSession();
+
 
         // Show "generate more" bar
         const moreBar = document.getElementById('generate-more-bar');
@@ -660,9 +712,28 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
     }
 }
 
-// Generate button (initial 20)
+// Generate button — reads count from dropdown
+const numQuestionsSelect = document.getElementById('num-questions-select');
+
+function getNumQuestions() {
+    return numQuestionsSelect ? parseInt(numQuestionsSelect.value) || 20 : 20;
+}
+
+function updateGenerateBtnLabel() {
+    if (!generateBtn) return;
+    const n = getNumQuestions();
+    const allChecked = document.getElementById('generate-all-checkbox')?.checked;
+    generateBtn.textContent = allChecked
+        ? `📝 Generate ${n} Qs / Topic (All)`
+        : `📝 Generate ${n} Questions`;
+}
+
+if (numQuestionsSelect) {
+    numQuestionsSelect.addEventListener('change', updateGenerateBtnLabel);
+}
+
 if (generateBtn) {
-    generateBtn.addEventListener('click', () => runQBankGenerate(20, false));
+    generateBtn.addEventListener('click', () => runQBankGenerate(getNumQuestions(), false));
 }
 
 // Generate More buttons (+20, +40, +60, +80)
@@ -727,6 +798,12 @@ function displayResults(questions, course, imageStats = null) {
     
     questionsContainer.innerHTML = questions.map((q, idx) => renderQuestionCard(q, idx)).join('');
     resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+    // Enable Save / Regenerate buttons now that results exist
+    const saveQbankBtn = document.getElementById('save-qbank-btn');
+    const regenQbankBtn = document.getElementById('regenerate-qbank-btn');
+    if (saveQbankBtn) saveQbankBtn.disabled = false;
+    if (regenQbankBtn) regenQbankBtn.disabled = false;
 }
 
 function renderQuestionCard(q, idx) {
@@ -936,6 +1013,106 @@ if (copyBtn) {
     });
 }
 
+// ── Save to History button ───────────────────────────────────────────────────
+const saveQbankBtn = document.getElementById('save-qbank-btn');
+if (saveQbankBtn) {
+    saveQbankBtn.addEventListener('click', async () => {
+        if (!generatedQuestions.length) return;
+        const meta = lastSaveMeta || { course: courseStructure?.Course || 'Unknown', subject: '', topics: [] };
+        saveQbankBtn.disabled = true;
+        saveQbankBtn.textContent = 'Saving…';
+        try {
+            const res = await fetch('/api/sessions/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    questions: generatedQuestions,
+                    course: meta.course,
+                    subject: meta.subject,
+                    topics: meta.topics,
+                })
+            });
+            const data = await res.json();
+            if (data.session_id) {
+                showToast('Saved to History ✓', 'success');
+                saveQbankBtn.textContent = '✓ Saved';
+            } else {
+                throw new Error(data.error || 'Save failed');
+            }
+        } catch (err) {
+            showToast(err.message || 'Save failed', 'error');
+            saveQbankBtn.disabled = false;
+            saveQbankBtn.textContent = '💾 Save to History';
+        }
+    });
+}
+
+// ── Regenerate button ────────────────────────────────────────────────────────
+const regenerateQbankBtn = document.getElementById('regenerate-qbank-btn');
+if (regenerateQbankBtn) {
+    regenerateQbankBtn.addEventListener('click', () => {
+        if (typeof lastRegenerateFn === 'function') {
+            // Reset Save button so user can save the new result
+            if (saveQbankBtn) {
+                saveQbankBtn.disabled = true;
+                saveQbankBtn.textContent = '💾 Save to History';
+            }
+            lastRegenerateFn();
+        } else {
+            showToast('No previous generation to repeat', 'error');
+        }
+    });
+}
+
+// ── Lessons: Save to History button ─────────────────────────────────────────
+const saveLessonsBtn = document.getElementById('save-lessons-btn');
+if (saveLessonsBtn) {
+    saveLessonsBtn.addEventListener('click', async () => {
+        if (!lastLessonsSaveMeta) return;
+        saveLessonsBtn.disabled = true;
+        saveLessonsBtn.textContent = 'Saving…';
+        try {
+            const res = await fetch('/api/sessions/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'lessons',
+                    lessons_data: lastLessonsSaveMeta.lessons_data,
+                    course: lastLessonsSaveMeta.course,
+                    subject: lastLessonsSaveMeta.subject,
+                })
+            });
+            const data = await res.json();
+            if (data.session_id) {
+                showToast('Lessons saved to History ✓', 'success');
+                saveLessonsBtn.textContent = '✓ Saved';
+            } else {
+                throw new Error(data.error || 'Save failed');
+            }
+        } catch (err) {
+            showToast(err.message || 'Save failed', 'error');
+            saveLessonsBtn.disabled = false;
+            saveLessonsBtn.textContent = '💾 Save to History';
+        }
+    });
+}
+
+// ── Lessons: Regenerate button ───────────────────────────────────────────────
+const regenerateLessonsBtn = document.getElementById('regenerate-lessons-btn');
+if (regenerateLessonsBtn) {
+    regenerateLessonsBtn.addEventListener('click', () => {
+        if (typeof lastLessonsRegenerateFn === 'function') {
+            if (saveLessonsBtn) {
+                saveLessonsBtn.disabled = true;
+                saveLessonsBtn.textContent = '💾 Save to History';
+            }
+            lastLessonsRegenerateFn();
+        } else {
+            showToast('No previous lesson generation to repeat', 'error');
+        }
+    });
+}
+
 // Initialize
 updateBloomDistribution();
 
@@ -991,6 +1168,11 @@ tabButtons.forEach(button => {
             }
             if (resultsSection) resultsSection.style.display = 'none';
             if (document.getElementById('image-result')) document.getElementById('image-result').style.display = 'none';
+        } else if (tabName === 'history') {
+            if (resultsSection) resultsSection.style.display = 'none';
+            if (document.getElementById('lessons-result')) document.getElementById('lessons-result').style.display = 'none';
+            if (document.getElementById('image-result')) document.getElementById('image-result').style.display = 'none';
+            loadSessionHistory();
         } else if (tabName === 'utility') {
             // Utility tab - show image results if they exist, hide others
             if (document.getElementById('image-result')) {
@@ -1418,44 +1600,56 @@ if (uploadStructureBtn) {
 
 // Normalize any uploaded JSON into the expected { Course, subjects, exam_format } shape
 function normalizeStructureJson(json, fallbackCourseName) {
-    // Format 1: flat array of subjects [{subject/name, topics}]
+    // Helper: case-insensitive key lookup on a plain object
+    function getKey(obj, ...keys) {
+        for (const k of keys) {
+            if (obj[k] !== undefined) return obj[k];
+            // Try capitalized variant
+            const cap = k.charAt(0).toUpperCase() + k.slice(1);
+            if (obj[cap] !== undefined) return obj[cap];
+        }
+        return undefined;
+    }
+
+    function normalizeTopic(t) {
+        if (typeof t === 'string') return { name: t, chapters: [] };
+        const name = getKey(t, 'name', 'topic', 'Topic') || 'Unknown';
+        const chapters = (getKey(t, 'chapters', 'Chapters') || []).map(c =>
+            typeof c === 'string' ? c : (getKey(c, 'name', 'chapter') || String(c))
+        );
+        return { name, chapters, high_yield: t.high_yield || t.High_yield || false };
+    }
+
+    function normalizeSubject(s) {
+        const name = getKey(s, 'name', 'subject', 'Subject') || 'Unknown';
+        const description = getKey(s, 'description', 'Description') || '';
+        const rawTopics = getKey(s, 'topics', 'Topics') || [];
+        return { name, description, topics: rawTopics.map(normalizeTopic) };
+    }
+
+    // Format 1: flat array of subjects
     if (Array.isArray(json)) {
         return {
             Course: fallbackCourseName || '',
-            subjects: json.map(s => ({
-                name: s.subject || s.name || 'Unknown',
-                description: s.description || '',
-                topics: (s.topics || []).map(t =>
-                    typeof t === 'string'
-                        ? { name: t, chapters: [] }
-                        : { name: t.name || t.topic || 'Unknown', chapters: t.chapters || [], high_yield: t.high_yield || false }
-                )
-            })),
+            subjects: json.map(normalizeSubject),
             exam_format: null
         };
     }
 
-    // Format 2: object with subjects array using "subject" key instead of "name"
-    if (json.subjects && json.subjects.length > 0 && json.subjects[0].subject) {
+    // Format 2: object with a subjects/Subjects array
+    const rawSubjects = getKey(json, 'subjects', 'Subjects');
+    if (rawSubjects && Array.isArray(rawSubjects) && rawSubjects.length > 0) {
         return {
             ...json,
-            Course: json.Course || fallbackCourseName || '',
-            subjects: json.subjects.map(s => ({
-                ...s,
-                name: s.subject || s.name,
-                topics: (s.topics || []).map(t =>
-                    typeof t === 'string'
-                        ? { name: t, chapters: [] }
-                        : { name: t.name || t.topic || 'Unknown', chapters: t.chapters || [], high_yield: t.high_yield || false }
-                )
-            }))
+            Course: json.Course || json.course || fallbackCourseName || '',
+            subjects: rawSubjects.map(normalizeSubject)
         };
     }
 
-    // Format 3: already correct shape — just fill in missing Course
+    // Format 3: unrecognized — pass through with Course filled in
     return {
         ...json,
-        Course: json.Course || fallbackCourseName || ''
+        Course: json.Course || json.course || fallbackCourseName || ''
     };
 }
 
@@ -1616,11 +1810,21 @@ if (generateAllCheckbox) {
         if (lessonTopicsSelect) lessonTopicsSelect.disabled = isChecked;
         if (lessonChaptersSelect) lessonChaptersSelect.disabled = isChecked;
 
+        // Enable both generate buttons when "generate all" is checked
+        if (generateBtn) generateBtn.disabled = !isChecked && topicsSelect
+            ? Array.from(topicsSelect.selectedOptions).length === 0
+            : false;
+        if (generateLessonsBtn) generateLessonsBtn.disabled = !isChecked && lessonTopicsSelect
+            ? Array.from(lessonTopicsSelect.selectedOptions).length === 0
+            : false;
+
         if (isChecked && structureStatus) {
-            structureStatus.textContent = '✓ Will generate lessons for entire course';
+            structureStatus.textContent = '✓ Will generate for entire course';
         } else if (structureStatus) {
-            structureStatus.textContent = structureStatus.textContent.replace('Will generate lessons for entire course', '');
+            structureStatus.textContent = '';
         }
+
+        updateGenerateBtnLabel();
     });
 }
 
@@ -1724,6 +1928,10 @@ if (generateLessonsBtn) {
 
         // Display results
         displayLessons(data);
+
+        // Track state for Save / Regenerate buttons
+        lastLessonsSaveMeta = { lessons_data: data, course: data.course || course, subject: data.subject || '' };
+        lastLessonsRegenerateFn = () => generateLessonsBtn.click();
 
         // Show results section and switch to lessons tab
         showResultTab('lessons');
@@ -1867,6 +2075,12 @@ function displayLessons(data) {
             document.getElementById(`${lessonId}-chapter-${chapterIdx}`).classList.add('active');
         });
     });
+
+    // Enable Save / Regenerate buttons now that lessons exist
+    const saveLessonsBtn = document.getElementById('save-lessons-btn');
+    const regenLessonsBtn = document.getElementById('regenerate-lessons-btn');
+    if (saveLessonsBtn) saveLessonsBtn.disabled = false;
+    if (regenLessonsBtn) regenLessonsBtn.disabled = false;
 }
 
 // Helper function to escape special characters in regex
@@ -3275,34 +3489,446 @@ if (uploadValidateQBankBtn && uploadQBankFile) {
     });
 }
 
-// ── Restore session from localStorage on page load ──────────────────────────
-(function restoreSession() {
+// ── History Tab ─────────────────────────────────────────────────────────────
+
+async function loadSessionHistory() {
+    const listEl = document.getElementById('history-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<p class="empty-state">Loading...</p>';
     try {
-        const savedStructure = localStorage.getItem('qbank_structure');
-        const savedQuestions = localStorage.getItem('qbank_questions');
-        if (!savedQuestions) return;
+        const res = await fetch('/api/sessions');
+        if (!res.ok) throw new Error('Failed to fetch sessions');
+        const sessions = await res.json();
+        renderSessionList(sessions, listEl);
+    } catch (e) {
+        listEl.innerHTML = '<p class="empty-state">Could not load history.</p>';
+    }
+}
 
-        const questions = JSON.parse(savedQuestions);
-        if (!Array.isArray(questions) || questions.length === 0) return;
+function renderSessionList(sessions, listEl) {
+    if (!sessions || sessions.length === 0) {
+        listEl.innerHTML = '<p class="empty-state">No saved generations yet. Generate some questions first!</p>';
+        return;
+    }
+    listEl.innerHTML = '';
+    sessions.forEach(s => {
+        const date = s.created_at ? new Date(s.created_at).toLocaleString() : s.session_id;
+        const topicsStr = (s.topics || []).slice(0, 3).join(', ') + (s.topics && s.topics.length > 3 ? ` +${s.topics.length - 3} more` : '');
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        const isLesson = s.type === 'lessons';
+        const icon = isLesson ? '📚' : '📋';
+        const badge = isLesson ? `${s.lesson_count || 0} Lessons` : `${s.question_count || 0} Qs`;
+        card.innerHTML = `
+            <div class="history-card-icon">${icon}</div>
+            <div class="history-card-body">
+                <div class="history-card-title">${escapeHtml(s.course || 'Unknown')} — ${escapeHtml(s.subject || '')}</div>
+                <div class="history-card-meta">${escapeHtml(topicsStr)} &bull; ${date}</div>
+            </div>
+            <span class="history-card-badge">${badge}</span>
+            <button class="history-card-delete" title="Delete session" data-id="${escapeHtml(s.session_id)}">🗑</button>
+        `;
+        // Load session on card click (not delete button)
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.history-card-delete')) return;
+            openHistorySession(s.session_id);
+        });
+        card.querySelector('.history-card-delete').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!confirm('Delete this session?')) return;
+            await deleteHistorySession(s.session_id, card);
+        });
+        listEl.appendChild(card);
+    });
+}
 
-        if (savedStructure) {
-            courseStructure = JSON.parse(savedStructure);
+async function openHistorySession(sessionId) {
+    showToast('Loading session...', 'info');
+    try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (!res.ok) throw new Error('Session not found');
+        const data = await res.json();
+        const courseName = data.course || 'Restored';
+
+        // Switch to Generator tab first
+        const mainBtn = document.querySelector('[data-tab="main"]');
+        if (mainBtn) mainBtn.click();
+
+        if (data.type === 'lessons') {
+            const lessonsPayload = data.lessons_data;
+            if (!lessonsPayload || !lessonsPayload.lessons?.length) {
+                showToast('Session has no lessons', 'error'); return;
+            }
+            lessonsData = lessonsPayload;
+            displayLessons(lessonsPayload);
+            lastLessonsSaveMeta = { lessons_data: lessonsPayload, course: courseName, subject: data.subject || '' };
+            lastLessonsRegenerateFn = null; // Can't replay without original form state
+            showResultTab('lessons');
+            showToast(`Loaded ${lessonsPayload.lessons.length} lessons from ${courseName}`, 'success');
+        } else {
+            const questions = data.questions || [];
+            if (!questions.length) { showToast('Session has no questions', 'error'); return; }
+            generatedQuestions = questions;
+            displayResults(questions, courseName);
+            lastSaveMeta = { course: courseName, subject: data.subject || '', topics: data.topics || [] };
+            lastRegenerateFn = null; // Can't replay without original form state
+            showResultTab('qbank');
+            const moreBar = document.getElementById('generate-more-bar');
+            if (moreBar) moreBar.style.display = 'block';
+            showToast(`Loaded ${questions.length} questions from ${courseName}`, 'success');
+        }
+    } catch (e) {
+        showToast('Failed to load session', 'error');
+    }
+}
+
+async function deleteHistorySession(sessionId, cardEl) {
+    try {
+        const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        cardEl.remove();
+        const listEl = document.getElementById('history-list');
+        if (listEl && !listEl.querySelector('.history-card')) {
+            listEl.innerHTML = '<p class="empty-state">No saved generations yet. Generate some questions first!</p>';
+        }
+        showToast('Session deleted', 'info');
+    } catch (e) {
+        showToast('Failed to delete session', 'error');
+    }
+}
+
+// Wire up the manual Refresh button in the History tab
+const historyRefreshBtn = document.getElementById('history-refresh-btn');
+if (historyRefreshBtn) {
+    historyRefreshBtn.addEventListener('click', loadSessionHistory);
+}
+
+// ── Mock Exam Paper ──────────────────────────────────────────────────────────
+
+let mockExamSpecs = null; // cached specs from /api/mock-exam-specs
+
+// Mode toggle: Topic Generator ↔ Mock Exam
+document.querySelectorAll('.gen-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        document.querySelectorAll('.gen-mode-btn').forEach(b => {
+            b.style.background = 'var(--bg-secondary)';
+            b.style.color = 'var(--text)';
+        });
+        btn.style.background = 'var(--primary)';
+        btn.style.color = 'white';
+        document.getElementById('topic-generator-panel').style.display = mode === 'topic' ? '' : 'none';
+        document.getElementById('mock-exam-panel').style.display = mode === 'mock' ? '' : 'none';
+    });
+});
+
+// Fetch official exam pattern
+const fetchMockSpecsBtn = document.getElementById('fetch-mock-specs-btn');
+const mockSpecsStatus = document.getElementById('mock-specs-status');
+const mockSpecsPanel = document.getElementById('mock-specs-panel');
+const generateMockBtn = document.getElementById('generate-mock-btn');
+const mockProgress = document.getElementById('mock-progress');
+
+if (fetchMockSpecsBtn) {
+    fetchMockSpecsBtn.addEventListener('click', async () => {
+        if (!courseStructure) {
+            showToast('Generate course structure first', 'error');
+            return;
+        }
+        const course = courseStructure.Course || document.getElementById('lesson-course')?.value.trim();
+        if (!course) { showToast('No course name found', 'error'); return; }
+
+        const subjects = (courseStructure.subjects || []).map(s => s.name);
+
+        fetchMockSpecsBtn.disabled = true;
+        mockSpecsStatus.textContent = '⏳ Searching official blueprints…';
+        if (mockSpecsPanel) mockSpecsPanel.style.display = 'none';
+        if (generateMockBtn) generateMockBtn.disabled = true;
+
+        try {
+            const res = await fetch('/api/mock-exam-specs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ course, subjects })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            mockExamSpecs = await res.json();
+            renderMockSpecs(mockExamSpecs);
+            mockSpecsStatus.textContent = '✓ Exam pattern loaded';
+            if (generateMockBtn) generateMockBtn.disabled = false;
+        } catch (e) {
+            mockSpecsStatus.textContent = '✗ Could not fetch specs — check console';
+            console.error(e);
+            showToast('Failed to fetch exam specs', 'error');
+        } finally {
+            fetchMockSpecsBtn.disabled = false;
+        }
+    });
+}
+
+function renderMockSpecs(specs) {
+    if (!mockSpecsPanel) return;
+    mockSpecsPanel.style.display = 'block';
+
+    // Summary stat cards
+    const summary = document.getElementById('mock-specs-summary');
+    if (summary) {
+        summary.innerHTML = [
+            { label: 'Total Questions', value: specs.total_questions ?? '—' },
+            { label: 'Duration', value: specs.time_minutes ? `${specs.time_minutes} min` : '—' },
+            { label: 'Options', value: specs.num_options ? `${specs.num_options} options` : '—' },
+            { label: 'Image Qs', value: specs.image_questions_total ? `~${specs.image_questions_total}` : '—' },
+            { label: 'Scoring', value: specs.scoring_note || specs.negative_marking || '—' },
+        ].map(c => `
+            <div class="mock-stat-card">
+                <div class="label">${c.label}</div>
+                <div class="value">${escapeHtml(String(c.value))}</div>
+            </div>
+        `).join('');
+    }
+
+    // Subject distribution table
+    const table = document.getElementById('mock-subject-table');
+    if (!table) return;
+    const dist = specs.subject_distribution || {};
+    const rows = Object.entries(dist)
+        .sort((a, b) => b[1].questions - a[1].questions);
+    const maxQ = rows[0]?.[1].questions || 1;
+
+    table.innerHTML = rows.map(([subj, d]) => `
+        <div class="mock-dist-row">
+            <div>
+                <div style="font-weight:500;">${escapeHtml(subj)}</div>
+                <div class="mock-dist-bar-wrap" style="margin-top:4px; width:100%;">
+                    <div class="mock-dist-bar" style="width:${Math.round(d.questions/maxQ*100)}%;"></div>
+                </div>
+            </div>
+            <div style="color:var(--text-muted); font-size:0.82rem;">${d.percentage ?? ''}%</div>
+            <div style="font-weight:600; color:var(--primary);">${d.questions} Q</div>
+        </div>
+    `).join('');
+
+    if (specs.exam_notes) {
+        table.insertAdjacentHTML('afterend',
+            `<p style="margin-top:0.75rem; font-size:0.82rem; color:var(--text-muted);">${escapeHtml(specs.exam_notes)}</p>`);
+    }
+}
+
+// Generate the full mock exam paper
+if (generateMockBtn) {
+    generateMockBtn.addEventListener('click', async () => {
+        if (!courseStructure || !mockExamSpecs) return;
+        const course = courseStructure.Course || '';
+        const dist = mockExamSpecs.subject_distribution || {};
+        const subjectEntries = Object.entries(dist).filter(([, d]) => d.questions > 0);
+        if (!subjectEntries.length) { showToast('No subject distribution in specs', 'error'); return; }
+
+        generateMockBtn.disabled = true;
+        fetchMockSpecsBtn.disabled = true;
+        loading.style.display = 'flex';
+        document.getElementById('loading-message').textContent = 'Preparing mock exam…';
+
+        let allQuestions = [];
+        let done = 0;
+
+        try {
+            for (const [subjectName, subjectSpec] of subjectEntries) {
+                const targetCount = subjectSpec.questions;
+                // Find the matching subject in courseStructure (case-insensitive fuzzy)
+                const subjectObj = courseStructure.subjects?.find(s =>
+                    s.name.toLowerCase() === subjectName.toLowerCase() ||
+                    s.name.toLowerCase().includes(subjectName.toLowerCase()) ||
+                    subjectName.toLowerCase().includes(s.name.toLowerCase())
+                );
+                const topics = subjectObj
+                    ? subjectObj.topics.map(t => t.name).filter(Boolean)
+                    : [subjectName]; // fallback: use subject name as single topic
+
+                const numTopics = topics.length || 1;
+                const perTopic = Math.ceil(targetCount / numTopics);
+
+                mockProgress.textContent = `[${done + 1}/${subjectEntries.length}] Generating ${targetCount} Qs for ${subjectName}…`;
+                document.getElementById('loading-message').textContent = mockProgress.textContent;
+
+                const examImagePct = mockExamSpecs.image_questions_total
+                    ? Math.round(mockExamSpecs.image_questions_total / mockExamSpecs.total_questions * 100)
+                    : (courseStructure?.exam_format?.question_format?.image_questions_percentage ?? 0);
+                const includeImages = examImagePct > 0;
+
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        course,
+                        subject: subjectName,
+                        topics,
+                        num_questions: perTopic,
+                        include_images: includeImages,
+                        exam_format: {
+                            ...(courseStructure?.exam_format || {}),
+                            num_options: mockExamSpecs.num_options || courseStructure?.exam_format?.num_options || 4,
+                        },
+                        existing_questions: allQuestions,
+                        reference_examples: getPyqExamples(subjectName, 8),
+                    })
+                });
+                const data = await res.json();
+                if (data.error) { showToast(`Error on ${subjectName}: ${data.error}`, 'error'); }
+                else { allQuestions = [...allQuestions, ...data.questions]; }
+                done++;
+            }
+
+            // Trim to exact total if over (due to per-topic rounding)
+            const total = mockExamSpecs.total_questions;
+            if (total && allQuestions.length > total) allQuestions = allQuestions.slice(0, total);
+
+            generatedQuestions = allQuestions;
+            displayResults(allQuestions, `${course} — Mock Exam`);
+            showResultTab('qbank');
+            mockProgress.textContent = `✓ Generated ${allQuestions.length} questions`;
+            showToast(`Mock exam ready: ${allQuestions.length} questions`, 'success');
+            lastSaveMeta = { course, subject: 'Mock Exam', topics: subjectEntries.map(([s]) => s) };
+            lastRegenerateFn = () => generateMockBtn.click();
+        } catch (err) {
+            showToast(err.message || 'Error generating mock exam', 'error');
+            console.error(err);
+        } finally {
+            loading.style.display = 'none';
+            generateMockBtn.disabled = false;
+            fetchMockSpecsBtn.disabled = false;
+        }
+    });
+}
+
+// Helper: trigger server-side session save after mock exam generation
+async function save_qbank_session_frontend(questions, course, subject, topics) {
+    try {
+        await fetch('/api/sessions/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questions, course, subject, topics })
+        });
+    } catch (_) { /* non-critical */ }
+}
+
+// ── PYQ / Reference Document Upload ─────────────────────────────────────────
+
+let pyqReferenceExamples = [];   // parsed question dicts
+let pyqReferenceText    = '';    // raw text fallback
+
+const pyqUploadBtn  = document.getElementById('pyq-upload-btn');
+const pyqFileInput  = document.getElementById('pyq-file-input');
+const pyqStatus     = document.getElementById('pyq-status');
+const pyqClearBtn   = document.getElementById('pyq-clear-btn');
+const pyqPreview    = document.getElementById('pyq-preview');
+
+if (pyqUploadBtn) {
+    pyqUploadBtn.addEventListener('click', () => pyqFileInput && pyqFileInput.click());
+}
+
+if (pyqFileInput) {
+    pyqFileInput.addEventListener('change', async () => {
+        const files = Array.from(pyqFileInput.files);
+        if (!files.length) return;
+        pyqFileInput.value = '';
+
+        pyqStatus.textContent = `⏳ Parsing ${files.length} file(s)…`;
+        let totalQuestions = 0;
+        let allExamples = [];
+        let previewLines = [];
+
+        for (const file of files) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            try {
+                if (ext === 'json' || ext === 'md' || ext === 'txt') {
+                    // Client-side parse for text formats
+                    const text = await file.text();
+                    if (ext === 'json') {
+                        const parsed = JSON.parse(text);
+                        const qs = Array.isArray(parsed) ? parsed
+                            : (parsed.questions || parsed.items || []);
+                        const normalized = qs.filter(q => q && (q.question || q.stem || q.Q))
+                            .map(q => ({
+                                question: q.question || q.stem || q.Q || '',
+                                options: q.options || q.choices || [],
+                                correct_option: q.correct_option || q.answer || q.correct || '',
+                                explanation: q.explanation || q.rationale || '',
+                                subject: q.subject || '',
+                                topic: q.topic || '',
+                            }));
+                        allExamples.push(...normalized);
+                        totalQuestions += normalized.length;
+                        previewLines.push(`📄 ${file.name}: ${normalized.length} questions (JSON)`);
+                    } else {
+                        // MD or TXT — send to backend for structured parse
+                        const result = await uploadFileToParse(file);
+                        allExamples.push(...result.questions);
+                        totalQuestions += result.count;
+                        previewLines.push(`📄 ${file.name}: ${result.count} questions (${ext.toUpperCase()})`);
+                        if (result.reference_text) pyqReferenceText += result.reference_text + '\n\n';
+                    }
+                } else {
+                    // DOCX/DOC — must go to backend
+                    const result = await uploadFileToParse(file);
+                    allExamples.push(...result.questions);
+                    totalQuestions += result.count;
+                    previewLines.push(`📄 ${file.name}: ${result.count} questions extracted (DOCX)`);
+                    if (result.reference_text) pyqReferenceText += result.reference_text + '\n\n';
+                }
+            } catch (err) {
+                previewLines.push(`⚠️ ${file.name}: parse failed — ${err.message}`);
+            }
         }
 
-        generatedQuestions = questions;
-        const course = courseStructure?.Course || 'Restored session';
+        pyqReferenceExamples = allExamples;
+        pyqStatus.textContent = `✓ ${totalQuestions} reference questions loaded`;
+        if (pyqClearBtn) pyqClearBtn.style.display = 'inline';
 
-        displayResults(questions, course);
-        showResultTab('qbank');
+        // Show preview of first few questions
+        if (pyqPreview) {
+            pyqPreview.style.display = 'block';
+            const sampleLines = [
+                ...previewLines,
+                '',
+                ...allExamples.slice(0, 4).map((q, i) =>
+                    `${i + 1}. ${q.question.slice(0, 100)}${q.question.length > 100 ? '…' : ''}`)
+            ];
+            pyqPreview.innerHTML = sampleLines.map(l => `<div>${escapeHtml(l)}</div>`).join('');
+        }
+        showToast(`Loaded ${totalQuestions} reference questions`, 'success');
+    });
+}
 
-        // Re-show the generate-more bar
-        const moreBar = document.getElementById('generate-more-bar');
-        if (moreBar) moreBar.style.display = 'block';
+async function uploadFileToParse(file) {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/parse-reference-doc', { method: 'POST', body: form });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    return res.json();
+}
 
-        showToast(`Restored ${questions.length} questions from last session`, 'info');
-    } catch (e) {
-        // Corrupt storage — clear and ignore
-        clearPersistedSession();
-    }
-})();
+if (pyqClearBtn) {
+    pyqClearBtn.addEventListener('click', () => {
+        pyqReferenceExamples = [];
+        pyqReferenceText = '';
+        if (pyqStatus) pyqStatus.textContent = 'No files attached';
+        if (pyqClearBtn) pyqClearBtn.style.display = 'none';
+        if (pyqPreview) { pyqPreview.style.display = 'none'; pyqPreview.innerHTML = ''; }
+    });
+}
+
+// Expose for mock exam generation to pick up reference examples
+function getPyqExamples(subjectName, maxCount = 8) {
+    // Prefer subject-matched examples, fall back to any
+    const subjectMatches = pyqReferenceExamples.filter(q =>
+        q.subject && subjectName &&
+        (q.subject.toLowerCase().includes(subjectName.toLowerCase()) ||
+         subjectName.toLowerCase().includes(q.subject.toLowerCase()))
+    );
+    const pool = subjectMatches.length >= 2 ? subjectMatches : pyqReferenceExamples;
+    // Random sample for variety
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, maxCount);
+}
+
 

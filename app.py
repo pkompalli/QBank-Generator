@@ -1,6 +1,6 @@
 """
 QBank Generator - Flask Backend
-Generates MCQs for NEET PG and USMLE using Claude API
+Generates MCQs for NEET PG and USMLE using OpenRouter
 """
 
 import json
@@ -12,8 +12,7 @@ import logging
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
-from anthropic import Anthropic
-from openai import AzureOpenAI
+from openai import OpenAI
 from dotenv import load_dotenv
 from google import genai
 from PIL import Image
@@ -53,40 +52,51 @@ def load_examples():
 NEET_DATA, USMLE_DATA = load_subjects_data()
 NEET_EXAMPLES, USMLE_EXAMPLES = load_examples()
 
-# Initialize Anthropic client (generation)
-client = Anthropic()
-
-# Initialize Azure OpenAI client (validation)
-AZURE_OPENAI_API_KEY    = os.environ.get('AZURE_OPENAI_API_KEY')
-AZURE_OPENAI_ENDPOINT   = os.environ.get('AZURE_OPENAI_ENDPOINT')        # e.g. https://YOUR-RESOURCE.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
-AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-08-01-preview')
-openai_client = None
-if AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT:
-    try:
-        openai_client = AzureOpenAI(
-            api_key=AZURE_OPENAI_API_KEY,
-            azure_endpoint=AZURE_OPENAI_ENDPOINT,
-            api_version=AZURE_OPENAI_API_VERSION,
-        )
-        logger.info(f"Azure OpenAI initialized (deployment={AZURE_OPENAI_DEPLOYMENT}) for validation")
-    except Exception as e:
-        logger.warning(f"Failed to initialize Azure OpenAI: {e}")
+# ── OpenRouter — single unified LLM gateway ───────────────────────────────────
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
+or_client = OpenAI(
+    api_key=OPENROUTER_API_KEY or 'missing',
+    base_url='https://openrouter.ai/api/v1',
+)
+if not OPENROUTER_API_KEY:
+    logger.warning("OPENROUTER_API_KEY not set — all LLM calls will fail")
 else:
-    logger.warning("AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT not set — validator will fall back to Claude")
+    logger.info("OpenRouter client initialised")
 
-# Initialize Gemini client for image generation
+# Model aliases (override via env vars)
+OR_MAIN_MODEL       = os.environ.get('OR_MAIN_MODEL',       'anthropic/claude-sonnet-4-5')
+OR_WEB_MODEL        = os.environ.get('OR_WEB_MODEL',        'perplexity/sonar-pro')
+OR_VALIDATOR_MODEL  = os.environ.get('OR_VALIDATOR_MODEL',  'openai/gpt-4o')
+OR_ADVERSARIAL_MODEL= os.environ.get('OR_ADVERSARIAL_MODEL','google/gemini-2.0-flash-001')
+
+logger.info(f"Models — main:{OR_MAIN_MODEL}  web:{OR_WEB_MODEL}  "
+            f"validator:{OR_VALIDATOR_MODEL}  adversarial:{OR_ADVERSARIAL_MODEL}")
+
+# ── Google Gemini — kept ONLY for image generation (not available on OpenRouter) ─
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 gemini_client = None
 if GOOGLE_API_KEY and GOOGLE_API_KEY != 'your_gemini_api_key_here':
     try:
         gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
-        logger.info("Google Gemini API initialized for image generation")
+        logger.info("Google Gemini API initialised (image generation only)")
     except Exception as e:
-        logger.warning(f"Failed to initialize Gemini API: {e}")
-        gemini_client = None
+        logger.warning(f"Failed to initialise Gemini API: {e}")
 else:
-    logger.warning("Google Gemini API key not configured - image generation will be disabled")
+    logger.warning("GOOGLE_API_KEY not set — AI image generation will be disabled")
+
+# ── Unified LLM helper ────────────────────────────────────────────────────────
+def _or_call(prompt, model=None, max_tokens=8000, temperature=0.2, messages=None):
+    """Call OpenRouter and return the response text."""
+    if messages is None:
+        messages = [{"role": "user", "content": prompt}]
+    resp = or_client.chat.completions.create(
+        model=model or OR_MAIN_MODEL,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        messages=messages,
+        extra_headers={"X-Title": "QBank Generator"},
+    )
+    return resp.choices[0].message.content
 
 # Image cache configuration
 IMAGE_CACHE_FILE = 'image_cache.json'
@@ -136,58 +146,9 @@ def cache_image(search_terms, image_type, image_data):
 # MODULAR ARCHITECTURE - REUSABLE COMPONENTS
 # =============================================================================
 
-def _call_with_web_search(client, user_prompt, max_tokens=8000, max_rounds=5):
-    """Call Claude with web_search_20250305 tool. Returns final text response."""
-    tools = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
-    messages = [{"role": "user", "content": user_prompt}]
-    last_response = None
-
-    for _ in range(max_rounds):
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=max_tokens,
-            tools=tools,
-            messages=messages,
-            timeout=120.0,
-        )
-        last_response = response
-
-        if response.stop_reason == "end_turn":
-            break
-
-        if response.stop_reason == "tool_use":
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for block in response.content:
-                if getattr(block, 'type', None) == "tool_use":
-                    # Collect any web_search_result blocks as the tool result content
-                    result_texts = []
-                    for rb in response.content:
-                        if getattr(rb, 'type', None) == "web_search_result":
-                            for r in getattr(rb, 'results', [])[:5]:
-                                snippet = r.get('page_content') or r.get('snippet', '')
-                                result_texts.append(
-                                    f"Title: {r.get('title','')}\nURL: {r.get('url','')}\n{snippet[:600]}"
-                                )
-                    content = "\n\n---\n\n".join(result_texts) if result_texts else "Search completed."
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": content
-                    })
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-            else:
-                break
-        else:
-            break
-
-    if last_response is None:
-        raise ValueError("No response from Claude")
-
-    return "\n".join(
-        b.text for b in last_response.content if getattr(b, 'text', None)
-    )
+def _call_with_web_search(client_unused, user_prompt, max_tokens=8000, max_rounds=5):
+    """Call Perplexity Sonar (web-search capable) via OpenRouter. Returns text response."""
+    return _or_call(user_prompt, model=OR_WEB_MODEL, max_tokens=max_tokens, temperature=0.2)
 
 
 def generate_course_structure(course_name, reference_docs=None):
@@ -223,8 +184,6 @@ def generate_course_structure(course_name, reference_docs=None):
         }
     """
     logger.info(f"Generating course structure for: {course_name}")
-
-    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     ref_doc_context = ""
     if reference_docs:
@@ -379,7 +338,7 @@ Generate ONLY the JSON, no other text."""
             f"Then use what you find plus your knowledge to produce the complete structure.\n\n"
             + structure_prompt
         )
-        response_text = _call_with_web_search(client, web_prompt, max_tokens=8000).strip()
+        response_text = _call_with_web_search(None, web_prompt, max_tokens=8000).strip()
 
         # Extract JSON if wrapped in markdown
         if '```json' in response_text:
@@ -426,15 +385,7 @@ This is a professional educational platform - we need COMPREHENSIVE coverage.
 
 REMEMBER: Minimum 10 subjects for medical/professional exams, 8 for technical exams!"""
 
-            message = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=8000,
-                temperature=0.5,  # Lower temperature for more focused output
-                timeout=120.0,  # 2 minute timeout
-                messages=[{"role": "user", "content": retry_prompt}]
-            )
-
-            response_text = message.content[0].text.strip()
+            response_text = _or_call(retry_prompt, max_tokens=8000, temperature=0.5).strip()
             if '```json' in response_text:
                 response_text = response_text.split('```json')[1].split('```')[0].strip()
             elif '```' in response_text:
@@ -480,8 +431,6 @@ def analyze_exam_format(course_name, course_structure):
         }
     """
     logger.info(f"Analyzing exam format for: {course_name}")
-
-    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     exam_type = course_structure.get('exam_type', 'general')
     domain_chars = course_structure.get('domain_characteristics', '')
@@ -604,7 +553,7 @@ Generate ONLY the JSON, no other text."""
             f"Then use what you find plus your knowledge to answer:\n\n"
             + format_prompt
         )
-        response_text = _call_with_web_search(client, web_format_prompt, max_tokens=4000).strip()
+        response_text = _call_with_web_search(None, web_format_prompt, max_tokens=4000).strip()
         if '```json' in response_text:
             response_text = response_text.split('```json')[1].split('```')[0].strip()
         elif '```' in response_text:
@@ -617,6 +566,91 @@ Generate ONLY the JSON, no other text."""
     except Exception as e:
         logger.error(f"Error analyzing exam format: {e}")
         raise
+
+
+def fetch_mock_exam_specs(course_name, subjects):
+    """
+    Fetch official mock exam specs via web search:
+    total questions, time, scoring, subject-wise distribution.
+    subjects: list of subject names from the course structure.
+    """
+    logger.info(f"Fetching mock exam specs for: {course_name}")
+
+    subjects_json = json.dumps(subjects[:25])
+
+    prompt = f"""You are an expert on official exam blueprints and question patterns.
+
+EXAM: {course_name}
+OUR SUBJECT LIST: {subjects_json}
+
+TASK: Search the internet for the OFFICIAL exam specifications for {course_name}.
+Look for:
+- Official exam board websites (NBE, NBME, GMC, etc.)
+- Published candidate information bulletins / blueprints
+- Official content outlines
+
+Then return EXACTLY this JSON and nothing else:
+
+{{
+    "total_questions": <integer — exact total MCQs in one sitting>,
+    "time_minutes": <integer — total exam duration in minutes>,
+    "num_options": <integer — options per question, e.g. 4 or 5>,
+    "negative_marking": "<string — e.g. '-1 for wrong, +4 correct' or 'None'",
+    "scoring_note": "<one-line summary of marking scheme>",
+    "subject_distribution": {{
+        "<use EXACT subject name from our list>": {{
+            "questions": <integer>,
+            "percentage": <number>
+        }}
+    }},
+    "image_questions_total": <integer — approximate number of image-based Qs>,
+    "exam_notes": "<one or two sentences on format/pattern>"
+}}
+
+CRITICAL RULES:
+- Use EXACT subject names from our list above. Skip any subjects with 0 questions.
+- The sum of all "questions" values MUST equal total_questions.
+- If a subject in our list is not normally tested, omit it.
+- If two subjects overlap (e.g., "Internal Medicine" and "Medicine"), merge into the closest match.
+- Percentages must sum to 100.
+- Output ONLY the JSON block."""
+
+    search_prompt = (
+        f"Search for the official {course_name} exam pattern: total number of questions, "
+        f"subject-wise distribution, duration, and scoring scheme from the official exam board. "
+        f"Then answer this:\n\n{prompt}"
+    )
+
+    try:
+        response_text = _call_with_web_search(None, search_prompt, max_tokens=3000).strip()
+        if '```json' in response_text:
+            response_text = response_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in response_text:
+            response_text = response_text.split('```')[1].split('```')[0].strip()
+        specs = json.loads(response_text)
+        logger.info(f"✓ Mock exam specs fetched: {specs.get('total_questions')} Qs, {len(specs.get('subject_distribution', {}))} subjects")
+        return specs
+    except Exception as e:
+        logger.error(f"Error fetching mock exam specs: {e}")
+        raise
+
+
+@app.route('/api/mock-exam-specs', methods=['POST'])
+def get_mock_exam_specs():
+    """Return official exam specs for mock paper generation."""
+    data = request.json
+    course = data.get('course')
+    subjects = data.get('subjects', [])  # subject names from courseStructure
+
+    if not course:
+        return jsonify({'error': 'course is required'}), 400
+
+    try:
+        specs = fetch_mock_exam_specs(course, subjects)
+        return jsonify(specs)
+    except Exception as e:
+        logger.error(f"mock-exam-specs error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 def design_lesson_flow(course_name, subject, topic, chapters, course_structure):
@@ -644,8 +678,6 @@ def design_lesson_flow(course_name, subject, topic, chapters, course_structure):
         }
     """
     logger.info(f"Designing lesson flow for: {topic}")
-
-    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     exam_type = course_structure.get('exam_type', 'general')
     domain_chars = course_structure.get('domain_characteristics', '')
@@ -728,14 +760,7 @@ OUTPUT FORMAT (strict JSON):
 Generate ONLY the JSON, no other text."""
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=3000,
-            temperature=0.7,
-            messages=[{"role": "user", "content": flow_prompt}]
-        )
-
-        response_text = message.content[0].text.strip()
+        response_text = _or_call(flow_prompt, max_tokens=3000, temperature=0.7).strip()
         if '```json' in response_text:
             response_text = response_text.split('```json')[1].split('```')[0].strip()
         elif '```' in response_text:
@@ -977,20 +1002,16 @@ Respond with ONLY a JSON object:
         # Determine media type
         content_type = img_response.headers.get('content-type', 'image/jpeg')
 
-        # Call Claude Vision
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
+        # Call vision model via OpenRouter
+        response_text = _or_call(
+            None,
             max_tokens=500,
             messages=[{
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": content_type,
-                            "data": img_base64
-                        }
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{content_type};base64,{img_base64}"}
                     },
                     {
                         "type": "text",
@@ -1001,7 +1022,6 @@ Respond with ONLY a JSON object:
         )
 
         # Parse response
-        response_text = message.content[0].text
         result = json.loads(response_text)
         return result
 
@@ -1184,19 +1204,16 @@ Respond with ONLY a JSON object:
 For example: {{"center_x": 45, "center_y": 60, "radius_percent": 10, "marker_type": "circle", "description": "fractured tooth fragment"}}"""
 
         # Call Claude Vision
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
+        # Call vision model via OpenRouter
+        response_text = _or_call(
+            None,
             max_tokens=500,
             messages=[{
                 "role": "user",
                 "content": [
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": img_base64
-                        }
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{media_type};base64,{img_base64}"}
                     },
                     {
                         "type": "text",
@@ -1207,7 +1224,6 @@ For example: {{"center_x": 45, "center_y": 60, "radius_percent": 10, "marker_typ
         )
 
         # Parse location response
-        response_text = message.content[0].text
         if '```json' in response_text:
             response_text = response_text.split('```json')[1].split('```')[0]
         elif '```' in response_text:
@@ -1576,6 +1592,59 @@ def search_and_validate_image(question_data, subject):
     return result
 
 
+SESSIONS_DIR = 'sessions'
+
+def save_qbank_session(questions, course, subject, topics, image_stats=None):
+    """Persist a QBank generation to sessions/ as a JSON file and return the session id."""
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    filename = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+    session = {
+        'session_id': session_id,
+        'created_at': datetime.now().isoformat(),
+        'type': 'qbank',
+        'course': course,
+        'subject': subject,
+        'topics': topics,
+        'question_count': len(questions),
+        'image_stats': image_stats,
+        'questions': questions,
+    }
+    try:
+        with open(filename, 'w') as f:
+            json.dump(session, f, indent=2)
+        logger.info(f"Session saved: {filename}")
+    except Exception as e:
+        logger.error(f"Failed to save session: {e}")
+    return session_id
+
+
+def save_lesson_session(lessons_data, course, subject):
+    """Persist a Lessons generation to sessions/ as a JSON file and return the session id."""
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    filename = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+    topics = [l.get('topic', '') for l in lessons_data.get('lessons', [])]
+    session = {
+        'session_id': session_id,
+        'created_at': datetime.now().isoformat(),
+        'type': 'lessons',
+        'course': course,
+        'subject': subject,
+        'topics': topics,
+        'lesson_count': len(topics),
+        'question_count': 0,
+        'lessons_data': lessons_data,
+    }
+    try:
+        with open(filename, 'w') as f:
+            json.dump(session, f, indent=2)
+        logger.info(f"Lesson session saved: {filename}")
+    except Exception as e:
+        logger.error(f"Failed to save lesson session: {e}")
+    return session_id
+
+
 def save_generation_review(questions, course, subject, topics):
     """Save generation to a markdown file for easy review."""
     from datetime import datetime
@@ -1843,7 +1912,7 @@ def _compute_qbank_batches(bloom_distribution, difficulty_distribution, num_imag
     return batches
 
 
-def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, include_images, existing_summaries=None):
+def _run_single_qbank_batch(course, subject, topic, batch_spec, exam_format, include_images, existing_summaries=None, reference_examples=None):
     """
     Call Claude for one Bloom's-level batch. Returns list of question dicts (no images yet).
     """
@@ -1951,6 +2020,26 @@ CRITICAL REQUIREMENTS:
 {"AVOID DUPLICATES — the following questions have ALREADY been generated for this topic. Do NOT repeat the same clinical scenario, drug, condition, investigation, or core concept tested:" + chr(10) + chr(10).join("- " + s for s in existing_summaries) + chr(10) + "Each new question MUST test a DIFFERENT aspect or scenario." if existing_summaries else ""}
 Generate ONLY the JSON array, no additional text."""
 
+    # Inject reference examples (PYQs) if provided
+    if reference_examples:
+        ref_block = "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        ref_block += "REFERENCE: PREVIOUS YEAR / SAMPLE QUESTIONS\n"
+        ref_block += "Study these carefully. Match their EXACT style — question length, clinical scenario depth, distractor quality, terminology, and level of detail.\n\n"
+        for i, ex in enumerate(reference_examples[:6], 1):
+            if isinstance(ex, dict):
+                q = ex.get('question', '')[:300]
+                opts = ex.get('options', [])
+                ans = ex.get('correct_option', '')
+                opts_str = '  '.join(f"{chr(64+j+1)}) {o}" for j, o in enumerate(opts[:5]))
+                ref_block += f"Example {i}:\nQ: {q}\n{opts_str}\nAnswer: {ans}\n\n"
+            elif isinstance(ex, str):
+                ref_block += f"Example {i}:\n{ex[:400]}\n\n"
+        ref_block += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        prompt = prompt.replace(
+            "Generate ONLY the JSON array, no additional text.",
+            ref_block + "\nGenerate ONLY the JSON array, no additional text."
+        )
+
     # Append image instructions if this batch has image questions
     if include_images and img_count > 0:
         image_instructions = f"""
@@ -1971,14 +2060,7 @@ The question text should reference "the image shown" or "based on the image"."""
 
     # Each question ~1000 tokens output (long stems + 5 options + explanation), floor 6000
     tokens_needed = max(6000, count * 1200 + (len(existing_summaries) * 30 if existing_summaries else 0))
-    message = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=min(tokens_needed, 16000),
-        temperature=0.2,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    response_text = message.content[0].text
+    response_text = _or_call(prompt, max_tokens=min(tokens_needed, 16000), temperature=0.2)
     if '```json' in response_text:
         response_text = response_text.split('```json')[1].split('```')[0]
     elif '```' in response_text:
@@ -1992,7 +2074,7 @@ The question text should reference "the image shown" or "based on the image"."""
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None, existing_questions=None):
+def generate_for_topic(course, subject, topic, num_questions, include_images=False, exam_format=None, existing_questions=None, reference_examples=None):
     """Generate questions for a single topic using parallel Bloom's-level batches."""
     from concurrent.futures import ThreadPoolExecutor as _QTP, as_completed as _QAC
 
@@ -2080,7 +2162,7 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
     all_questions = []
     with _QTP(max_workers=len(batch_specs)) as pool:
         future_to_spec = {
-            pool.submit(_run_single_qbank_batch, course, subject, topic, spec, exam_format, include_images, existing_summaries): spec
+            pool.submit(_run_single_qbank_batch, course, subject, topic, spec, exam_format, include_images, existing_summaries, reference_examples): spec
             for spec in batch_specs
         }
         for future in _QAC(future_to_spec):
@@ -2138,10 +2220,13 @@ def generate_questions():
     include_images = data.get('include_images', False)
     exam_format = data.get('exam_format')
     existing_questions = data.get('existing_questions', [])  # For append mode
+    reference_examples = data.get('reference_examples', [])  # PYQ / sample questions
 
     logger.info(f"Received exam_format: {exam_format}")
     if exam_format:
         logger.info(f"  num_options in exam_format: {exam_format.get('num_options', 'NOT FOUND')}")
+    if reference_examples:
+        logger.info(f"  Reference examples provided: {len(reference_examples)}")
 
     if not all([course, subject]) or not topics:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -2157,7 +2242,7 @@ def generate_questions():
 
         from concurrent.futures import ThreadPoolExecutor as _TQP
         def _gen_topic(t):
-            return generate_for_topic(course, subject, t, num_questions, include_images, exam_format, existing_questions)
+            return generate_for_topic(course, subject, t, num_questions, include_images, exam_format, existing_questions, reference_examples)
 
         if len(topics) == 1:
             all_questions = _gen_topic(topics[0])
@@ -2189,12 +2274,16 @@ def generate_questions():
         review_file = save_generation_review(all_questions, course, subject, topics)
         print(f"\n📄 Review file saved: {review_file}")
 
+        # Session is saved manually by user via the Save button — no auto-save here
+        session_id = None
+
         response_data = {
             'success': True,
             'questions': all_questions,
             'count': len(all_questions),
             'topics_count': len(topics),
-            'review_file': review_file
+            'review_file': review_file,
+            'session_id': session_id,
         }
 
         if image_stats:
@@ -2215,6 +2304,216 @@ def download_questions():
     questions = data.get('questions', [])
 
     return jsonify(questions)
+
+
+@app.route('/api/sessions', methods=['GET'])
+def list_sessions():
+    """List all saved QBank sessions (metadata only, no questions)."""
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
+    sessions = []
+    try:
+        for fname in sorted(os.listdir(SESSIONS_DIR), reverse=True):
+            if not fname.endswith('.json'):
+                continue
+            fpath = os.path.join(SESSIONS_DIR, fname)
+            try:
+                with open(fpath, 'r') as f:
+                    data = json.load(f)
+                sessions.append({
+                    'session_id': data.get('session_id', fname[:-5]),
+                    'created_at': data.get('created_at'),
+                    'course': data.get('course'),
+                    'subject': data.get('subject'),
+                    'topics': data.get('topics', []),
+                    'question_count': data.get('question_count', 0),
+                })
+            except Exception:
+                continue
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify(sessions)
+
+
+@app.route('/api/sessions/save', methods=['POST'])
+def save_session_api():
+    """Manually save a QBank or Lessons session triggered by the user."""
+    data = request.json
+    session_type = data.get('type', 'qbank')
+    course = data.get('course', '')
+
+    if session_type == 'lessons':
+        lessons_data = data.get('lessons_data', {})
+        subject = data.get('subject', '')
+        if not lessons_data or not lessons_data.get('lessons'):
+            return jsonify({'error': 'No lessons data provided'}), 400
+        session_id = save_lesson_session(lessons_data, course, subject)
+    else:
+        questions = data.get('questions', [])
+        subject = data.get('subject', '')
+        topics = data.get('topics', [])
+        if not questions:
+            return jsonify({'error': 'No questions provided'}), 400
+        session_id = save_qbank_session(questions, course, subject, topics)
+
+    return jsonify({'session_id': session_id})
+
+
+@app.route('/api/parse-reference-doc', methods=['POST'])
+def parse_reference_doc():
+    """
+    Parse an uploaded PYQ / reference document (JSON, MD, DOCX) and return
+    a list of extracted question objects plus raw text for use as generation context.
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    file = request.files['file']
+    filename = file.filename or ''
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+    questions = []
+    raw_text = ''
+
+    try:
+        if ext == 'json':
+            content = file.read().decode('utf-8')
+            raw_json = json.loads(content)
+            # Accept: array of question dicts OR {questions: [...]} wrapper
+            if isinstance(raw_json, list):
+                candidates = raw_json
+            elif isinstance(raw_json, dict):
+                candidates = raw_json.get('questions', raw_json.get('items', []))
+                if not candidates:
+                    # could be {subject: [...]} structure — flatten
+                    for v in raw_json.values():
+                        if isinstance(v, list):
+                            candidates.extend(v)
+            else:
+                candidates = []
+            # Keep only items that look like questions
+            for item in candidates:
+                if isinstance(item, dict) and ('question' in item or 'stem' in item or 'Q' in item):
+                    q_text = item.get('question') or item.get('stem') or item.get('Q', '')
+                    options = item.get('options') or item.get('choices') or []
+                    correct = item.get('correct_option') or item.get('answer') or item.get('correct') or ''
+                    explanation = item.get('explanation') or item.get('rationale') or ''
+                    questions.append({
+                        'question': q_text,
+                        'options': options,
+                        'correct_option': correct,
+                        'explanation': explanation,
+                        'subject': item.get('subject', ''),
+                        'topic': item.get('topic', ''),
+                    })
+            raw_text = '\n\n'.join(
+                f"Q: {q['question']}\nOptions: {', '.join(q['options'])}\nAnswer: {q['correct_option']}"
+                for q in questions[:20]
+            )
+
+        elif ext == 'md':
+            raw_text = file.read().decode('utf-8')
+            # Parse markdown question blocks: lines starting with Q: or ## Q or numbered 1.
+            import re
+            blocks = re.split(r'\n(?=(?:\d+\.|##\s*Q|Q:|---\n))', raw_text)
+            for block in blocks:
+                lines = block.strip().split('\n')
+                if not lines:
+                    continue
+                q_line = lines[0].lstrip('#0123456789. Q:').strip()
+                if len(q_line) < 10:
+                    continue
+                opts, correct, expl = [], '', ''
+                for ln in lines[1:]:
+                    ln = ln.strip()
+                    m = re.match(r'^([A-Ea-e])[.)]\s*(.+)', ln)
+                    if m:
+                        opts.append(m.group(2))
+                    elif ln.lower().startswith(('answer:', 'correct:', 'ans:')):
+                        correct = ln.split(':', 1)[-1].strip()
+                    elif ln.lower().startswith(('explanation:', 'rationale:', 'reason:')):
+                        expl = ln.split(':', 1)[-1].strip()
+                if q_line:
+                    questions.append({'question': q_line, 'options': opts, 'correct_option': correct, 'explanation': expl, 'subject': '', 'topic': ''})
+
+        elif ext in ('docx', 'doc'):
+            try:
+                from docx import Document
+                import io
+                doc = Document(io.BytesIO(file.read()))
+                raw_text = '\n'.join(para.text for para in doc.paragraphs if para.text.strip())
+                # Parse numbered questions from plain text
+                import re
+                segments = re.split(r'\n(?=\d{1,3}[.)]\s)', raw_text)
+                for seg in segments:
+                    seg = seg.strip()
+                    if len(seg) < 20:
+                        continue
+                    lines = seg.split('\n')
+                    q_text = re.sub(r'^\d{1,3}[.)]\s*', '', lines[0]).strip()
+                    opts, correct = [], ''
+                    for ln in lines[1:]:
+                        ln = ln.strip()
+                        m = re.match(r'^([A-Ea-e])[.)]\s*(.+)', ln)
+                        if m:
+                            opts.append(m.group(2))
+                        elif ln.lower().startswith(('answer:', 'ans:', 'correct:')):
+                            correct = ln.split(':', 1)[-1].strip()
+                    if q_text:
+                        questions.append({'question': q_text, 'options': opts, 'correct_option': correct, 'explanation': '', 'subject': '', 'topic': ''})
+            except Exception as e:
+                logger.error(f"DOCX parse error: {e}")
+                return jsonify({'error': f'Could not read DOCX file: {e}'}), 400
+
+        else:
+            # Plain text fallback
+            raw_text = file.read().decode('utf-8', errors='ignore')
+
+    except Exception as e:
+        logger.error(f"parse-reference-doc error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    # Build a compact reference_text for prompt injection (cap at ~4000 chars)
+    if not raw_text and questions:
+        raw_text = '\n\n'.join(
+            f"Q: {q['question']}\nOptions: {', '.join(q['options'])}\nAnswer: {q['correct_option']}"
+            for q in questions[:20]
+        )
+    reference_text = raw_text[:4000] if raw_text else ''
+
+    logger.info(f"Parsed reference doc '{filename}': {len(questions)} questions, {len(raw_text)} chars")
+    return jsonify({
+        'questions': questions[:100],   # cap at 100 for transfer
+        'count': len(questions),
+        'reference_text': reference_text,
+        'filename': filename,
+    })
+
+
+@app.route('/api/sessions/<session_id>', methods=['GET'])
+def get_session(session_id):
+    """Load a full saved QBank session including questions."""
+    fpath = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+    if not os.path.exists(fpath):
+        return jsonify({'error': 'Session not found'}), 404
+    try:
+        with open(fpath, 'r') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a saved QBank session."""
+    fpath = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+    if not os.path.exists(fpath):
+        return jsonify({'error': 'Session not found'}), 404
+    try:
+        os.remove(fpath)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/add-image', methods=['POST'])
@@ -2301,15 +2600,7 @@ Generate a comprehensive explanation that:
 
 Respond with ONLY the explanation text, no other content."""
 
-                    expl_message = client.messages.create(
-                        model="claude-sonnet-4-5",
-                        max_tokens=1000,
-                        messages=[
-                            {"role": "user", "content": explanation_prompt}
-                        ]
-                    )
-
-                    explanation = expl_message.content[0].text.strip()
+                    explanation = _or_call(explanation_prompt, max_tokens=1000).strip()
                     q['explanation'] = explanation
                     stats['explanations_generated'] += 1
                     logger.info(f"Question {idx}: ✓ Explanation generated")
@@ -2354,17 +2645,8 @@ CRITICAL: Focus on PATHOGNOMONIC or CHARACTERISTIC findings that distinguish thi
 Respond with ONLY the JSON object, no other text."""
 
             try:
-                # Call Claude API
-                message = client.messages.create(
-                    model="claude-sonnet-4-5",
-                    max_tokens=2000,
-                    messages=[
-                        {"role": "user", "content": analysis_prompt}
-                    ]
-                )
-
-                # Parse response
-                response_text = message.content[0].text
+                # Call LLM API
+                response_text = _or_call(analysis_prompt, max_tokens=2000)
 
                 # Try to extract JSON from response
                 if '```json' in response_text:
@@ -2970,7 +3252,6 @@ def generate_chapters_for_topic(course_name, subject_name, topic_name):
     Returns:
         List of chapter dictionaries: [{"name": "Chapter Name"}, ...]
     """
-    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     prompt = f"""Generate 8-12 specific chapter names for a lesson on: {topic_name}
 
@@ -2994,15 +3275,7 @@ OUTPUT FORMAT (strict JSON array):
 Generate ONLY the JSON array, no other text."""
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=1000,
-            temperature=0.7,
-            timeout=30.0,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        response_text = message.content[0].text.strip()
+        response_text = _or_call(prompt, max_tokens=1000, temperature=0.7).strip()
 
         # Clean up response
         if response_text.startswith('```'):
@@ -3099,16 +3372,10 @@ def generate_lessons():
 
         from concurrent.futures import ThreadPoolExecutor as _TP
 
-        def _gen_and_integrate(client_ref, prompt, max_tok, subj, name):
-            """Generate a lesson via Claude then integrate images. Thread-safe."""
+        def _gen_and_integrate(prompt, max_tok, subj, name):
+            """Generate a lesson via OpenRouter then integrate images. Thread-safe."""
             try:
-                msg = client_ref.messages.create(
-                    model="claude-sonnet-4-5",
-                    max_tokens=max_tok,
-                    temperature=0.1,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                text = msg.content[0].text.strip()
+                text = _or_call(prompt, max_tokens=max_tok, temperature=0.1).strip()
                 logger.info(f"✓ Generated lesson for {name} ({len(text)} chars)")
                 return integrate_images_into_lesson(text, subj, name)
             except Exception as e:
@@ -3416,11 +3683,11 @@ Brief context and why this chapter matters clinically/practically.
 
                 with _TP(max_workers=max_workers) as pool:
                     topic_future = pool.submit(
-                        _gen_and_integrate, client, lesson_prompt, 16000, subject, topic_name
+                        _gen_and_integrate, lesson_prompt, 16000, subject, topic_name
                     )
                     ch_futures = [
                         (ch_name, nice_refs,
-                         pool.submit(_gen_and_integrate, client, ch_prompt, 2000, subject, ch_name))
+                         pool.submit(_gen_and_integrate, ch_prompt, 2000, subject, ch_name))
                         for ch_name, nice_refs, ch_prompt in chapter_specs
                     ]
 
@@ -3718,17 +3985,7 @@ IMPORTANT: Maintain the exact JSON structure format with "Course", "exam_format"
 Output ONLY the JSON, no additional text.
 """
 
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=4000,
-            temperature=0.7,
-            messages=[{
-                "role": "user",
-                "content": refine_prompt
-            }]
-        )
-
-        response_text = message.content[0].text.strip()
+        response_text = _or_call(refine_prompt, max_tokens=4000, temperature=0.7).strip()
 
         # Extract JSON from response
         import re
@@ -4287,12 +4544,7 @@ INSTRUCTIONS:
 - Maintain the progressive learning flow and approximate length
 - Do NOT add a preamble or closing note — return ONLY the revised markdown content"""
 
-            msg = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=4000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            fixed = msg.content[0].text.strip()
+            fixed = _or_call(prompt, max_tokens=4000).strip()
             return {
                 'index': idx, 'fixed_content': fixed, 'title': title,
                 'images_added': len(found_images),
@@ -4334,12 +4586,7 @@ INSTRUCTIONS:
 - Keep the same JSON structure/fields as the original
 - Return ONLY a valid JSON object, no preamble or explanation"""
 
-            msg = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=4000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            fixed = msg.content[0].text.strip()
+            fixed = _or_call(prompt, max_tokens=4000).strip()
 
             # Strip markdown fences if model wraps in ```
             if '```json' in fixed:
@@ -4397,8 +4644,6 @@ def validate_content():
 
         logger.info(f"🔍 Council of Models batch validation: {len(items)} {content_type}(s)")
         logger.info(f"   Domain: {domain}, Course: {course}")
-
-        client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
         import re as _re
 
@@ -4543,69 +4788,36 @@ Tags: {', '.join(q.get('tags', []))}
                     return f"{prompt_text}\n\nContent to validate:\n{payload}"
 
             def _call_validator(prompt, payload, temperature):
-                """OpenAI GPT-4o — validator agent."""
+                """OpenRouter validator agent (OR_VALIDATOR_MODEL)."""
                 content = _make_user_content(prompt, payload)
-                if openai_client:
-                    # Convert Anthropic-style content list to OpenAI format if needed
-                    if isinstance(content, list):
-                        oai_content = []
-                        for block in content:
-                            if block.get('type') == 'text':
-                                oai_content.append({"type": "text", "text": block['text']})
-                            elif block.get('type') == 'image':
-                                src = block.get('source', {})
-                                if src.get('type') == 'base64':
-                                    oai_content.append({
-                                        "type": "image_url",
-                                        "image_url": {"url": f"data:{src['media_type']};base64,{src['data']}"}
-                                    })
-                    else:
-                        oai_content = content
-                    resp = openai_client.chat.completions.create(
-                        model=AZURE_OPENAI_DEPLOYMENT,
-                        max_tokens=8000,
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": oai_content}]
-                    )
-                    return resp.choices[0].message.content.strip()
+                # Convert Anthropic-style content list to OpenAI format if needed
+                if isinstance(content, list):
+                    oai_content = []
+                    for block in content:
+                        if block.get('type') == 'text':
+                            oai_content.append({"type": "text", "text": block['text']})
+                        elif block.get('type') == 'image':
+                            src = block.get('source', {})
+                            if src.get('type') == 'base64':
+                                oai_content.append({
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:{src['media_type']};base64,{src['data']}"}
+                                })
                 else:
-                    # Fallback to Claude if OpenAI key not set
-                    resp = client.messages.create(
-                        model="claude-sonnet-4-5-20250929",
-                        max_tokens=8000,
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": content}]
-                    )
-                    return resp.content[0].text.strip()
+                    oai_content = content
+                resp_text = _or_call(None, model=OR_VALIDATOR_MODEL, max_tokens=8000, temperature=temperature,
+                                     messages=[{"role": "user", "content": oai_content}])
+                return resp_text.strip()
 
             def _call_adversarial(prompt, payload, temperature):
-                """Gemini 2.0 Flash — adversarial agent."""
+                """OpenRouter adversarial agent (OR_ADVERSARIAL_MODEL)."""
                 content = _make_user_content(prompt, payload)
-                if gemini_client:
-                    # Build a single text string for Gemini
-                    if isinstance(content, list):
-                        text_parts = [b['text'] for b in content if b.get('type') == 'text']
-                        full_text = "\n".join(text_parts)
-                    else:
-                        full_text = content
-                    resp = gemini_client.models.generate_content(
-                        model='gemini-2.0-flash',
-                        contents=full_text,
-                        config=genai.types.GenerateContentConfig(
-                            temperature=temperature,
-                            max_output_tokens=8000,
-                        )
-                    )
-                    return resp.text.strip()
+                # Build a single text string for text-only adversarial model
+                if isinstance(content, list):
+                    payload_text = "\n".join(b['text'] for b in content if b.get('type') == 'text')
                 else:
-                    # Fallback to Claude if Gemini not available
-                    resp = client.messages.create(
-                        model="claude-sonnet-4-5-20250929",
-                        max_tokens=8000,
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": content}]
-                    )
-                    return resp.content[0].text.strip()
+                    payload_text = content
+                return _or_call(payload_text, model=OR_ADVERSARIAL_MODEL, max_tokens=8000, temperature=temperature)
 
             validator_prompt = get_batch_validator_prompt(content_type, domain)
             adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)

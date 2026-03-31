@@ -23,6 +23,9 @@
             <button class="tab-button active" data-tab="main" style="border-bottom: 3px solid var(--primary); font-weight: 600;">
                 📚 Generator
             </button>
+            <button class="tab-button" data-tab="history">
+                🕒 History
+            </button>
             <button class="tab-button" data-tab="utility">
                 🔧 Utility
             </button>
@@ -126,39 +129,114 @@
                     <h2>Generate Study Materials</h2>
                 </div>
 
-                <div class="form-group">
-                    <label for="subject-select">Select Subject</label>
-                    <select id="subject-select" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
-                        <option value="">Choose a subject...</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="topics-select">Select Topics (hold Ctrl/Cmd for multiple)</label>
-                    <select id="topics-select" multiple size="8" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
-                    </select>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="generate-all-checkbox">
-                        <span>Generate for ALL Subjects & Topics</span>
-                    </label>
-                </div>
-
-                <!-- QBank specific controls -->
-                <div class="form-group" style="margin-top: 1rem;">
-                    <div id="bloom-distribution"></div>
-                </div>
-
-                <!-- Generate Buttons -->
-                <div class="action-buttons" style="margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <button id="generate-lessons-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
-                        📖 Generate Lessons
+                <!-- Mode Toggle -->
+                <div class="generate-mode-toggle" style="display: flex; gap: 0; margin-bottom: 1.5rem; border: 2px solid var(--border); border-radius: 10px; overflow: hidden;">
+                    <button class="gen-mode-btn active" id="mode-topic-btn" data-mode="topic"
+                        style="flex:1; padding:0.75rem; border:none; background:var(--primary); color:white; font-size:0.95rem; font-weight:600; cursor:pointer;">
+                        📚 Topic Generator
                     </button>
-                    <button id="generate-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
-                        📝 Generate 20 Questions
+                    <button class="gen-mode-btn" id="mode-mock-btn" data-mode="mock"
+                        style="flex:1; padding:0.75rem; border:none; background:var(--bg-secondary); color:var(--text); font-size:0.95rem; font-weight:600; cursor:pointer;">
+                        🎯 Mock Exam Paper
                     </button>
+                </div>
+
+                <!-- ── TOPIC GENERATOR MODE ── -->
+                <div id="topic-generator-panel">
+                    <div class="form-group">
+                        <label for="subject-select">Select Subject</label>
+                        <select id="subject-select" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;">
+                            <option value="">Choose a subject...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topics-select">Select Topics (hold Ctrl/Cmd for multiple)</label>
+                        <select id="topics-select" multiple size="8" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;">
+                        </select>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="generate-all-checkbox">
+                            <span>Generate for ALL Subjects & Topics</span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <div id="bloom-distribution"></div>
+                    </div>
+
+                    <!-- Questions per topic -->
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="num-questions-select" style="font-weight: 600; font-size: 0.95rem;">Questions per topic</label>
+                        <select id="num-questions-select" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; margin-top: 0.4rem;">
+                            <option value="20" selected>20</option>
+                            <option value="40">40</option>
+                            <option value="60">60</option>
+                            <option value="80">80</option>
+                            <option value="100">100</option>
+                            <option value="120">120</option>
+                            <option value="140">140</option>
+                            <option value="160">160</option>
+                            <option value="180">180</option>
+                            <option value="200">200</option>
+                        </select>
+                    </div>
+
+                    <!-- Generate Buttons -->
+                    <div class="action-buttons" style="margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <button id="generate-lessons-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
+                            📖 Generate Lessons
+                        </button>
+                        <button id="generate-btn" class="btn-primary" disabled style="padding: 1rem; font-size: 1.1rem;">
+                            📝 Generate Questions
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── MOCK EXAM MODE ── -->
+                <div id="mock-exam-panel" style="display:none;">
+                    <div class="info-box" style="margin-bottom:1rem; background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%); border: 1px solid #c7d7fd;">
+                        <p style="margin:0; font-size:0.9rem; color:var(--text-muted);">
+                            Generates a full exam paper matching the <strong>official question count and subject distribution</strong> of the real exam (sourced from official blueprints).
+                        </p>
+                    </div>
+
+                    <button id="fetch-mock-specs-btn" class="btn-secondary" style="width:100%; padding:0.9rem; font-size:1rem;">
+                        🔍 Fetch Official Exam Pattern
+                    </button>
+                    <p id="mock-specs-status" style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);"></p>
+
+                    <!-- PYQ / Reference upload -->
+                    <div style="margin-top:1rem; padding:1rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px;">
+                        <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                            <span style="font-weight:600; font-size:0.95rem;">📂 Reference Questions (optional)</span>
+                            <span style="font-size:0.82rem; color:var(--text-muted);">Upload PYQs or sample papers to match question style</span>
+                        </div>
+                        <div style="display:flex; gap:0.5rem; margin-top:0.75rem; align-items:center; flex-wrap:wrap;">
+                            <input type="file" id="pyq-file-input" accept=".json,.md,.docx,.doc,.txt" style="display:none;" multiple>
+                            <button id="pyq-upload-btn" class="btn-secondary" style="padding:0.5rem 1rem; font-size:0.9rem;">
+                                📎 Attach Files
+                            </button>
+                            <span id="pyq-status" style="font-size:0.85rem; color:var(--text-muted);">No files attached</span>
+                            <button id="pyq-clear-btn" style="display:none; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:0.85rem; padding:0.2rem 0.5rem;">✕ Clear</button>
+                        </div>
+                        <div id="pyq-preview" style="display:none; margin-top:0.75rem; max-height:160px; overflow-y:auto; font-size:0.82rem; color:var(--text-muted); background:white; border:1px solid var(--border); border-radius:6px; padding:0.6rem 0.75rem;"></div>
+                    </div>
+
+                    <!-- Specs display (hidden until fetched) -->
+                    <div id="mock-specs-panel" style="display:none; margin-top:1.2rem;">
+                        <div id="mock-specs-summary" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:0.75rem; margin-bottom:1.2rem;"></div>
+                        <div style="font-weight:600; margin-bottom:0.5rem; font-size:0.95rem;">Subject Distribution</div>
+                        <div id="mock-subject-table" style="max-height:280px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;"></div>
+                    </div>
+
+                    <button id="generate-mock-btn" class="btn-primary" disabled
+                        style="margin-top:1.5rem; width:100%; padding:1rem; font-size:1.1rem;">
+                        🎯 Generate Full Mock Exam
+                    </button>
+                    <p id="mock-progress" style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted); text-align:center;"></p>
                 </div>
             </section>
 
@@ -178,7 +256,9 @@
                     <div class="results-header">
                         <h2>📚 Lesson Results</h2>
                         <div class="action-buttons">
-                            <button id="download-lessons-json-btn" class="btn-secondary">💾 Download JSON</button>
+                            <button id="save-lessons-btn" class="btn-primary" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color:#1a1a1a; border:none;" disabled>💾 Save to History</button>
+                            <button id="regenerate-lessons-btn" class="btn-secondary" disabled>🔄 Regenerate</button>
+                            <button id="download-lessons-json-btn" class="btn-secondary">⬇ Download JSON</button>
                             <button id="download-lessons-md-btn" class="btn-secondary">📄 Download Markdown</button>
                             <button id="validate-lessons-btn" class="btn-primary" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color:#fff; border:none;">
                                 🔍 Validate Generated
@@ -198,7 +278,9 @@
                     <div class="results-header">
                         <h2>📝 QBank Results</h2>
                         <div class="action-buttons">
-                            <button id="download-btn" class="btn-secondary">💾 Download JSON</button>
+                            <button id="save-qbank-btn" class="btn-primary" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color:#1a1a1a; border:none;" disabled>💾 Save to History</button>
+                            <button id="regenerate-qbank-btn" class="btn-secondary" disabled>🔄 Regenerate</button>
+                            <button id="download-btn" class="btn-secondary">⬇ Download JSON</button>
                             <button id="copy-btn" class="btn-secondary">📄 Download Markdown</button>
                             <button id="validate-qbank-btn" class="btn-primary" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color:#fff; border:none;">
                                 🔍 Validate Generated
@@ -228,6 +310,20 @@
 
             </div>
             <!-- End Main Tab -->
+
+            <!-- History Tab -->
+            <div class="tab-content" id="history-tab">
+                <section class="step-section">
+                    <div class="step-header" style="display:flex; align-items:center; justify-content:space-between;">
+                        <h2 style="margin:0;">🕒 Past Generations</h2>
+                        <button id="history-refresh-btn" class="btn-secondary" style="font-size:0.85rem; padding:0.4rem 0.9rem;">↻ Refresh</button>
+                    </div>
+                    <p style="color:var(--text-muted); margin-top:0.4rem; font-size:0.9rem;">Click any session to load it back into the Generator.</p>
+                    <div id="history-list" style="margin-top:1.2rem;">
+                        <p class="empty-state">Loading history...</p>
+                    </div>
+                </section>
+            </div>
 
             <!-- Utility Tab -->
             <div class="tab-content" id="utility-tab">
@@ -878,6 +974,92 @@
         .empty-state {
             color: #999;
             font-style: italic;
+        }
+
+        /* ── Mock Exam mode ── */
+        .mock-stat-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            text-align: center;
+        }
+        .mock-stat-card .label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+        .mock-stat-card .value { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+        .mock-dist-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.88rem;
+        }
+        .mock-dist-row:last-child { border-bottom: none; }
+        .mock-dist-bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .mock-dist-bar { height: 100%; background: var(--primary); border-radius: 3px; }
+        .gen-mode-btn { transition: background 0.15s, color 0.15s; }
+
+        /* ── History tab ── */
+        .history-card {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.2rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: box-shadow 0.15s, border-color 0.15s;
+        }
+        .history-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 10px rgba(102,126,234,0.15);
+        }
+        .history-card-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        .history-card-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .history-card-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-card-meta {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+        .history-card-badge {
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.65rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .history-card-delete {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .history-card-delete:hover {
+            background: #fef2f2;
+            color: #ef4444;
         }
     </style>
 
