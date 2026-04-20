@@ -48,10 +48,12 @@ let _fixedItemIndices = new Set(); // Tracks indices that have been fixed this s
 // Save / Regenerate state — QBank
 let lastSaveMeta = null;    // { questions, course, subject, topics }
 let lastRegenerateFn = null; // () => void — re-runs the last generation
+let currentQBankSessionId = null; // set after first explicit save; reused for updates
 
 // Save / Regenerate state — Lessons
 let lastLessonsSaveMeta = null;    // { lessons_data, course, subject }
 let lastLessonsRegenerateFn = null; // () => void
+let currentLessonsSessionId = null; // set after first explicit save; reused for updates
 
 function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -857,6 +859,7 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
             showResultTab('qbank');
             showToast(`Generated ${totalGenerated} questions across all subjects`, 'success');
             lastSaveMeta = { course, subject: 'All Subjects', topics: courseStructure.subjects.map(s => s.name) };
+            currentQBankSessionId = null;
             lastRegenerateFn = () => runQBankGenerate(numQuestionsPerTopic, false);
         } catch (error) {
             showToast(error.message || 'Error generating questions', 'error');
@@ -917,6 +920,7 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
             showResultTab('qbank');
             showToast(`Generated ${data.count} questions across ${topics.length} topic(s)`, 'success');
             lastSaveMeta = { course, subject, topics };
+            currentQBankSessionId = null;
             lastRegenerateFn = () => runQBankGenerate(numQuestionsPerTopic * topics.length, false);
         }
 
@@ -1026,7 +1030,10 @@ function displayResults(questions, course, imageStats = null) {
     // Enable Save / Regenerate buttons now that results exist
     const saveQbankBtn = document.getElementById('save-qbank-btn');
     const regenQbankBtn = document.getElementById('regenerate-qbank-btn');
-    if (saveQbankBtn) saveQbankBtn.disabled = false;
+    if (saveQbankBtn) {
+        saveQbankBtn.disabled = false;
+        saveQbankBtn.textContent = currentQBankSessionId ? '💾 Update History' : '💾 Save to History';
+    }
     if (regenQbankBtn) regenQbankBtn.disabled = false;
 }
 
@@ -1250,8 +1257,9 @@ if (saveQbankBtn) {
     saveQbankBtn.addEventListener('click', async () => {
         if (!generatedQuestions.length) return;
         const meta = lastSaveMeta || { course: courseStructure?.Course || 'Unknown', subject: '', topics: [] };
+        const isUpdate = !!currentQBankSessionId;
         saveQbankBtn.disabled = true;
-        saveQbankBtn.textContent = 'Saving…';
+        saveQbankBtn.textContent = isUpdate ? 'Updating…' : 'Saving…';
         try {
             const res = await fetch('/api/sessions/save', {
                 method: 'POST',
@@ -1261,19 +1269,22 @@ if (saveQbankBtn) {
                     course: meta.course,
                     subject: meta.subject,
                     topics: meta.topics,
+                    session_id: currentQBankSessionId || undefined,
                 })
             });
             const data = await res.json();
             if (data.session_id) {
-                showToast('Saved to History ✓', 'success');
+                currentQBankSessionId = data.session_id;
+                showToast(isUpdate ? 'History updated ✓' : 'Saved to History ✓', 'success');
                 saveQbankBtn.textContent = '✓ Saved';
+                saveQbankBtn.disabled = false;
             } else {
                 throw new Error(data.error || 'Save failed');
             }
         } catch (err) {
             showToast(err.message || 'Save failed', 'error');
             saveQbankBtn.disabled = false;
-            saveQbankBtn.textContent = '💾 Save to History';
+            saveQbankBtn.textContent = currentQBankSessionId ? '💾 Update History' : '💾 Save to History';
         }
     });
 }
@@ -1300,8 +1311,9 @@ const saveLessonsBtn = document.getElementById('save-lessons-btn');
 if (saveLessonsBtn) {
     saveLessonsBtn.addEventListener('click', async () => {
         if (!lastLessonsSaveMeta) return;
+        const isUpdate = !!currentLessonsSessionId;
         saveLessonsBtn.disabled = true;
-        saveLessonsBtn.textContent = 'Saving…';
+        saveLessonsBtn.textContent = isUpdate ? 'Updating…' : 'Saving…';
         try {
             const res = await fetch('/api/sessions/save', {
                 method: 'POST',
@@ -1311,19 +1323,22 @@ if (saveLessonsBtn) {
                     lessons_data: lastLessonsSaveMeta.lessons_data,
                     course: lastLessonsSaveMeta.course,
                     subject: lastLessonsSaveMeta.subject,
+                    session_id: currentLessonsSessionId || undefined,
                 })
             });
             const data = await res.json();
             if (data.session_id) {
-                showToast('Lessons saved to History ✓', 'success');
+                currentLessonsSessionId = data.session_id;
+                showToast(isUpdate ? 'History updated ✓' : 'Lessons saved to History ✓', 'success');
                 saveLessonsBtn.textContent = '✓ Saved';
+                saveLessonsBtn.disabled = false;
             } else {
                 throw new Error(data.error || 'Save failed');
             }
         } catch (err) {
             showToast(err.message || 'Save failed', 'error');
             saveLessonsBtn.disabled = false;
-            saveLessonsBtn.textContent = '💾 Save to History';
+            saveLessonsBtn.textContent = currentLessonsSessionId ? '💾 Update History' : '💾 Save to History';
         }
     });
 }
@@ -2167,6 +2182,7 @@ if (generateLessonsBtn) {
 
         // Track state for Save / Regenerate buttons
         lastLessonsSaveMeta = { lessons_data: data, course: data.course || course, subject: data.subject || '' };
+        currentLessonsSessionId = null;
         lastLessonsRegenerateFn = () => generateLessonsBtn.click();
 
         // Show results section and switch to lessons tab
@@ -2315,7 +2331,10 @@ function displayLessons(data) {
     // Enable Save / Regenerate buttons now that lessons exist
     const saveLessonsBtn = document.getElementById('save-lessons-btn');
     const regenLessonsBtn = document.getElementById('regenerate-lessons-btn');
-    if (saveLessonsBtn) saveLessonsBtn.disabled = false;
+    if (saveLessonsBtn) {
+        saveLessonsBtn.disabled = false;
+        saveLessonsBtn.textContent = currentLessonsSessionId ? '💾 Update History' : '💾 Save to History';
+    }
     if (regenLessonsBtn) regenLessonsBtn.disabled = false;
 }
 
@@ -3564,21 +3583,9 @@ function selectNeedsRevision() {
     updateFixButtonCount();
 }
 
-// Silently save current questions (with _validated_ok flags) to the existing session
-function _autosaveClearedState() {
-    if (!generatedQuestions.length) return;
-    const meta = lastSaveMeta || { course: courseStructure?.Course || 'Unknown', subject: '', topics: [] };
-    fetch('/api/sessions/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            questions: generatedQuestions,
-            course: meta.course,
-            subject: meta.subject || '',
-            topics: meta.topics || []
-        })
-    }).catch(() => {}); // silent — don't alert user
-}
+// (auto-save removed — history only updated on explicit "Save to History" click)
+function _autosaveClearedState() { /* no-op: kept as stub to avoid call-site errors */ }
+
 
 async function fixSelectedItems() {
     if (!_validationState) return;
@@ -4456,6 +4463,7 @@ async function openHistorySession(sessionId) {
             lessonsData = lessonsPayload;
             displayLessons(lessonsPayload);
             lastLessonsSaveMeta = { lessons_data: lessonsPayload, course: courseName, subject: data.subject || '' };
+            currentLessonsSessionId = sessionId; // subsequent saves update this entry
             lastLessonsRegenerateFn = null; // Can't replay without original form state
             showResultTab('lessons');
             showToast(`Loaded ${lessonsPayload.lessons.length} lessons from ${courseName}`, 'success');
@@ -4465,6 +4473,7 @@ async function openHistorySession(sessionId) {
             generatedQuestions = questions;
             displayResults(questions, courseName);
             lastSaveMeta = { course: courseName, subject: data.subject || '', topics: data.topics || [] };
+            currentQBankSessionId = sessionId; // subsequent saves update this entry
             lastRegenerateFn = null; // Can't replay without original form state
             showResultTab('qbank');
             const moreBar = document.getElementById('generate-more-bar');
@@ -4756,6 +4765,7 @@ if (generateMockBtn) {
             mockProgress.textContent = `✓ Generated ${allQuestions.length} questions`;
             showToast(`Mock exam ready: ${allQuestions.length} questions`, 'success');
             lastSaveMeta = { course, subject: 'Mock Exam', topics: Object.keys(dist) };
+            currentQBankSessionId = null;
             lastRegenerateFn = () => generateMockBtn.click();
 
         } catch (err) {

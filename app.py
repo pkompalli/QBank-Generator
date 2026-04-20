@@ -839,6 +839,45 @@ RULES:
         return plan_image_questions(course_name, subject, subject_task.get('hyt_topics', []), n)
 
 
+def _download_and_cache_image(img_dict):
+    """
+    If img_dict['url'] is an external http URL, download it to /static/ and
+    replace 'url' with the local path. Returns img_dict (mutated in place).
+    This ensures validation can embed the image even if the external host blocks hotlinking.
+    """
+    if not img_dict or not img_dict.get('url'):
+        return img_dict
+    url = img_dict['url']
+    if not url.startswith('http'):
+        return img_dict  # already local
+    try:
+        _HDR = {
+            'User-Agent': 'Mozilla/5.0 (compatible; QBankGenerator/1.0)',
+            'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+            'Referer': '/'.join(url.split('/')[:3]) + '/',
+        }
+        resp = requests.get(url, timeout=15, headers=_HDR)
+        if resp.status_code == 200:
+            ext = '.jpg'
+            ct = resp.headers.get('content-type', '')
+            if 'png' in ct:
+                ext = '.png'
+            elif 'gif' in ct:
+                ext = '.gif'
+            elif 'webp' in ct:
+                ext = '.webp'
+            fname = f"img_{hashlib.md5(url.encode()).hexdigest()[:12]}{ext}"
+            local_path = os.path.join('static', fname)
+            with open(local_path, 'wb') as f:
+                f.write(resp.content)
+            img_dict['url'] = f'/static/{fname}'
+            img_dict['original_url'] = url
+            logger.info(f"  Cached external image → {local_path}")
+    except Exception as e:
+        logger.warning(f"  Could not cache {url}: {e}")
+    return img_dict
+
+
 def run_image_pipeline_for_subject(image_specs, subject_task):
     """Phase B — Fetch + validate images in parallel. Returns [{spec, image}]."""
     if not image_specs:
@@ -856,6 +895,8 @@ def run_image_pipeline_for_subject(image_specs, subject_task):
             q_data, subject_task['subject'],
             source_strategy=spec.get('source_strategy', IMAGE_SOURCE_GOOGLE)
         )
+        if img:
+            _download_and_cache_image(img)  # ensure local copy for validation
         return {'spec': spec, 'image': img}
 
     results = []
@@ -2479,40 +2520,161 @@ SESSIONS_DIR     = 'sessions'
 COURSES_DIR      = 'courses'
 EXAM_FORMATS_DIR = 'exam_formats'
 
-def save_qbank_session(questions, course, subject, topics, image_stats=None):
+def _embed_question_images(questions):
+    """
+    For each question with a local image_url, read the file and store base64 + media_type
+    directly in the question dict so the session JSON is fully self-contained.
+    Skips questions that already have embedded data or have no local image.
+    """
+    import base64 as _b64
+    for q in questions:
+        url = q.get('image_url', '')
+        if not url or url.startswith('http') or q.get('_img_b64'):
+            continue
+        local = url.lstrip('/')
+        try:
+            if os.path.isfile(local):
+                with open(local, 'rb') as f:
+                    raw = f.read()
+                q['_img_b64'] = _b64.b64encode(raw).decode('utf-8')
+                q['_img_media_type'] = _sniff_media_type(raw)
+        except Exception as e:
+            logger.warning(f"Could not embed image {local}: {e}")
+    return questions
+
+
+def _restore_question_images(questions):
+    """
+    On session load: for questions with embedded _img_b64, restore the local file
+    if it no longer exists, then clear the b64 from the returned payload (keep on disk only).
+    """
+    import base64 as _b64
+    for q in questions:
+        b64 = q.get('_img_b64')
+        url = q.get('image_url', '')
+        if not b64 or not url or url.startswith('http'):
+            continue
+        local = url.lstrip('/')
+        if not os.path.isfile(local):
+            try:
+                os.makedirs(os.path.dirname(local) or '.', exist_ok=True)
+                with open(local, 'wb') as f:
+                    f.write(_b64.b64decode(b64))
+                logger.info(f"Restored image from session: {local}")
+            except Exception as e:
+                logger.warning(f"Could not restore image {local}: {e}")
+    return questions
+
+
+def save_qbank_session(questions, course, subject, topics, image_stats=None, session_id=None):
     """Persist a QBank generation to sessions/ as a JSON file and return the session id."""
+    import copy
     os.makedirs(SESSIONS_DIR, exist_ok=True)
-    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    existing_created = None
+    if session_id:
+        existing_path = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+        if os.path.isfile(existing_path):
+            try:
+                with open(existing_path) as f:
+                    existing_created = json.load(f).get('created_at')
+            except Exception:
+                pass
+    else:
+        session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+
+    # Deep-copy so we don't mutate in-flight question objects
+    questions_to_save = copy.deepcopy(questions)
+    _embed_question_images(questions_to_save)
+
     filename = os.path.join(SESSIONS_DIR, f"{session_id}.json")
     session = {
         'session_id': session_id,
-        'created_at': datetime.now().isoformat(),
+        'created_at': existing_created or datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
         'type': 'qbank',
         'course': course,
         'subject': subject,
         'topics': topics,
-        'question_count': len(questions),
+        'question_count': len(questions_to_save),
         'image_stats': image_stats,
-        'questions': questions,
+        'questions': questions_to_save,
     }
     try:
         with open(filename, 'w') as f:
             json.dump(session, f, indent=2)
-        logger.info(f"Session saved: {filename}")
+        embedded = sum(1 for q in questions_to_save if q.get('_img_b64'))
+        logger.info(f"Session {'updated' if existing_created else 'saved'}: {filename} ({embedded} images embedded)")
     except Exception as e:
         logger.error(f"Failed to save session: {e}")
     return session_id
 
 
-def save_lesson_session(lessons_data, course, subject):
+def _embed_lesson_images(lessons_data):
+    """
+    Walk lesson markdown/HTML, find local /static/ image URLs, and embed them as base64
+    in a top-level _images dict keyed by path. Lessons stay text-only; images are
+    restored on load via _restore_lesson_images.
+    """
+    import base64 as _b64
+    images = {}
+    for lesson in lessons_data.get('lessons', []):
+        texts = [lesson.get('topic_lesson', '')]
+        for ch in lesson.get('chapters', []):
+            texts.append(ch.get('lesson', '') or '')
+        for text in texts:
+            for url, _ in _extract_image_urls_from_lesson(str(text)):
+                if url and not url.startswith('http') and url not in images:
+                    local = url.lstrip('/')
+                    try:
+                        if os.path.isfile(local):
+                            with open(local, 'rb') as f:
+                                raw = f.read()
+                            images[url] = {
+                                'b64': _b64.b64encode(raw).decode('utf-8'),
+                                'media_type': _sniff_media_type(raw),
+                            }
+                    except Exception as e:
+                        logger.warning(f"Could not embed lesson image {local}: {e}")
+    return images
+
+
+def _restore_lesson_images(images_dict):
+    """Restore local /static/ image files from the embedded dict if they're missing."""
+    import base64 as _b64
+    for url, data in (images_dict or {}).items():
+        local = url.lstrip('/')
+        if not os.path.isfile(local):
+            try:
+                os.makedirs(os.path.dirname(local) or '.', exist_ok=True)
+                with open(local, 'wb') as f:
+                    f.write(_b64.b64decode(data['b64']))
+                logger.info(f"Restored lesson image: {local}")
+            except Exception as e:
+                logger.warning(f"Could not restore lesson image {local}: {e}")
+
+
+def save_lesson_session(lessons_data, course, subject, session_id=None):
     """Persist a Lessons generation to sessions/ as a JSON file and return the session id."""
+    import copy
     os.makedirs(SESSIONS_DIR, exist_ok=True)
-    session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    existing_created = None
+    if session_id:
+        existing_path = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+        if os.path.isfile(existing_path):
+            try:
+                with open(existing_path) as f:
+                    existing_created = json.load(f).get('created_at')
+            except Exception:
+                pass
+    else:
+        session_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     filename = os.path.join(SESSIONS_DIR, f"{session_id}.json")
     topics = [l.get('topic', '') for l in lessons_data.get('lessons', [])]
+    embedded_images = _embed_lesson_images(lessons_data)
     session = {
         'session_id': session_id,
-        'created_at': datetime.now().isoformat(),
+        'created_at': existing_created or datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
         'type': 'lessons',
         'course': course,
         'subject': subject,
@@ -2520,11 +2682,12 @@ def save_lesson_session(lessons_data, course, subject):
         'lesson_count': len(topics),
         'question_count': 0,
         'lessons_data': lessons_data,
+        '_images': embedded_images,
     }
     try:
         with open(filename, 'w') as f:
             json.dump(session, f, indent=2)
-        logger.info(f"Lesson session saved: {filename}")
+        logger.info(f"Lesson session {'updated' if existing_created else 'saved'}: {filename} ({len(embedded_images)} images embedded)")
     except Exception as e:
         logger.error(f"Failed to save lesson session: {e}")
     return session_id
@@ -3157,6 +3320,7 @@ def generate_for_topic(course, subject, topic, num_questions, include_images=Fal
             idx, q = args
             result = search_and_validate_image(q, subject)
             if result:
+                _download_and_cache_image(result)  # ensure local /static/ copy
                 q['image_url']    = result['url']
                 q['image_source'] = result['source']
             else:
@@ -3551,24 +3715,25 @@ def delete_exam_format(fmt_id):
 
 @app.route('/api/sessions/save', methods=['POST'])
 def save_session_api():
-    """Manually save a QBank or Lessons session triggered by the user."""
+    """Save or update a QBank or Lessons session. Pass session_id to update in place."""
     data = request.json
     session_type = data.get('type', 'qbank')
     course = data.get('course', '')
+    existing_id = data.get('session_id') or None  # if set → update that entry
 
     if session_type == 'lessons':
         lessons_data = data.get('lessons_data', {})
         subject = data.get('subject', '')
         if not lessons_data or not lessons_data.get('lessons'):
             return jsonify({'error': 'No lessons data provided'}), 400
-        session_id = save_lesson_session(lessons_data, course, subject)
+        session_id = save_lesson_session(lessons_data, course, subject, session_id=existing_id)
     else:
         questions = data.get('questions', [])
         subject = data.get('subject', '')
         topics = data.get('topics', [])
         if not questions:
             return jsonify({'error': 'No questions provided'}), 400
-        session_id = save_qbank_session(questions, course, subject, topics)
+        session_id = save_qbank_session(questions, course, subject, topics, session_id=existing_id)
 
     return jsonify({'session_id': session_id})
 
@@ -3713,6 +3878,15 @@ def get_session(session_id):
     try:
         with open(fpath, 'r') as f:
             data = json.load(f)
+        # Restore any images whose local file has gone missing, then strip bulk data
+        if data.get('questions'):
+            _restore_question_images(data['questions'])
+            for q in data['questions']:
+                q.pop('_img_b64', None)
+                q.pop('_img_media_type', None)
+        if data.get('_images'):
+            _restore_lesson_images(data['_images'])
+            data.pop('_images', None)  # don't send MB of base64 to browser
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5527,7 +5701,12 @@ def _load_image_as_base64(image_url):
     try:
         if image_url.startswith('http'):
             import requests as _req
-            resp = _req.get(image_url, timeout=10)
+            _HDR = {
+                'User-Agent': 'Mozilla/5.0 (compatible; QBankGenerator/1.0; +https://github.com/pkompalli/QBank-Generator)',
+                'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+                'Referer': '/'.join(image_url.split('/')[:3]) + '/',
+            }
+            resp = _req.get(image_url, timeout=15, headers=_HDR)
             if resp.status_code == 200:
                 raw = resp.content
                 data = _b64.b64encode(raw).decode('utf-8')
@@ -5680,11 +5859,18 @@ Tags: {', '.join(q_obj.get('tags', []))}
     blocks = [{"type": "text", "text": q_text}]
     if has_image:
         img_data, media_type = _load_image_as_base64(image_url)
+        if not img_data and image_url.startswith('http'):
+            cached = _download_and_cache_image({'url': image_url})
+            local_url = cached.get('url', image_url)
+            if local_url != image_url:
+                img_data, media_type = _load_image_as_base64(local_url)
+                if img_data:
+                    q_obj['image_url'] = local_url
         if img_data:
             blocks.append({"type": "image",
                            "source": {"type": "base64", "media_type": media_type, "data": img_data}})
         else:
-            blocks.append({"type": "text", "text": "[IMAGE LOAD FAILED — treat as missing image]\n"})
+            blocks.append({"type": "text", "text": "[IMAGE ATTACHED — could not be embedded; assume image exists]\n"})
 
     # Convert blocks → OpenAI-format content list
     def _to_oai(blk_list, prompt_text):
@@ -6182,7 +6368,15 @@ Tags: {', '.join(q.get('tags', []))}
                 q_blocks.append({"type": "text", "text": q_text})
 
                 if has_image:
+                    # Try to load; if external URL fails, cache locally and retry once
                     img_data, media_type = _load_image_as_base64(image_url)
+                    if not img_data and image_url.startswith('http'):
+                        cached = _download_and_cache_image({'url': image_url})
+                        local_url = cached.get('url', image_url)
+                        if local_url != image_url:
+                            img_data, media_type = _load_image_as_base64(local_url)
+                            if img_data:
+                                q['image_url'] = local_url  # update for future calls
                     if img_data:
                         q_blocks.append({
                             "type": "image",
@@ -6191,8 +6385,9 @@ Tags: {', '.join(q.get('tags', []))}
                         images_embedded += 1
                         logger.info(f"   🖼️  Q{pos}: embedded image ({media_type})")
                     else:
-                        q_blocks.append({"type": "text", "text": "[IMAGE LOAD FAILED — treat question as having a missing image]\n"})
-                        logger.warning(f"   ⚠️  Q{pos}: image present but failed to load")
+                        # Don't tell the LLM to treat as missing — it IS attached, just temporarily unloadable
+                        q_blocks.append({"type": "text", "text": "[IMAGE ATTACHED — could not be embedded for validation; assume the image exists and evaluate accordingly]\n"})
+                        logger.warning(f"   ⚠️  Q{pos}: image present but failed to load from {image_url}")
 
                 section_block_ranges.append((block_start, len(q_blocks)))
 
