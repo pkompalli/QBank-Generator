@@ -39,9 +39,11 @@ const attachedStructureFile = document.getElementById('attached-structure-file')
 let generatedQuestions = [];
 let courseStructure = null; // Shared structure for both Lessons and QBank tabs
 let uploadedStructureData = null; // Holds normalized structure from uploaded JSON file
+let selectedExamFormat = null; // Pre-loaded exam format — skips analyze_exam_format on generate-subjects
 
 let attachedFile = null;
 let _validationState = null; // Stores report + original content for Fix Selected
+let _fixedItemIndices = new Set(); // Tracks indices that have been fixed this session
 
 // Save / Regenerate state — QBank
 let lastSaveMeta = null;    // { questions, course, subject, topics }
@@ -334,6 +336,24 @@ function addChatMessage(content, sender = 'user') {
 
 // Approve structure and show subject selection
 function approveStructure() {
+    // Auto-save this course structure + exam format so they appear in saved lists next time
+    if (courseStructure) {
+        const courseName = courseStructure.Course || lessonCourse?.value?.trim() || 'Unknown';
+        fetch('/api/courses/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ structure: courseStructure, course_name: courseName })
+        }).then(() => loadSavedCourses()).catch(() => {});
+
+        if (courseStructure.exam_format) {
+            fetch('/api/exam-formats/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exam_format: courseStructure.exam_format, course_name: courseName })
+            }).then(() => loadSavedExamFormats()).catch(() => {});
+        }
+    }
+
     // Hide structure review section
     if (structureSection) {
         structureSection.style.display = 'none';
@@ -344,6 +364,9 @@ function approveStructure() {
     if (generateSection) {
         generateSection.style.display = 'block';
     }
+
+    // Show saved exam patterns in the generate section
+    loadSavedExamFormats();
 
     // Populate dropdowns for both lessons and QBank
     populateSubjects(courseStructure);
@@ -357,6 +380,205 @@ function approveStructure() {
 
     showToast('Structure approved! Select subjects and topics to generate lessons or questions.', 'success');
 }
+
+// ── Saved Courses ─────────────────────────────────────────────────────────────
+
+async function loadSavedCourses() {
+    const panel = document.getElementById('saved-courses-panel');
+    const list  = document.getElementById('saved-courses-list');
+    if (!panel || !list) return;
+    try {
+        const res = await fetch('/api/courses');
+        if (!res.ok) return;
+        const courses = await res.json();
+        if (!courses.length) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        list.innerHTML = courses.map(c => {
+            const date = c.saved_at ? new Date(c.saved_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit' }) : '';
+            return `
+            <div class="saved-course-row" data-id="${escapeHtml(c.id)}" style="
+                display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.9rem;
+                background:var(--bg-secondary);border:1px solid var(--border);
+                border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;">
+                <span style="font-size:1.1rem;">🎓</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.course_name)}</div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);">${c.subject_count} subjects · ${c.topic_count} topics · ${date}</div>
+                </div>
+                <button type="button" class="delete-course-btn" data-id="${escapeHtml(c.id)}" title="Delete"
+                    style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.4rem;border-radius:4px;flex-shrink:0;line-height:1;">✕</button>
+            </div>`;
+        }).join('');
+
+        // Single delegated listener on the container
+        list.onclick = async (e) => {
+            const deleteBtn = e.target.closest('.delete-course-btn');
+            if (deleteBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const id = deleteBtn.dataset.id;
+                try {
+                    const dr = await fetch(`/api/courses/${id}`, { method: 'DELETE' });
+                    if (!dr.ok) throw new Error(`Server returned ${dr.status}`);
+                    showToast('Course deleted', 'success');
+                } catch (err) {
+                    showToast('Delete failed: ' + err.message, 'error');
+                }
+                loadSavedCourses();
+                return;
+            }
+            const row = e.target.closest('.saved-course-row');
+            if (row) {
+                const res = await fetch(`/api/courses/${row.dataset.id}`);
+                if (!res.ok) { showToast('Failed to load saved course', 'error'); return; }
+                const data = await res.json();
+                courseStructure = data.structure;
+                const courseInput = document.getElementById('lesson-course');
+                if (courseInput) courseInput.value = data.course_name || courseStructure.Course || '';
+                displayStructureReview();
+                showToast(`Loaded: ${data.course_name}`, 'success');
+            }
+        };
+
+        list.onmouseover = (e) => {
+            const row = e.target.closest('.saved-course-row');
+            if (row) { row.style.borderColor = 'var(--primary)'; row.style.background = 'var(--bg)'; }
+        };
+        list.onmouseout = (e) => {
+            const row = e.target.closest('.saved-course-row');
+            if (row) { row.style.borderColor = 'var(--border)'; row.style.background = 'var(--bg-secondary)'; }
+        };
+    } catch (e) {
+        panel.style.display = 'none';
+    }
+}
+
+// Load saved courses on page init
+loadSavedCourses();
+
+// ── Saved Exam Formats ────────────────────────────────────────────────────────
+
+function _updateFormatBadge(name) {
+    const badge = document.getElementById('active-format-badge');
+    if (!badge) return;
+    if (name) { badge.textContent = name; badge.style.display = 'inline'; }
+    else { badge.style.display = 'none'; }
+}
+
+async function _loadExamFormatIntoMockPanel(ef, courseName) {
+    if (!ef) return;
+
+    // Switch to mock exam mode immediately
+    document.querySelector('.gen-mode-btn[data-mode="mock"]')?.click();
+
+    const mockSpecsStatus = document.getElementById('mock-specs-status');
+    const adjustSection   = document.getElementById('mock-adjust-section');
+    const genMockBtn      = document.getElementById('generate-mock-btn');
+
+    if (mockSpecsStatus) mockSpecsStatus.textContent = '⏳ Fetching exam pattern details…';
+    if (mockSpecsPanel)  mockSpecsPanel.style.display = 'none';
+    if (genMockBtn)      genMockBtn.disabled = true;
+
+    const course   = courseName || courseStructure?.Course || '';
+    const subjects = (courseStructure?.subjects || []).map(s => s.name);
+
+    try {
+        const res = await fetch('/api/mock-exam-specs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ course, subjects })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        mockExamSpecs = await res.json();
+        renderMockSpecs(mockExamSpecs);
+        if (mockSpecsStatus) mockSpecsStatus.textContent = `✓ Exam pattern loaded: ${course}`;
+        if (adjustSection)   adjustSection.style.display = 'block';
+        if (genMockBtn)      genMockBtn.disabled = false;
+    } catch (err) {
+        if (mockSpecsStatus) mockSpecsStatus.textContent = '✗ Could not fetch pattern details';
+        showToast('Failed to load exam pattern details', 'error');
+        console.error(err);
+    }
+}
+
+async function loadSavedExamFormats() {
+    const panel = document.getElementById('saved-formats-panel');
+    const list  = document.getElementById('saved-formats-list');
+    if (!panel || !list) return;
+    try {
+        const res = await fetch('/api/exam-formats');
+        if (!res.ok) return;
+        const formats = await res.json();
+        const inGenerateSection = !!document.getElementById('generate-section')?.offsetParent;
+        if (!formats.length) { if (!inGenerateSection) panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        list.innerHTML = formats.map(f => {
+            const date = f.saved_at ? new Date(f.saved_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit' }) : '';
+            const imgBadge = f.image_pct ? ` · ${f.image_pct}% img` : '';
+            const isActive = selectedExamFormat && selectedExamFormat._id === f.id;
+            return `
+            <div class="saved-format-row" data-id="${escapeHtml(f.id)}" style="
+                display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.9rem;
+                background:${isActive ? '#e8f4fd' : 'var(--bg-secondary)'};
+                border:1.5px solid ${isActive ? 'var(--primary)' : 'var(--border)'};
+                border-radius:8px;cursor:pointer;transition:border-color 0.15s,background 0.15s;">
+                <span style="font-size:1rem;">📋</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(f.course_name)}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(f.question_style || '')} · ${f.num_options} options${imgBadge} · ${date}</div>
+                </div>
+                ${isActive ? '<span style="font-size:0.75rem;color:var(--primary);font-weight:600;flex-shrink:0;">✓ active</span>' : ''}
+                <button type="button" class="delete-format-btn" data-id="${escapeHtml(f.id)}" title="Delete"
+                    style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;padding:0.2rem 0.4rem;border-radius:4px;flex-shrink:0;line-height:1;">✕</button>
+            </div>`;
+        }).join('');
+
+        // Single delegated listener
+        list.onclick = async (e) => {
+            const deleteBtn = e.target.closest('.delete-format-btn');
+            if (deleteBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+                const id = deleteBtn.dataset.id;
+                try {
+                    const dr = await fetch(`/api/exam-formats/${id}`, { method: 'DELETE' });
+                    if (!dr.ok) throw new Error(`Server returned ${dr.status}`);
+                    if (selectedExamFormat?._id === id) { selectedExamFormat = null; _updateFormatBadge(null); }
+                    showToast('Exam pattern deleted', 'success');
+                } catch (err) {
+                    showToast('Delete failed: ' + err.message, 'error');
+                }
+                loadSavedExamFormats();
+                return;
+            }
+            const row = e.target.closest('.saved-format-row');
+            if (!row) return;
+            const fmtId = row.dataset.id;
+            // Toggle off if already active
+            if (selectedExamFormat?._id === fmtId) {
+                selectedExamFormat = null;
+                _updateFormatBadge(null);
+                showToast('Exam pattern deselected', 'info');
+                loadSavedExamFormats();
+                return;
+            }
+            const res = await fetch(`/api/exam-formats/${fmtId}`);
+            if (!res.ok) { showToast('Failed to load exam pattern', 'error'); return; }
+            const data = await res.json();
+            selectedExamFormat = { ...data.exam_format, _id: fmtId };
+            const courseInput = document.getElementById('lesson-course');
+            if (courseInput && !courseInput.value.trim()) courseInput.value = data.course_name || '';
+            _updateFormatBadge(data.course_name);
+            _loadExamFormatIntoMockPanel(data.exam_format, data.course_name);
+            showToast(`Exam pattern selected: ${data.course_name}`, 'success');
+            loadSavedExamFormats();
+        };
+    } catch (e) {
+        panel.style.display = 'none';
+    }
+}
+
+// loadSavedExamFormats() is called from approveStructure() when Step 3 becomes visible
 
 // Question Bank - Generate Subjects button (removed from UI, kept for compatibility)
 if (qbankGenerateSubjectsBtn) {
@@ -608,7 +830,9 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
         let totalGenerated = 0;
         try {
             for (const subjectObj of courseStructure.subjects) {
-                const topics = (subjectObj.topics || []).map(t => t.name).filter(Boolean);
+                const allT = (subjectObj.topics || []).filter(t => t.name);
+                const hyT = allT.filter(t => t.high_yield);
+                const topics = (hyT.length > 0 ? hyT : allT).map(t => t.name);
                 if (!topics.length) continue;
                 document.getElementById('loading-message').textContent =
                     `Generating: ${subjectObj.name} (${topics.length} topics)…`;
@@ -619,7 +843,7 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
                         course, subject: subjectObj.name, topics,
                         num_questions: numQuestionsPerTopic,
                         include_images: includeImages,
-                        exam_format: courseStructure?.exam_format,
+                        exam_format: selectedExamFormat || courseStructure?.exam_format,
                         existing_questions: allQuestions
                     })
                 });
@@ -672,7 +896,7 @@ async function runQBankGenerate(numQuestionsPerTopic, isAppend) {
                 topics,
                 num_questions: numQuestionsPerTopic,
                 include_images: includeImages,
-                exam_format: courseStructure?.exam_format,
+                exam_format: selectedExamFormat || courseStructure?.exam_format,
                 existing_questions: isAppend ? generatedQuestions : [],
                 reference_examples: getPyqExamples(subject, 8),
             })
@@ -829,8 +1053,14 @@ function renderQuestionCard(q, idx) {
         </div>
     ` : '');
 
+    const debugBtn = hasImage ? `
+        <button onclick="showImageDebugPanel(${idx + 1}, this, 'qbank')"
+            title="View image search debug — see queries, candidates and selected image"
+            style="background:none;border:1.5px solid #7b5ea7;color:#7b5ea7;border-radius:6px;padding:2px 9px;font-size:0.78rem;cursor:pointer;font-weight:600;line-height:1.5;white-space:nowrap;"
+            data-debug-loading="false">🔍 Image Search</button>` : '';
+
     return `
-        <div class="question-card">
+        <div class="question-card" data-q-index="${idx + 1}">
             <div class="question-header">
                 <span class="question-number">Q${idx + 1}</span>
                 <div class="question-tags">
@@ -838,6 +1068,7 @@ function renderQuestionCard(q, idx) {
                     <span class="tag tag-difficulty">${difficultyLabels[q.difficulty]}</span>
                     ${hasImage ? '<span class="tag tag-image">Image</span>' : ''}
                     ${(q.tags || []).map(tag => `<span class="tag tag-exam">${tag}</span>`).join('')}
+                    ${debugBtn}
                 </div>
             </div>
             ${imageHtml}
@@ -1545,6 +1776,8 @@ if (generateSubjectsBtn) {
 
     structureStatus.textContent = uploadedStructureData
         ? '⏳ Using uploaded structure, fetching question format from web...'
+        : selectedExamFormat
+        ? '⏳ Generating course structure (using saved exam pattern — skipping format analysis)...'
         : '⏳ Searching web for official curriculum and question format...';
     generateSubjectsBtn.disabled = true;
 
@@ -1555,6 +1788,9 @@ if (generateSubjectsBtn) {
         const payload = { course };
         if (uploadedStructureData) {
             payload.uploaded_structure = uploadedStructureData;
+        }
+        if (selectedExamFormat) {
+            payload.exam_format = selectedExamFormat;
         }
         const response = await fetch('/api/generate-subjects', {
             method: 'POST',
@@ -2554,6 +2790,12 @@ document.querySelectorAll('.result-tab-btn').forEach(btn => {
                 qbankResult.classList.add('active');
                 qbankResult.style.display = 'block';
             }
+        } else if (tabName === 'validation') {
+            const valResult = document.getElementById('validation-result');
+            if (valResult) {
+                valResult.classList.add('active');
+                valResult.style.display = 'block';
+            }
         }
     });
 });
@@ -2598,6 +2840,53 @@ function flattenLessonsToSections(lessons) {
     return { sections, sectionMap };
 }
 
+// ── Validation tab helpers ────────────────────────────────────────────────────
+function switchToValidationTab() {
+    const btn = document.getElementById('validation-tab-btn');
+    if (btn) {
+        btn.style.display = '';   // make tab visible
+        btn.click();              // activate it
+    }
+}
+
+function switchToContentTab(contentType) {
+    const tabName = contentType === 'lesson' ? 'lessons' : 'qbank';
+    const btn = document.querySelector(`[data-result-tab="${tabName}"]`);
+    if (btn) btn.click();
+}
+
+// Filter state: {score, status, type}
+let _valFilter = { score: 'all', status: 'all', type: 'all' };
+
+function setValFilter(dim, value) {
+    _valFilter[dim] = value;
+    // Update button active states
+    document.querySelectorAll(`.vfbtn-${dim}`).forEach(b => {
+        b.classList.toggle('active', b.dataset.val === value);
+    });
+    applyValFilters();
+}
+
+function applyValFilters() {
+    let visible = 0;
+    document.querySelectorAll('#val-items-list .val-accordion[data-val-score]').forEach(el => {
+        const score  = el.dataset.valScore;
+        const status = el.dataset.valStatus;
+        const type   = el.dataset.valType;
+
+        const scoreOk  = _valFilter.score  === 'all' || _valFilter.score  === score;
+        const statusOk = _valFilter.status === 'all' || _valFilter.status === status;
+        const typeOk   = _valFilter.type   === 'all' || _valFilter.type   === type;
+
+        const show = scoreOk && statusOk && typeOk;
+        el.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    const countEl = document.getElementById('val-visible-count');
+    if (countEl) countEl.textContent = visible;
+}
+
 const validateLessonsBtn = document.getElementById('validate-lessons-btn');
 if (validateLessonsBtn) {
     validateLessonsBtn.addEventListener('click', async () => {
@@ -2606,18 +2895,19 @@ if (validateLessonsBtn) {
             return;
         }
 
-        const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
         const { sections, sectionMap } = flattenLessonsToSections(lessonsData.lessons);
         const count = sections.length;
         _validationState = { contentType: 'lesson', originalItems: sections, sectionMap, course: lessonsData.course || 'Unknown' };
 
         reportContent.innerHTML = `
-            <div class="loading-spinner"></div>
-            <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} section(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 60–90 sec</p>
+            <div style="text-align:center;padding:3rem;">
+                <div class="loading-spinner"></div>
+                <p style="color:#999;margin-top:1rem;">Running Council of Models validation on ${count} section(s)...</p>
+                <p style="color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 60–90 sec</p>
+            </div>
         `;
-        modal.style.display = 'block';
+        switchToValidationTab();
 
         try {
             const response = await fetch('/api/validate-content', {
@@ -2642,6 +2932,7 @@ if (validateLessonsBtn) {
                 <div style="text-align:center;padding:2rem;">
                     <h3 style="color:#dc3545;">❌ Validation Error</h3>
                     <p>${error.message || 'Failed to validate content'}</p>
+                    <button onclick="switchToContentTab('lesson')" class="btn-secondary" style="margin-top:1rem;">← Back to Lessons</button>
                 </div>
             `;
         }
@@ -2657,33 +2948,91 @@ if (validateQBankBtn) {
             return;
         }
 
-        const modal = document.getElementById('validation-modal');
         const reportContent = document.getElementById('validation-report-content');
-        const count = generatedQuestions.length;
-        _validationState = { contentType: 'qbank', originalItems: [...generatedQuestions], sectionMap: null, course: courseStructure?.Course || 'Unknown' };
+        const course = courseStructure?.Course || 'Unknown';
+
+        // Split into previously-cleared and needing validation
+        const clearedOrigIdx = [];   // 0-based indices of cleared questions
+        const toValidate = [];       // {origIdx (0-based), q} for questions to actually validate
+
+        generatedQuestions.forEach((q, i) => {
+            if (q._validated_ok) clearedOrigIdx.push(i);
+            else toValidate.push({ origIdx: i, q });
+        });
+
+        const skipCount = clearedOrigIdx.length;
+        const validateCount = toValidate.length;
+
+        _validationState = {
+            contentType: 'qbank',
+            originalItems: [...generatedQuestions],
+            sectionMap: null,
+            course
+        };
 
         reportContent.innerHTML = `
-            <div class="loading-spinner"></div>
-            <p style="text-align:center;color:#999;margin-top:1rem;">Running Council of Models validation on ${count} question(s)...</p>
-            <p style="text-align:center;color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 30–60 sec</p>
+            <div style="text-align:center;padding:3rem;">
+                <div class="loading-spinner"></div>
+                <p style="color:#999;margin-top:1rem;">
+                    Running validation on ${validateCount} question(s)${skipCount ? ` — skipping ${skipCount} previously cleared` : ''}...
+                </p>
+                <p style="color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 30–60 sec</p>
+            </div>
         `;
-        modal.style.display = 'block';
+        switchToValidationTab();
 
         try {
-            const response = await fetch('/api/validate-content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content_type: 'qbank',
-                    items: generatedQuestions,
-                    domain: 'medical education',
-                    course: courseStructure?.Course || 'Unknown'
-                })
+            let report;
+            if (validateCount === 0) {
+                // All cleared — build a synthetic all-approved report
+                report = {
+                    timestamp: new Date().toISOString(), content_type: 'qbank',
+                    domain: 'medical education', course,
+                    items: [], summary: { total: 0, approved: 0, needs_revision: 0, structural_failures: 0, avg_quality_score: 9 }
+                };
+            } else {
+                const response = await fetch('/api/validate-content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content_type: 'qbank',
+                        items: toValidate.map(x => x.q),
+                        domain: 'medical education',
+                        course
+                    })
+                });
+                if (!response.ok) throw new Error('Validation failed');
+                report = await response.json();
+
+                // Re-map item indices from batch-relative back to original positions
+                (report.items || []).forEach((item, i) => {
+                    if (toValidate[i]) item.index = toValidate[i].origIdx + 1;
+                });
+            }
+
+            // Inject pre-cleared placeholder items at their original positions
+            const preClearedItem = (origIdx) => ({
+                index: origIdx + 1,
+                _pre_cleared: true,
+                overall_assessment: {
+                    status: '✅ Approved',
+                    quality_score: 9,
+                    needs_revision: false,
+                    recommendation: 'Previously fixed and cleared (score 8+) — skipped this run'
+                },
+                validator: { overall_accuracy_score: 9, needs_revision: false, summary: 'Previously cleared — skipped' },
+                adversarial: { adversarial_score: 0, breakability_rating: 'airtight', summary: 'Previously cleared — skipped' }
             });
 
-            if (!response.ok) throw new Error('Validation failed');
+            const allItems = [...(report.items || [])];
+            clearedOrigIdx.forEach(i => allItems.push(preClearedItem(i)));
+            allItems.sort((a, b) => a.index - b.index);
+            report.items = allItems;
 
-            const report = await response.json();
+            // Adjust summary to include cleared questions
+            report.summary.total = generatedQuestions.length;
+            report.summary.approved = (report.summary.approved || 0) + skipCount;
+
             displayBatchValidationReport(report, 'qbank');
 
         } catch (error) {
@@ -2692,6 +3041,7 @@ if (validateQBankBtn) {
                 <div style="text-align:center;padding:2rem;">
                     <h3 style="color:#dc3545;">❌ Validation Error</h3>
                     <p>${error.message || 'Failed to validate content'}</p>
+                    <button onclick="switchToContentTab('qbank')" class="btn-secondary" style="margin-top:1rem;">← Back to QBank</button>
                 </div>
             `;
         }
@@ -2703,15 +3053,14 @@ function displayBatchValidationReport(report, contentType) {
     const items = report.items || [];
     const summary = report.summary || {};
 
+    // Reset filters and fixed-item tracking for new report
+    _valFilter = { score: 'all', status: 'all', type: 'all' };
+    _fixedItemIndices.clear();
+
     const getScoreClass = (score) => {
         if (score >= 8) return 'score-high';
         if (score >= 6) return 'score-medium';
         return 'score-low';
-    };
-
-    const formatList = (arr) => {
-        if (!arr || arr.length === 0) return '<p class="empty-state">None identified</p>';
-        return `<ul class="validation-list">${arr.map(i => `<li>${i}</li>`).join('')}</ul>`;
     };
 
     const statusBadge = (assessment) => {
@@ -2723,145 +3072,448 @@ function displayBatchValidationReport(report, contentType) {
     // Store report in validation state for fix
     if (_validationState) _validationState.report = report;
 
+    // ---- Back button ----
+    const backLabel = contentType === 'lesson' ? '← Back to Lessons' : '← Back to QBank';
+    const backHtml = `
+        <div style="margin-bottom:1rem;">
+            <button onclick="switchToContentTab('${contentType}')"
+                style="background:none;border:1.5px solid var(--border);border-radius:6px;padding:0.35rem 0.9rem;font-size:0.88rem;cursor:pointer;color:var(--text);font-weight:500;">
+                ${backLabel}
+            </button>
+        </div>`;
+
     // ---- Summary bar ----
     const structuralCount = summary.structural_failures || 0;
-    const summaryHtml = `
-        <div class="overall-assessment" style="margin-bottom:1.5rem;">
-            <h3>📊 Batch Summary — ${report.course || ''}</h3>
-            <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.75rem;font-size:1rem;">
-                <div><strong>Total:</strong> ${summary.total || 0}</div>
-                <div style="color:#28a745;"><strong>✅ Approved:</strong> ${summary.approved || 0}</div>
-                <div style="color:#dc3545;"><strong>❌ Needs Revision:</strong> ${summary.needs_revision || 0}</div>
-                ${structuralCount ? `<div style="color:#6f42c1;"><strong>🔧 Structural Failures:</strong> ${structuralCount}</div>` : ''}
-                <div><strong>Avg Quality Score:</strong> ${summary.avg_quality_score || 'N/A'}/10</div>
-            </div>
-            ${structuralCount ? `<p style="font-size:0.85rem;color:#6f42c1;margin-top:0.5rem;">⚠️ ${structuralCount} question(s) have structural issues (e.g. missing image) and were auto-failed. Adversarial review was skipped for these.</p>` : ''}
-            <p style="font-size:0.85rem;color:#999;margin-top:0.25rem;">
-                Domain: ${report.domain || 'N/A'} &nbsp;|&nbsp;
-                Validated: ${new Date(report.timestamp).toLocaleString()}
-            </p>
-            <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;user-select:none;">
-                    <input type="checkbox" id="select-all-fixes" onchange="toggleSelectAllFixes(this)" style="width:16px;height:16px;cursor:pointer;">
-                    <span>Select All</span>
-                </label>
-                <button id="fix-selected-btn" onclick="fixSelectedItems()" disabled
-                    style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:6px;padding:0.5rem 1.5rem;cursor:pointer;font-size:0.9rem;font-weight:600;opacity:0.45;transition:opacity 0.2s;">
-                    🔧 Fix Selected (0)
-                </button>
-            </div>
-        </div>
-    `;
+    const clearedCount = items.filter(i => i._pre_cleared).length;
+    const needsRevCount = summary.needs_revision || 0;
+    const approvedCount = summary.approved || 0;
+    const conditionalCount = (summary.total || 0) - approvedCount - needsRevCount;
 
-    // ---- Per-item accordion ----
+    const summaryHtml = `
+        <div class="overall-assessment" style="margin-bottom:1rem;">
+            <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;">
+                <h3 style="margin:0;">📊 ${report.course || 'Validation Report'}</h3>
+                <span style="font-size:0.85rem;color:#999;">${new Date(report.timestamp).toLocaleString()}</span>
+            </div>
+            <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:0.6rem;font-size:0.95rem;">
+                <div><strong>${summary.total || 0}</strong> total</div>
+                <div style="color:#28a745;"><strong>✅ ${approvedCount}</strong> approved</div>
+                <div style="color:#dc3545;"><strong>❌ ${needsRevCount}</strong> needs revision</div>
+                ${conditionalCount > 0 ? `<div style="color:#856404;"><strong>⚠️ ${conditionalCount}</strong> conditional</div>` : ''}
+                ${clearedCount ? `<div style="color:#6c757d;"><strong>⏭️ ${clearedCount}</strong> previously cleared</div>` : ''}
+                ${structuralCount ? `<div style="color:#6f42c1;"><strong>🔧 ${structuralCount}</strong> structural failures</div>` : ''}
+                <div><strong>Avg:</strong> ${summary.avg_quality_score || 'N/A'}/10</div>
+            </div>
+        </div>`;
+
+    // ---- Filter bar ----
+    const filterHtml = `
+        <div class="val-filter-bar" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:0.6rem 0;margin-bottom:1rem;">
+            <span class="val-filter-label">Score:</span>
+            <div class="val-filter-group">
+                <button class="val-filter-btn vfbtn-score active" data-val="all"     onclick="setValFilter('score','all')">All</button>
+                <button class="val-filter-btn vfbtn-score"        data-val="high"    onclick="setValFilter('score','high')">8+ ✅</button>
+                <button class="val-filter-btn vfbtn-score"        data-val="medium"  onclick="setValFilter('score','medium')">6–8 ⚠️</button>
+                <button class="val-filter-btn vfbtn-score"        data-val="low"     onclick="setValFilter('score','low')">&lt;6 ❌</button>
+            </div>
+            <span class="val-filter-label" style="margin-left:0.6rem;">Status:</span>
+            <div class="val-filter-group">
+                <button class="val-filter-btn vfbtn-status active" data-val="all"       onclick="setValFilter('status','all')">All</button>
+                <button class="val-filter-btn vfbtn-status"        data-val="approved"  onclick="setValFilter('status','approved')">✅ Approved</button>
+                <button class="val-filter-btn vfbtn-status"        data-val="revision"  onclick="setValFilter('status','revision')">❌ Needs Revision</button>
+                <button class="val-filter-btn vfbtn-status"        data-val="conditional" onclick="setValFilter('status','conditional')">⚠️ Conditional</button>
+            </div>
+            ${contentType === 'qbank' ? `
+            <span class="val-filter-label" style="margin-left:0.6rem;">Type:</span>
+            <div class="val-filter-group">
+                <button class="val-filter-btn vfbtn-type active" data-val="all"   onclick="setValFilter('type','all')">All</button>
+                <button class="val-filter-btn vfbtn-type"        data-val="image" onclick="setValFilter('type','image')">🖼️ Image</button>
+                <button class="val-filter-btn vfbtn-type"        data-val="text"  onclick="setValFilter('type','text')">📝 Text-only</button>
+            </div>` : ''}
+            <span style="margin-left:auto;font-size:0.82rem;color:var(--text-muted);">Showing <span id="val-visible-count">${items.length}</span> / ${items.length}</span>
+        </div>`;
+
+    // ---- Actions bar ----
+    const actionsHtml = `
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;user-select:none;">
+                <input type="checkbox" id="select-all-fixes" onchange="toggleSelectAllFixes(this)" style="width:15px;height:15px;cursor:pointer;">
+                <span>Select All</span>
+            </label>
+            <button onclick="selectNeedsRevision()"
+                style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:0.4rem 1rem;cursor:pointer;font-size:0.88rem;font-weight:600;">
+                ❌ Select Needs Revision
+            </button>
+            <button id="fix-selected-btn" onclick="fixSelectedItems()" disabled
+                style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:6px;padding:0.4rem 1.2rem;cursor:pointer;font-size:0.88rem;font-weight:600;opacity:0.45;transition:opacity 0.2s;">
+                🔧 Fix Selected (0)
+            </button>
+            <button id="reval-selected-btn" onclick="revalidateSelected()" disabled
+                style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;border-radius:6px;padding:0.4rem 1.2rem;cursor:pointer;font-size:0.88rem;font-weight:600;opacity:0.45;transition:opacity 0.2s;display:none;">
+                🔄 Revalidate Fixed (0)
+            </button>
+        </div>`;
+
+    // ---- Per-item accordions ----
     const itemLabel = contentType === 'qbank' ? 'Q' : 'Section';
     const itemsHtml = items.map((item, idx) => {
         const v = item.validator || {};
         const a = item.adversarial || {};
         const oa = item.overall_assessment || {};
         const num = item.index || idx + 1;
+        const isPreCleared = item._pre_cleared === true;
+        const isStructural = item.structural_failure === true;
 
-        // Short label for the accordion header
+        // Derive filter data attributes
+        const scoreVal = isPreCleared ? 'cleared' : (oa.quality_score >= 8 ? 'high' : oa.quality_score >= 6 ? 'medium' : 'low');
+        const statusStr = (oa.status || '').toLowerCase();
+        const statusVal = isPreCleared ? 'cleared'
+            : statusStr.includes('approved') ? 'approved'
+            : statusStr.includes('revision') ? 'revision'
+            : 'conditional';
+        const qObj = contentType === 'qbank' ? (generatedQuestions[num - 1] || {}) : {};
+        const isImageQ = !!(qObj.image_url || qObj.requires_image);
+        const typeVal = isPreCleared ? 'cleared' : (isImageQ ? 'image' : 'text');
+
+        // Header title
         let headerTitle = `${itemLabel} ${num}`;
         if (contentType === 'qbank' && v.question_preview) {
             headerTitle += ` — ${v.question_preview.substring(0, 70)}${v.question_preview.length > 70 ? '...' : ''}`;
+        } else if (contentType === 'qbank' && isPreCleared) {
+            if (qObj?.question) headerTitle += ` — ${qObj.question.substring(0, 70)}...`;
         } else if (contentType === 'lesson' && v.section_title) {
             headerTitle += ` — ${v.section_title}`;
         }
 
         const accordionId = `val-item-${num}`;
-        const isStructural = item.structural_failure === true;
-        const headerBg = isStructural ? '#fff0f6' : '#f8f9fa';
+        const headerBg = isPreCleared ? '#f0f8f0' : isStructural ? '#fff0f6' : '#f8f9fa';
+        const borderColor = isPreCleared ? '#c3e6cb' : isStructural ? '#f5c6cb' : '#e0e0e0';
 
-        return `
-        <div class="val-accordion" style="border:1px solid ${isStructural ? '#f5c6cb' : '#e0e0e0'};border-radius:8px;margin-bottom:0.75rem;overflow:hidden;">
+        if (isPreCleared) {
+            return `
+        <div class="val-accordion" data-val-score="${scoreVal}" data-val-status="${statusVal}" data-val-type="${typeVal}"
+             style="border:1px solid ${borderColor};border-radius:8px;margin-bottom:0.6rem;overflow:hidden;opacity:0.6;">
             <div style="display:flex;align-items:stretch;background:${headerBg};">
-                <label style="display:flex;align-items:center;padding:0 0.85rem;cursor:pointer;border-right:1px solid ${isStructural ? '#f5c6cb' : '#e0e0e0'};"
-                       onclick="event.stopPropagation()" title="Select for fixing">
-                    <input type="checkbox" class="fix-checkbox" data-index="${num}"
-                           onchange="updateFixButtonCount()" style="width:16px;height:16px;cursor:pointer;">
-                </label>
-                <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
-                    style="flex:1;text-align:left;padding:0.9rem 1rem;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:0.75rem;font-size:0.95rem;">
+                <div style="width:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid ${borderColor};color:#6c757d;">⏭️</div>
+                <div style="flex:1;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;font-size:0.9rem;color:#6c757d;">
                     <span style="font-weight:600;">${headerTitle}</span>
                     <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
-                        ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">🔧 Structural Failure</span>' : statusBadge(oa)}
-                        <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">
-                            ${oa.quality_score || 'N/A'}/10
-                        </span>
-                        <span style="font-size:0.8rem;color:#999;">▼</span>
+                        <span style="background:#6c757d;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">⏭️ Previously Cleared</span>
+                        <span class="validation-score score-high" style="font-size:0.82rem;">9/10</span>
+                    </span>
+                </div>
+            </div>
+        </div>`;
+        }
+
+        // Build changes list
+        const vC = v.changes_required || [];
+        const aC = (a.changes_required || []).filter(ac =>
+            !vC.some(vc => vc.toLowerCase().includes(ac.toLowerCase().slice(3, 20)) ||
+                           ac.toLowerCase().includes(vc.toLowerCase().slice(3, 20)))
+        );
+        const allChanges = [...vC, ...aC].map((c, i) => c.replace(/^\d+\.\s*/, `${i+1}. `));
+
+        const changesHtml = allChanges.length === 0
+            ? '<p style="color:#28a745;font-size:0.88rem;margin:0;">✅ No changes required</p>'
+            : `<div style="margin:0.5rem 0;">
+                <strong style="font-size:0.88rem;">📋 Changes Required to score above 8:</strong>
+                <ol style="margin:0.4rem 0 0 1.2rem;padding:0;font-size:0.88rem;line-height:1.7;">
+                    ${allChanges.map(c => `<li style="margin-bottom:0.2rem;">${escapeHtml(c.replace(/^\d+\.\s*/, ''))}</li>`).join('')}
+                </ol>
+               </div>`;
+
+        const imageTag = isImageQ ? '<span style="font-size:0.75rem;color:#6c757d;background:#f0f0f0;padding:1px 6px;border-radius:10px;margin-left:4px;">🖼️</span>' : '';
+        const valDebugBtn = isImageQ ? `
+            <button onclick="event.stopPropagation();showImageDebugPanel(${num}, this, 'validation')"
+                title="View image search debug"
+                style="background:none;border:1.5px solid #7b5ea7;color:#7b5ea7;border-radius:6px;padding:1px 8px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;margin-left:4px;"
+                data-debug-loading="false">🔍</button>` : '';
+
+        return `
+        <div class="val-accordion" data-val-score="${scoreVal}" data-val-status="${statusVal}" data-val-type="${typeVal}"
+             style="border:1px solid ${borderColor};border-radius:8px;margin-bottom:0.6rem;overflow:hidden;">
+            <div style="display:flex;align-items:stretch;background:${headerBg};">
+                <label style="display:flex;align-items:center;padding:0 0.85rem;cursor:pointer;border-right:1px solid ${borderColor};"
+                       onclick="event.stopPropagation()" title="Select for fixing">
+                    <input type="checkbox" class="fix-checkbox" data-index="${num}"
+                           onchange="updateFixButtonCount()" style="width:15px;height:15px;cursor:pointer;">
+                </label>
+                <button class="val-acc-header" onclick="toggleValAccordion('${accordionId}')"
+                    style="flex:1;text-align:left;padding:0.75rem 1rem;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;">
+                    <span style="font-weight:600;">${headerTitle}</span>${imageTag}${valDebugBtn}
+                    <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
+                        ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">🔧 Structural</span>' : statusBadge(oa)}
+                        <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.82rem;">${oa.quality_score ?? 'N/A'}/10</span>
+                        <span style="font-size:0.78rem;color:#aaa;">▼</span>
                     </span>
                 </button>
             </div>
-            <div id="${accordionId}" style="display:none;padding:1rem 1.25rem;border-top:1px solid #e0e0e0;">
-
+            <div id="${accordionId}" style="display:none;padding:1rem 1.25rem;border-top:1px solid ${borderColor};">
                 <!-- Score row -->
-                <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1rem;font-size:0.9rem;">
+                <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.6rem;font-size:0.87rem;">
                     <div>✅ <strong>Validator:</strong>
-                        <span class="validation-score ${getScoreClass(v.overall_accuracy_score || 0)}" style="font-size:0.8rem;">
-                            ${v.overall_accuracy_score ?? 'N/A'}/10
-                        </span>
+                        <span class="validation-score ${getScoreClass(v.overall_accuracy_score || 0)}" style="font-size:0.78rem;">${v.overall_accuracy_score ?? 'N/A'}/10</span>
                     </div>
-                    ${contentType === 'qbank' ? `<div>Answer verified: <strong>${v.correct_answer_verified ? 'Yes ✅' : 'No ❌'}</strong></div>` : ''}
+                    ${contentType === 'qbank' ? `<div>Answer: <strong>${v.correct_answer_verified ? '✅ Verified' : '❌ Wrong'}</strong></div>` : ''}
                     <div>⚔️ <strong>Adversarial:</strong>
-                        <span class="validation-score ${getScoreClass(10 - (a.adversarial_score || 0))}" style="font-size:0.8rem;">
-                            ${a.adversarial_score ?? 'N/A'}/10
-                        </span>
-                        &nbsp;<em style="font-size:0.8rem;color:#666;">${a.breakability_rating || ''}</em>
+                        <span class="validation-score ${getScoreClass(10 - (a.adversarial_score || 0))}" style="font-size:0.78rem;">${a.adversarial_score ?? 'N/A'}/10</span>
+                        <em style="font-size:0.78rem;color:#888;margin-left:4px;">${a.breakability_rating || ''}</em>
                     </div>
-                    <div>Needs revision: <strong>${oa.needs_revision ? 'Yes ❌' : 'No ✅'}</strong></div>
+                    <div>Revision: <strong>${oa.needs_revision ? '❌ Yes' : '✅ No'}</strong></div>
                 </div>
-
-                <!-- Validator summary -->
-                <p style="margin-bottom:0.5rem;"><strong>Validator Summary:</strong> ${v.summary || 'N/A'}</p>
-
-                ${v.factual_errors?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Factual Errors</h4>${formatList(v.factual_errors)}` : ''}
-                ${v.missing_critical_info?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📌 Missing Critical Info</h4>${formatList(v.missing_critical_info)}` : ''}
-                ${v.safety_concerns?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🚨 Safety Concerns</h4>${formatList(v.safety_concerns)}` : ''}
-                ${v.clarity_issues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">💭 Clarity Issues</h4>${formatList(v.clarity_issues)}` : ''}
-                ${v.learning_gaps?.length ? `<h4 style="color:#e83e8c;margin-top:0.75rem;">🧠 Learning Gaps (missing concepts)</h4>${formatList(v.learning_gaps)}` : ''}
-                ${v.missing_high_yield?.length ? `<h4 style="color:#fd7e14;margin-top:0.75rem;">⭐ Missing High-Yield Points</h4>${formatList(v.missing_high_yield)}` : ''}
-                ${v.missing_pitfalls?.length ? `<h4 style="color:#6f42c1;margin-top:0.75rem;">🕳️ Missing Pitfalls / Misconceptions</h4>${formatList(v.missing_pitfalls)}` : ''}
-                ${v.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Image / Table / Flowchart Issues</h4>${formatList(v.asset_issues)}` : ''}
-                ${v.missing_images?.length ? `<h4 style="color:#8b5cf6;margin-top:0.75rem;">🖼️➕ Missing Images (recommended)</h4>${formatList(v.missing_images)}` : ''}
-                ${v.distractor_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🎯 Distractor Issues</h4>${formatList(v.distractor_issues)}` : ''}
-                ${v.vignette_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🗒️ Vignette Issues</h4>${formatList(v.vignette_issues)}` : ''}
-                ${v.explanation_issues?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📝 Explanation Issues</h4>${formatList(v.explanation_issues)}` : ''}
-                ${v.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Validator Recommendations</h4>${formatList(v.recommendations)}` : ''}
-
-                <!-- Adversarial summary -->
-                <hr style="margin:1rem 0;border-color:#f0d0d0;">
-                <p style="margin-bottom:0.5rem;"><strong>Adversarial Summary:</strong> ${a.summary || 'N/A'}</p>
-
-                ${a.identified_weaknesses?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🔍 Weaknesses</h4>${formatList(a.identified_weaknesses)}` : ''}
-                ${a.ambiguities?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">❓ Ambiguities</h4>${formatList(a.ambiguities)}` : ''}
-                ${a.alternative_answers?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">🔀 Alternative Defensible Answers</h4>${formatList(a.alternative_answers)}` : ''}
-                ${a.distractor_defenses?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🛡️ Defensible Distractors</h4>${formatList(a.distractor_defenses)}` : ''}
-                ${a.logical_gaps?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">🧩 Logical Gaps</h4>${formatList(a.logical_gaps)}` : ''}
-                ${a.learning_traps?.length ? `<h4 style="color:#e83e8c;margin-top:0.75rem;">🪤 Learning Traps</h4>${formatList(a.learning_traps)}` : ''}
-                ${a.overgeneralizations?.length ? `<h4 style="color:#ffc107;margin-top:0.75rem;">📢 Overgeneralizations</h4>${formatList(a.overgeneralizations)}` : ''}
-                ${a.safety_risks?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">⚠️ Safety Risks</h4>${formatList(a.safety_risks)}` : ''}
-                ${a.asset_issues?.length ? `<h4 style="color:#6c757d;margin-top:0.75rem;">🖼️ Asset Issues (adversarial)</h4>${formatList(a.asset_issues)}` : ''}
-                ${a.missing_images?.length ? `<h4 style="color:#8b5cf6;margin-top:0.75rem;">🖼️➕ Missing Images (adversarial)</h4>${formatList(a.missing_images)}` : ''}
-                ${a.explanation_contradictions?.length ? `<h4 style="color:#dc3545;margin-top:0.75rem;">💥 Explanation Contradictions</h4>${formatList(a.explanation_contradictions)}` : ''}
-                ${a.triviality_clues?.length ? `<h4 style="color:#17a2b8;margin-top:0.75rem;">🔓 Triviality Clues</h4>${formatList(a.triviality_clues)}` : ''}
-                ${a.recommendations?.length ? `<h4 style="color:#28a745;margin-top:0.75rem;">💡 Adversarial Recommendations</h4>${formatList(a.recommendations)}` : ''}
-
-                <!-- Recommendation -->
-                <div style="margin-top:1rem;padding:0.75rem;background:#f8f9fa;border-radius:6px;font-size:0.9rem;">
-                    <strong>Assessment:</strong> ${oa.recommendation || 'N/A'}
+                <!-- Summaries -->
+                <p style="margin-bottom:0.6rem;font-size:0.87rem;color:#555;line-height:1.5;">
+                    <strong>V:</strong> ${v.summary || 'N/A'}<br>
+                    <strong>A:</strong> ${a.summary || 'N/A'}
+                </p>
+                ${changesHtml}
+                <div style="margin-top:0.6rem;padding:0.4rem 0.6rem;background:#f8f9fa;border-radius:4px;font-size:0.82rem;color:#6c757d;">
+                    ${oa.recommendation || ''}
                 </div>
+                <!-- Image debug panel placeholder (populated on demand or after fix) -->
+                <div id="img-debug-${num}" style="display:none;margin-top:0.75rem;"></div>
             </div>
         </div>`;
     }).join('');
 
-    reportContent.innerHTML = summaryHtml + itemsHtml;
-    showToast(`Validation complete — ${summary.approved}/${summary.total} approved`, 'success');
+    reportContent.innerHTML = backHtml + summaryHtml + filterHtml + actionsHtml + `<div id="val-items-list">${itemsHtml}</div>`;
+    showToast(`Validation complete — ${approvedCount}/${summary.total || 0} approved`, 'success');
 }
 
 function toggleValAccordion(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ============================================================
+// IMAGE SEARCH DEBUG PANEL
+// ============================================================
+
+/**
+ * Build HTML for a debug panel from debug data.
+ * debugData: { search_terms, image_type, candidates, selected_url, threshold, message? }
+ * title: optional header title override
+ */
+function renderImageDebugPanel(debugData, title) {
+    if (!debugData) return '<p style="color:#6c757d;font-size:0.85rem;">No debug data.</p>';
+
+    const headerTitle = title || '🔍 Image Search Debug';
+    const { used_query, search_terms = [], image_type = '', google_raw_count, google_error, gemini_error, candidates = [], selected_url, threshold = 80, message, gemini_prompt } = debugData;
+
+    if (message && candidates.length === 0) {
+        return `<div style="background:#f0f4ff;border:1px solid #c5d0ff;border-radius:8px;padding:0.75rem 1rem;font-size:0.85rem;color:#444;">
+            <strong>${headerTitle}</strong><br><span style="color:#888;">${message}</span>
+        </div>`;
+    }
+
+    // Only the first (actually used) query chip, bold; rest shown grayed-out as "not used"
+    const activeQuery = used_query || search_terms[0] || '';
+    const unusedTerms = search_terms.slice(used_query ? (search_terms.indexOf(activeQuery) + 1) : 1);
+    const queryHtml = activeQuery
+        ? `<span style="background:#5e35b1;color:#fff;border-radius:12px;padding:2px 11px;font-size:0.78rem;white-space:nowrap;font-weight:600;">${escapeHtml(activeQuery)}</span>`
+        : '';
+    const unusedHtml = unusedTerms.map(t =>
+        `<span style="background:#e0e0e0;color:#999;border-radius:12px;padding:2px 9px;font-size:0.75rem;white-space:nowrap;" title="Not sent to Google">${escapeHtml(t)}</span>`
+    ).join(' ');
+
+    // Score bar — fills proportionally, color reflects pass/fail vs threshold
+    const scoreBar = (score) => {
+        const color = score >= threshold ? '#28a745' : score >= 60 ? '#e6a817' : '#dc3545';
+        const pct = Math.min(score, 100);
+        return `<div style="display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;height:6px;background:#e9ecef;border-radius:3px;overflow:hidden;">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="font-weight:700;color:${color};font-size:0.82rem;min-width:38px;text-align:right;">${score}/100</span>
+        </div>`;
+    };
+
+    // Scored criterion breakdown — parse out the four criteria scores from the reason if present
+    // Reason from Claude: "MODALITY MATCH: X/20. DIAGNOSTIC FINDING: Y/40. ..."
+    // We just display the full reason text clearly — no need to re-parse.
+
+    const noCandidates = candidates.length === 0
+        ? '<p style="color:#888;font-size:0.85rem;margin:0.3rem 0;">No search candidates found — image was AI-generated by Nano Banana Pro.</p>' : '';
+
+    const candidatesHtml = candidates.map((c, i) => {
+        const isSelected = c.selected || (selected_url && c.url === selected_url);
+        const scoreColor = c.score >= threshold ? '#28a745' : c.score >= 60 ? '#e6a817' : '#dc3545';
+        const rowBg = isSelected ? '#f0eaff' : (i % 2 === 0 ? '#fff' : '#fafafa');
+        const borderLeft = isSelected ? '4px solid #7b5ea7' : '4px solid #e0e0e0';
+
+        const hasUrl = c.url && (c.url.startsWith('http') || c.url.startsWith('/'));
+        const imgEl = hasUrl
+            ? `<img src="${escapeHtml(c.url)}" alt="" loading="lazy"
+                style="width:110px;min-width:110px;height:90px;object-fit:cover;border-radius:5px;display:block;"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+               <div style="display:none;width:110px;min-width:110px;height:90px;align-items:center;justify-content:center;background:#eee;border-radius:5px;font-size:1.5rem;">🖼️</div>`
+            : `<div style="width:110px;min-width:110px;height:90px;display:flex;align-items:center;justify-content:center;background:#eee;border-radius:5px;font-size:1.5rem;">🖼️</div>`;
+
+        const selectedBadge = isSelected
+            ? `<span style="background:#7b5ea7;color:#fff;border-radius:10px;font-size:0.7rem;padding:1px 7px;font-weight:700;white-space:nowrap;">✓ Selected</span>`
+            : `<span style="background:#e0e0e0;color:#888;border-radius:10px;font-size:0.7rem;padding:1px 7px;white-space:nowrap;">Rejected</span>`;
+
+        const passFailLabel = c.score >= threshold
+            ? `<span style="color:#28a745;font-size:0.72rem;font-weight:600;">✅ Above threshold (${threshold})</span>`
+            : `<span style="color:#dc3545;font-size:0.72rem;font-weight:600;">❌ Below threshold (${threshold})</span>`;
+
+        return `
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:${rowBg};border-left:${borderLeft};border-bottom:1px solid #ebebeb;">
+            ${imgEl}
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+                    <span style="font-size:0.78rem;color:#555;font-weight:600;">#${i+1}</span>
+                    ${selectedBadge}
+                    ${passFailLabel}
+                    <span style="font-size:0.75rem;color:#888;margin-left:auto;">${escapeHtml(c.source || '')}</span>
+                </div>
+                ${scoreBar(c.score)}
+                ${c.title ? `<div style="font-size:0.75rem;color:#777;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(c.title)}">${escapeHtml(c.title)}</div>` : ''}
+                ${c.reason ? `<div style="font-size:0.8rem;color:#444;margin-top:5px;line-height:1.5;background:#f8f8f8;border-radius:4px;padding:5px 7px;border-left:3px solid ${scoreColor};">${escapeHtml(c.reason)}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    // Final output section — prominently show whichever image was actually used
+    const finalOutputSection = (() => {
+        if (selected_url) {
+            const isAI = candidates.length > 0 && candidates[0].source && candidates[0].source.toLowerCase().includes('gemini');
+            const label = isAI ? '🤖 Final Output: Gemini Generated' : '✅ Final Output: Google Image Selected';
+            const labelColor = isAI ? '#5e35b1' : '#28a745';
+            return `
+            <div style="padding:0.6rem 1rem;border-top:1px solid #d0c4f0;background:#f0eaff;">
+                <div style="font-size:0.82rem;font-weight:700;color:${labelColor};margin-bottom:0.4rem;">${label}</div>
+                <img src="${escapeHtml(selected_url)}" alt="Final output"
+                    style="max-width:100%;max-height:320px;border-radius:6px;border:2px solid ${labelColor};display:block;"
+                    onerror="this.outerHTML='<div style=\'color:#dc3545;font-size:0.8rem;\'>Image failed to load: ${escapeHtml(selected_url)}</div>'">
+            </div>`;
+        } else {
+            const noImageReason = gemini_error
+                ? `No image — all Google results below threshold (${threshold}/100). Gemini generation failed: ${gemini_error}`
+                : `No image — all Google results below threshold (${threshold}/100) and Gemini generation was skipped or unavailable.`;
+            return `
+            <div style="padding:0.5rem 1rem;border-top:1px solid #d0c4f0;background:#fff8f8;">
+                <span style="font-size:0.8rem;color:#dc3545;font-weight:600;">⚠️ ${escapeHtml(noImageReason)}</span>
+            </div>`;
+        }
+    })();
+
+    const geminiErrorBanner = gemini_error && !selected_url ? '' : (gemini_error ? `
+        <div style="padding:0.45rem 1rem;border-bottom:1px solid #f5c6cb;background:#fff0f0;font-size:0.78rem;color:#721c24;">
+            ⚠️ <strong>Gemini error:</strong> ${escapeHtml(gemini_error)}
+        </div>` : '');
+
+    const geminiSection = gemini_prompt ? `
+        <details style="margin-top:0.5rem;">
+            <summary style="cursor:pointer;font-size:0.82rem;color:#5e35b1;font-weight:600;user-select:none;padding:4px 0;">
+                🤖 Gemini (Nano Banana Pro) Generation Prompt
+            </summary>
+            <pre style="margin-top:0.4rem;background:#fff;border:1px solid #d0c4f0;border-radius:6px;padding:0.6rem 0.75rem;font-size:0.75rem;white-space:pre-wrap;overflow-x:auto;color:#333;line-height:1.5;">${escapeHtml(gemini_prompt)}</pre>
+        </details>` : '';
+
+    return `
+        <div style="background:#f7f4ff;border:1.5px solid #d0c4f0;border-radius:8px;overflow:hidden;">
+            <!-- Header -->
+            <div style="padding:0.65rem 1rem;border-bottom:1px solid #d0c4f0;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <strong style="font-size:0.88rem;color:#5e35b1;">${headerTitle}</strong>
+                ${image_type ? `<span style="background:#ede7f6;color:#5e35b1;border-radius:10px;padding:1px 8px;font-size:0.75rem;">${escapeHtml(image_type)}</span>` : ''}
+            </div>
+            <!-- Query -->
+            ${activeQuery ? `
+            <div style="padding:0.5rem 1rem;border-bottom:1px solid #e8e2f8;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:0.75rem;color:#888;white-space:nowrap;">Google query:</span>
+                ${queryHtml}
+                ${unusedHtml ? `<span style="font-size:0.72rem;color:#bbb;margin-left:4px;">unused:</span>${unusedHtml}` : ''}
+            </div>` : ''}
+            <!-- Google raw count + error banner -->
+            ${google_error ? `
+            <div style="padding:0.45rem 1rem;border-bottom:1px solid #f5c6cb;background:#fff0f0;font-size:0.78rem;color:#721c24;">
+                ⚠️ <strong>Google CSE error:</strong> ${escapeHtml(google_error)}
+            </div>` : ''}
+            ${geminiErrorBanner}
+            <div style="padding:0.4rem 1rem;border-bottom:1px solid #e8e2f8;font-size:0.75rem;color:#888;display:flex;gap:1.5rem;flex-wrap:wrap;">
+                <span>Google raw results: <strong>${google_raw_count ?? '?'}</strong></span>
+                ${candidates.length ? `<span>Scored by Claude Vision: <strong>${candidates.filter(c => c.source !== 'Gemini (AI generated)').length}</strong></span>` : ''}
+                <span>Auto-select threshold: <strong>${threshold}/100</strong></span>
+            </div>
+            <!-- Candidates -->
+            ${candidates.length ? `
+            <div style="border-bottom:1px solid #e8e2f8;">
+                ${candidatesHtml}
+            </div>` : noCandidates ? `<div style="padding:0.6rem 1rem;">${noCandidates}</div>` : ''}
+            <!-- Gemini prompt -->
+            ${geminiSection ? `<div style="padding:0.4rem 1rem 0.6rem;">${geminiSection}</div>` : ''}
+            <!-- Final output -->
+            ${finalOutputSection}
+        </div>`;
+}
+
+/**
+ * Called from QBank card 🔍 button or validation accordion 🔍 button.
+ * context: 'qbank' | 'validation'
+ * For 'qbank': injects panel just after the button's parent card header.
+ * For 'validation': injects panel into #img-debug-{qIdx} placeholder.
+ */
+async function showImageDebugPanel(qIdx, btn, context) {
+    if (btn.dataset.debugLoading === 'true') return;
+
+    // Find the panel container
+    let panelContainer;
+    if (context === 'validation') {
+        panelContainer = document.getElementById(`img-debug-${qIdx}`);
+        // Open accordion first so panel is visible
+        const accordionId = `val-item-${qIdx}`;
+        const acc = document.getElementById(accordionId);
+        if (acc) acc.style.display = 'block';
+    } else {
+        // QBank: look for or create a panel div after the question-card for this index
+        const card = document.querySelector(`.question-card[data-q-index="${qIdx}"]`);
+        if (!card) return;
+        panelContainer = card.querySelector('.img-debug-panel');
+        if (!panelContainer) {
+            panelContainer = document.createElement('div');
+            panelContainer.className = 'img-debug-panel';
+            panelContainer.style.cssText = 'margin-top:0.5rem;';
+            card.appendChild(panelContainer);
+        }
+    }
+
+    if (!panelContainer) return;
+
+    // Toggle: if already showing non-empty content, hide it
+    if (panelContainer.style.display !== 'none' && panelContainer.innerHTML.trim()) {
+        panelContainer.style.display = 'none';
+        btn.textContent = '🔍' + (context === 'qbank' ? ' Image Search' : '');
+        return;
+    }
+
+    // Show loading state
+    panelContainer.style.display = 'block';
+    panelContainer.innerHTML = `<div style="padding:0.5rem;font-size:0.82rem;color:#7b5ea7;">⏳ Searching images…</div>`;
+    btn.dataset.debugLoading = 'true';
+    btn.textContent = '⏳' + (context === 'qbank' ? ' Searching…' : '');
+
+    try {
+        const q = generatedQuestions[qIdx - 1];
+        if (!q) throw new Error('Question not found');
+
+        const subject = lessonsData?.subject || courseStructure?.Subject || '';
+        const resp = await fetch('/api/image-search-debug', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question_data: q, subject })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        panelContainer.innerHTML = renderImageDebugPanel(data);
+    } catch (e) {
+        panelContainer.innerHTML = `<div style="color:#dc3545;font-size:0.82rem;padding:0.4rem;">Error: ${escapeHtml(e.message)}</div>`;
+    } finally {
+        btn.dataset.debugLoading = 'false';
+        btn.textContent = '🔍' + (context === 'qbank' ? ' Image Search' : '');
+    }
 }
 
 // ============================================================
@@ -2883,11 +3535,49 @@ function updateFixButtonCount() {
         selectAll.indeterminate = checked > 0 && checked < total;
         selectAll.checked = total > 0 && checked === total;
     }
+    // Update revalidate button — only counts checked items that were already fixed
+    const revalBtn = document.getElementById('reval-selected-btn');
+    if (revalBtn && _fixedItemIndices.size > 0) {
+        const checkedFixed = document.querySelectorAll('.fix-checkbox:checked');
+        const revalCount = [...checkedFixed].filter(cb => _fixedItemIndices.has(parseInt(cb.dataset.index))).length;
+        revalBtn.style.display = '';
+        revalBtn.textContent = `🔄 Revalidate Fixed (${revalCount})`;
+        revalBtn.disabled = revalCount === 0;
+        revalBtn.style.opacity = revalCount === 0 ? '0.45' : '1';
+        revalBtn.style.cursor = revalCount === 0 ? 'not-allowed' : 'pointer';
+    }
 }
 
 function toggleSelectAllFixes(selectAllCb) {
     document.querySelectorAll('.fix-checkbox').forEach(cb => { cb.checked = selectAllCb.checked; });
     updateFixButtonCount();
+}
+
+function selectNeedsRevision() {
+    const items = _validationState?.report?.items || [];
+    const needsRevisionIndices = new Set(
+        items.filter(i => i.overall_assessment?.needs_revision).map(i => i.index)
+    );
+    document.querySelectorAll('.fix-checkbox').forEach(cb => {
+        cb.checked = needsRevisionIndices.has(parseInt(cb.dataset.index));
+    });
+    updateFixButtonCount();
+}
+
+// Silently save current questions (with _validated_ok flags) to the existing session
+function _autosaveClearedState() {
+    if (!generatedQuestions.length) return;
+    const meta = lastSaveMeta || { course: courseStructure?.Course || 'Unknown', subject: '', topics: [] };
+    fetch('/api/sessions/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            questions: generatedQuestions,
+            course: meta.course,
+            subject: meta.subject || '',
+            topics: meta.topics || []
+        })
+    }).catch(() => {}); // silent — don't alert user
 }
 
 async function fixSelectedItems() {
@@ -2941,8 +3631,26 @@ async function fixSelectedItems() {
         ]);
         const missing_images = [...missingImagesSet].filter(Boolean);
 
+        // Merge numbered changes_required from validator + adversarial (adversarial adds extra items)
+        const vChanges = v.changes_required || [];
+        const aChanges = (a.changes_required || []).filter(ac => {
+            // Deduplicate: skip adversarial changes that are already covered by validator
+            const acLower = ac.toLowerCase();
+            return !vChanges.some(vc => {
+                const vcLower = vc.toLowerCase();
+                // Check for substantial overlap (shared 6+ char substring)
+                return vcLower.includes(acLower.slice(3, 20)) || acLower.includes(vcLower.slice(3, 20));
+            });
+        });
+        // Re-number the merged list
+        const allChanges = [...vChanges, ...aChanges];
+        const changes_required = allChanges.map((c, i) =>
+            c.replace(/^\d+\.\s*/, `${i + 1}. `)
+        );
+
         return {
             index: num, content, title, issues, recommendations, missing_images,
+            changes_required,
             topic: origItem?.topic || title
         };
     });
@@ -2965,25 +3673,199 @@ async function fixSelectedItems() {
         const result = await resp.json();
         if (!result.success) throw new Error(result.error || 'Fix failed');
 
-        // Write fixed content back into memory + show "re-validating…" in accordions
+        // Write fixed content back into memory
         applyFixes(result.fixed_items, contentType);
-        const imagesAdded = result.fixed_items.reduce((s, f) => s + (f.images_added || 0), 0);
-        const imgNote = imagesAdded > 0 ? ` (+${imagesAdded} image${imagesAdded > 1 ? 's' : ''} embedded)` : '';
-        showToast(`✅ Fixed ${result.fixed_items.length} item(s)${imgNote} — re-validating…`, 'success');
 
-        // Uncheck fixed items
-        toFix.forEach(({ index }) => {
+        // Show tick-off list in each fixed item's accordion
+        result.fixed_items.forEach(fixedItem => {
+            const { index, changes_applied, images_added } = fixedItem;
+            const accordionId = `val-item-${index}`;
+            const body = document.getElementById(accordionId);
+
+            // Update accordion header badge to "🔧 Fixed"
+            const accHeader = document.querySelector(`button.val-acc-header[onclick="toggleValAccordion('${accordionId}')"]`);
+            if (accHeader) {
+                const badgeSpan = accHeader.querySelector('span:last-child')?.previousElementSibling
+                    || accHeader.querySelector('span[style*="margin-left"]');
+                if (badgeSpan) {
+                    badgeSpan.innerHTML = `
+                        <span style="background:#28a745;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.78rem;">🔧 Fixed</span>
+                        <span style="font-size:0.78rem;color:#aaa;">▼</span>`;
+                }
+            }
+
+            // Tick-off list of what was changed
+            const tickList = (changes_applied && changes_applied.length)
+                ? changes_applied.map(c => {
+                    const color = c.startsWith('✅') ? '#155724' : c.startsWith('⚠️') ? '#856404' : '#721c24';
+                    const bg    = c.startsWith('✅') ? '#d4edda'  : c.startsWith('⚠️') ? '#fff3cd'  : '#f8d7da';
+                    return `<div style="padding:0.35rem 0.7rem;margin-bottom:0.3rem;border-radius:5px;background:${bg};color:${color};font-size:0.88rem;">${escapeHtml(c)}</div>`;
+                }).join('')
+                : '<p style="color:#6c757d;font-size:0.88rem;margin:0;">Changes applied.</p>';
+
+            const imgNote = images_added > 0
+                ? `<p style="margin-top:0.4rem;font-size:0.83rem;color:#6c757d;">🖼️ ${images_added} image(s) replaced/added</p>` : '';
+
+            // If image_debug is present, show the search results inline
+            const imgDebugHtml = fixedItem.image_debug
+                ? `<div style="margin-top:0.75rem;">${renderImageDebugPanel(fixedItem.image_debug, '🔍 Image Search Used During Fix')}</div>`
+                : '';
+
+            if (body) {
+                body.innerHTML = `
+                    <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;padding:0.6rem 0.75rem;margin-bottom:0.6rem;">
+                        <strong style="color:#155724;font-size:0.92rem;">🔧 Fix applied — changes made:</strong>
+                    </div>
+                    ${tickList}${imgNote}${imgDebugHtml}
+                    <p style="margin-top:0.6rem;font-size:0.82rem;color:#6c757d;">
+                        Click <strong>Validate Generated</strong> to re-score these questions.
+                    </p>`;
+                body.style.display = 'block';
+            }
+        });
+
+        const imagesAdded = result.fixed_items.reduce((s, f) => s + (f.images_added || 0), 0);
+        const imgNote = imagesAdded > 0 ? ` (+${imagesAdded} image(s) replaced/added)` : '';
+        showToast(`✅ Fixed ${result.fixed_items.length} item(s)${imgNote}`, 'success');
+
+        // Track fixed indices and re-check them for revalidation
+        result.fixed_items.forEach(({ index }) => {
+            _fixedItemIndices.add(index);
             const cb = document.querySelector(`.fix-checkbox[data-index="${index}"]`);
-            if (cb) cb.checked = false;
+            if (cb) cb.checked = true; // keep checked so user can revalidate
         });
         updateFixButtonCount();
-
-        // Auto re-validate just the fixed items and update their accordions
-        await revalidateFixed(result.fixed_items.map(f => f.index), contentType, course);
+        btn.disabled = false;
+        btn.textContent = '🔧 Fix Selected (0)';
 
     } catch (e) {
         showToast('Fix failed: ' + e.message, 'error');
         btn.disabled = false;
+        updateFixButtonCount();
+    }
+}
+
+// ============================================================
+// REVALIDATE SELECTED — runs validation only on checked fixed items
+// ============================================================
+
+async function revalidateSelected() {
+    const btn = document.getElementById('reval-selected-btn');
+    const contentType = _validationState?.contentType || 'qbank';
+    const course = _validationState?.course || courseStructure?.Course || 'Unknown';
+
+    // Collect checked items that were previously fixed
+    const checkedFixed = [...document.querySelectorAll('.fix-checkbox:checked')]
+        .map(cb => parseInt(cb.dataset.index))
+        .filter(idx => _fixedItemIndices.has(idx));
+
+    if (checkedFixed.length === 0) {
+        showToast('No fixed items selected', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = `⏳ Revalidating ${checkedFixed.length}…`;
+
+    // Build items array from current in-memory questions
+    const items = checkedFixed.map(idx => {
+        const q = generatedQuestions[idx - 1];
+        return q ? { ...q, _orig_idx: idx } : null;
+    }).filter(Boolean);
+
+    try {
+        const resp = await fetch('/api/validate-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content_type: contentType, items, domain: 'medical education', course })
+        });
+        if (!resp.ok) throw new Error('Revalidation failed');
+        const report = await resp.json();
+
+        const getScoreClass = s => s >= 8 ? 'score-high' : s >= 6 ? 'score-medium' : 'score-low';
+        const statusBadge = (oa) => {
+            const s = oa.status || '';
+            const color = s.includes('Approved') ? '#28a745' : s.includes('Conditional') ? '#ffc107' : '#dc3545';
+            return `<span style="background:${color};color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">${s}</span>`;
+        };
+
+        (report.items || []).forEach((item, i) => {
+            const origIdx = checkedFixed[i];
+            if (!origIdx) return;
+            const v = item.validator || {};
+            const a = item.adversarial || {};
+            const oa = item.overall_assessment || {};
+            const accordionId = `val-item-${origIdx}`;
+            const body = document.getElementById(accordionId);
+
+            // Update header badge
+            const accHeader = document.querySelector(`button.val-acc-header[onclick="toggleValAccordion('${accordionId}')"]`);
+            if (accHeader) {
+                const badgeSpan = accHeader.querySelector('span[style*="margin-left"]');
+                if (badgeSpan) badgeSpan.innerHTML = `
+                    ${statusBadge(oa)}
+                    <span class="validation-score ${getScoreClass(oa.quality_score||0)}" style="font-size:0.82rem;">${oa.quality_score??'N/A'}/10</span>
+                    <span style="font-size:0.78rem;color:#aaa;">▼</span>`;
+            }
+
+            // Auto-clear if now 8+
+            if (oa.quality_score >= 8 && !oa.needs_revision) {
+                if (generatedQuestions[origIdx - 1]) {
+                    generatedQuestions[origIdx - 1]._validated_ok = true;
+                    _fixedItemIndices.delete(origIdx);
+                    _autosaveClearedState();
+                }
+            }
+
+            // Update _validationState report so Fix Selected gets fresh data
+            if (_validationState?.report?.items) {
+                const stateItem = _validationState.report.items.find(r => r.index === origIdx);
+                if (stateItem) { stateItem.validator = v; stateItem.adversarial = a; stateItem.overall_assessment = oa; }
+            }
+
+            // Build changes list
+            const vC = v.changes_required || [];
+            const aC = (a.changes_required || []).filter(ac =>
+                !vC.some(vc => vc.toLowerCase().includes(ac.toLowerCase().slice(3,20)) ||
+                               ac.toLowerCase().includes(vc.toLowerCase().slice(3,20)))
+            );
+            const allC = [...vC, ...aC].map((c,i)=>c.replace(/^\d+\.\s*/,`${i+1}. `));
+            const changesHtml = allC.length === 0
+                ? '<p style="color:#28a745;font-size:0.88rem;margin:0;">✅ No changes required — question cleared!</p>'
+                : `<div style="margin:0.5rem 0;">
+                    <strong style="font-size:0.88rem;">📋 Remaining changes to score above 8:</strong>
+                    <ol style="margin:0.4rem 0 0 1.2rem;padding:0;font-size:0.88rem;line-height:1.7;">
+                        ${allC.map(c=>`<li>${escapeHtml(c.replace(/^\d+\.\s*/,''))}</li>`).join('')}
+                    </ol>
+                   </div>`;
+
+            if (body) {
+                body.innerHTML = `
+                    <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.6rem;font-size:0.87rem;">
+                        <div>✅ <strong>Validator:</strong> <span class="validation-score ${getScoreClass(v.overall_accuracy_score||0)}" style="font-size:0.78rem;">${v.overall_accuracy_score??'N/A'}/10</span></div>
+                        <div>⚔️ <strong>Adversarial:</strong> <span class="validation-score ${getScoreClass(10-(a.adversarial_score||0))}" style="font-size:0.78rem;">${a.adversarial_score??'N/A'}/10</span></div>
+                        <div>Revision: <strong>${oa.needs_revision ? '❌ Yes' : '✅ No'}</strong></div>
+                    </div>
+                    <p style="font-size:0.87rem;color:#555;margin-bottom:0.6rem;">
+                        <strong>V:</strong> ${v.summary||'N/A'}<br><strong>A:</strong> ${a.summary||'N/A'}
+                    </p>
+                    ${changesHtml}`;
+                body.style.display = 'block';
+            }
+
+            // Uncheck if cleared
+            if (oa.quality_score >= 8 && !oa.needs_revision) {
+                const cb = document.querySelector(`.fix-checkbox[data-index="${origIdx}"]`);
+                if (cb) cb.checked = false;
+            }
+        });
+
+        const passed = (report.items||[]).filter(it => (it.overall_assessment?.quality_score||0) >= 8).length;
+        showToast(`Revalidation done — ${passed}/${checkedFixed.length} now 8+`, passed === checkedFixed.length ? 'success' : 'info');
+
+    } catch (e) {
+        showToast('Revalidation failed: ' + e.message, 'error');
+    } finally {
         updateFixButtonCount();
     }
 }
@@ -3231,6 +4113,18 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                         <strong>Assessment:</strong> ${oa.recommendation||'N/A'}
                     </div>`;
                 body.style.display = 'block';
+            }
+
+            // Mark as cleared if re-validation came back clean (score ≥ 8, no revision needed)
+            if (oa.quality_score >= 8 && !oa.needs_revision) {
+                if (generatedQuestions[origIdx - 1]) {
+                    generatedQuestions[origIdx - 1]._validated_ok = true;
+                }
+                if (_validationState?.originalItems?.[origIdx - 1]) {
+                    _validationState.originalItems[origIdx - 1]._validated_ok = true;
+                }
+                // Auto-save so the cleared state persists in session history
+                _autosaveClearedState();
             }
 
             // Also update report in _validationState so future fix uses fresh issues
@@ -3656,6 +4550,8 @@ if (fetchMockSpecsBtn) {
             renderMockSpecs(mockExamSpecs);
             mockSpecsStatus.textContent = '✓ Exam pattern loaded';
             if (generateMockBtn) generateMockBtn.disabled = false;
+            const adjustSection = document.getElementById('mock-adjust-section');
+            if (adjustSection) adjustSection.style.display = 'block';
         } catch (e) {
             mockSpecsStatus.textContent = '✗ Could not fetch specs — check console';
             console.error(e);
@@ -3712,73 +4608,145 @@ function renderMockSpecs(specs) {
         table.insertAdjacentHTML('afterend',
             `<p style="margin-top:0.75rem; font-size:0.82rem; color:var(--text-muted);">${escapeHtml(specs.exam_notes)}</p>`);
     }
+
 }
 
-// Generate the full mock exam paper
-if (generateMockBtn) {
-    generateMockBtn.addEventListener('click', async () => {
-        if (!courseStructure || !mockExamSpecs) return;
-        const course = courseStructure.Course || '';
-        const dist = mockExamSpecs.subject_distribution || {};
-        const subjectEntries = Object.entries(dist).filter(([, d]) => d.questions > 0);
-        if (!subjectEntries.length) { showToast('No subject distribution in specs', 'error'); return; }
+// Mock specs adjustment chat
+(function () {
+    const sendBtn = document.getElementById('mock-adjust-send-btn');
+    const input = document.getElementById('mock-adjust-input');
+    const messages = document.getElementById('mock-adjust-messages');
 
-        generateMockBtn.disabled = true;
-        fetchMockSpecsBtn.disabled = true;
-        loading.style.display = 'flex';
-        document.getElementById('loading-message').textContent = 'Preparing mock exam…';
+    function addAdjustMsg(role, text) {
+        if (!messages) return;
+        messages.style.display = 'block';
+        const div = document.createElement('div');
+        div.className = 'adjust-msg ' + role;
+        div.textContent = text;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
 
-        let allQuestions = [];
-        let done = 0;
+    async function sendAdjust() {
+        const text = input?.value.trim();
+        if (!text || !mockExamSpecs) return;
+        input.value = '';
+        addAdjustMsg('user', text);
+        if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⏳'; }
 
         try {
-            for (const [subjectName, subjectSpec] of subjectEntries) {
-                const targetCount = subjectSpec.questions;
-                // Find the matching subject in courseStructure (case-insensitive fuzzy)
-                const subjectObj = courseStructure.subjects?.find(s =>
-                    s.name.toLowerCase() === subjectName.toLowerCase() ||
-                    s.name.toLowerCase().includes(subjectName.toLowerCase()) ||
-                    subjectName.toLowerCase().includes(s.name.toLowerCase())
-                );
-                const topics = subjectObj
-                    ? subjectObj.topics.map(t => t.name).filter(Boolean)
-                    : [subjectName]; // fallback: use subject name as single topic
+            const res = await fetch('/api/adjust-mock-specs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ specs: mockExamSpecs, message: text })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const updated = await res.json();
+            const reply = updated.response || 'Done — specs updated.';
+            delete updated.response;
+            mockExamSpecs = updated;
+            renderMockSpecs(mockExamSpecs);
+            addAdjustMsg('assistant', reply);
+            showToast('Exam pattern updated', 'success');
+        } catch (e) {
+            addAdjustMsg('assistant', 'Error: ' + e.message);
+        } finally {
+            if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Update'; }
+            input?.focus();
+        }
+    }
 
-                const numTopics = topics.length || 1;
-                const perTopic = Math.ceil(targetCount / numTopics);
+    if (sendBtn) sendBtn.addEventListener('click', sendAdjust);
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdjust(); }
+        });
+    }
+})();
 
-                mockProgress.textContent = `[${done + 1}/${subjectEntries.length}] Generating ${targetCount} Qs for ${subjectName}…`;
-                document.getElementById('loading-message').textContent = mockProgress.textContent;
+// Generate the full mock exam paper — parallel professor agents via SSE
+if (generateMockBtn) {
+    generateMockBtn.addEventListener('click', async () => {
+        if (!courseStructure || !mockExamSpecs) {
+            showToast('Load exam pattern first', 'error'); return;
+        }
+        const dist = mockExamSpecs.subject_distribution || {};
+        if (!Object.keys(dist).length) { showToast('No subject distribution in specs', 'error'); return; }
 
-                const examImagePct = mockExamSpecs.image_questions_total
-                    ? Math.round(mockExamSpecs.image_questions_total / mockExamSpecs.total_questions * 100)
-                    : (courseStructure?.exam_format?.question_format?.image_questions_percentage ?? 0);
-                const includeImages = examImagePct > 0;
+        const course = courseStructure.Course || document.getElementById('lesson-course')?.value.trim() || '';
 
-                const res = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        course,
-                        subject: subjectName,
-                        topics,
-                        num_questions: perTopic,
-                        include_images: includeImages,
-                        exam_format: {
-                            ...(courseStructure?.exam_format || {}),
-                            num_options: mockExamSpecs.num_options || courseStructure?.exam_format?.num_options || 4,
-                        },
-                        existing_questions: allQuestions,
-                        reference_examples: getPyqExamples(subjectName, 8),
-                    })
-                });
-                const data = await res.json();
-                if (data.error) { showToast(`Error on ${subjectName}: ${data.error}`, 'error'); }
-                else { allQuestions = [...allQuestions, ...data.questions]; }
-                done++;
+        generateMockBtn.disabled = true;
+        if (fetchMockSpecsBtn) fetchMockSpecsBtn.disabled = true;
+        loading.style.display = 'flex';
+
+        // Build subject progress tracker
+        const subjectStatus = {};  // subject → {done, count}
+        const totalSubjects = Object.keys(dist).length;
+
+        function _updateProgress(msg) {
+            mockProgress.textContent = msg;
+            document.getElementById('loading-message').textContent = msg;
+        }
+        _updateProgress('Preparing parallel professor agents…');
+
+        let allQuestions = [];
+
+        try {
+            const res = await fetch('/api/generate-mock-paper', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course_name:      course,
+                    mock_specs:       mockExamSpecs,
+                    course_structure: courseStructure,
+                    exam_format:      courseStructure?.exam_format || selectedExamFormat || {},
+                })
+            });
+
+            if (!res.ok) { throw new Error(await res.text()); }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop();  // keep incomplete line
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    let evt;
+                    try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+                    if (evt.type === 'tasks_ready') {
+                        _updateProgress(`Starting ${evt.task_count} professor agents in parallel for ${evt.total_questions} questions…`);
+
+                    } else if (evt.type === 'subject_done') {
+                        subjectStatus[evt.subject] = { done: true, count: evt.count };
+                        const doneCount = Object.values(subjectStatus).filter(s => s.done).length;
+                        const totalSoFar = Object.values(subjectStatus).reduce((a, s) => a + s.count, 0);
+                        _updateProgress(`[${doneCount}/${evt.total_subjects}] ${evt.subject} done (${evt.count} Qs) — ${totalSoFar} total so far`);
+
+                    } else if (evt.type === 'subject_error') {
+                        showToast(`${evt.subject}: ${evt.error}`, 'error');
+
+                    } else if (evt.type === 'status') {
+                        _updateProgress(evt.message);
+
+                    } else if (evt.type === 'complete') {
+                        allQuestions = evt.questions || [];
+
+                    } else if (evt.type === 'error') {
+                        throw new Error(evt.message);
+                    }
+                }
             }
 
-            // Trim to exact total if over (due to per-topic rounding)
+            if (!allQuestions.length) throw new Error('No questions generated');
+
             const total = mockExamSpecs.total_questions;
             if (total && allQuestions.length > total) allQuestions = allQuestions.slice(0, total);
 
@@ -3787,15 +4755,16 @@ if (generateMockBtn) {
             showResultTab('qbank');
             mockProgress.textContent = `✓ Generated ${allQuestions.length} questions`;
             showToast(`Mock exam ready: ${allQuestions.length} questions`, 'success');
-            lastSaveMeta = { course, subject: 'Mock Exam', topics: subjectEntries.map(([s]) => s) };
+            lastSaveMeta = { course, subject: 'Mock Exam', topics: Object.keys(dist) };
             lastRegenerateFn = () => generateMockBtn.click();
+
         } catch (err) {
             showToast(err.message || 'Error generating mock exam', 'error');
             console.error(err);
         } finally {
             loading.style.display = 'none';
             generateMockBtn.disabled = false;
-            fetchMockSpecsBtn.disabled = false;
+            if (fetchMockSpecsBtn) fetchMockSpecsBtn.disabled = false;
         }
     });
 }
