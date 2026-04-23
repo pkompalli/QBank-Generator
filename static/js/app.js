@@ -1038,7 +1038,7 @@ function displayResults(questions, course, imageStats = null) {
 }
 
 function renderQuestionCard(q, idx) {
-    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard', 'medium': 'Medium', 'easy': 'Medium', 'hard': 'Hard', 'very hard': 'Very Hard' };
     const hasImage = q.image_url || q.image_description;
     const imageHtml = q.image_url ? `
         <div class="question-image">
@@ -1050,13 +1050,13 @@ function renderQuestionCard(q, idx) {
             </div>
             ${q.image_source ? `<small class="image-source">Source: ${q.image_source}</small>` : ''}
         </div>
-    ` : (q.image_description ? `
-        <div class="question-image">
-            <div class="image-placeholder-box">
-                <div class="placeholder-icon">🖼️</div>
-                <p class="image-placeholder"><strong>${q.image_type || 'Image'}:</strong> ${q.image_description}</p>
-                <small style="color:var(--text-muted)">Image could not be fetched</small>
-            </div>
+    ` : (q.is_image_question ? `
+        <div class="question-image" style="border:2px dashed #dc3545;border-radius:8px;padding:1rem;background:#fff5f5;">
+            <div style="text-align:center;color:#dc3545;font-weight:600;margin-bottom:0.4rem;">⚠️ Image required but not found</div>
+            <p style="font-size:0.85rem;color:#555;text-align:center;margin:0;">
+                <strong>${q.image_type || 'Image'}:</strong> ${q.image_description || ''}
+            </p>
+            <p style="font-size:0.78rem;color:#dc3545;text-align:center;margin:0.4rem 0 0;">This question needs revision — it was written assuming an image would be present.</p>
         </div>
     ` : '');
 
@@ -1090,7 +1090,7 @@ function renderQuestionCard(q, idx) {
 
 // Append new questions to existing results without re-rendering everything
 function appendResults(newQuestions, course, imageStats = null) {
-    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard' };
+    const difficultyLabels = { 1: 'Medium', 2: 'Hard', 3: 'Very Hard', 'medium': 'Medium', 'easy': 'Medium', 'hard': 'Hard', 'very hard': 'Very Hard' };
     const startIdx = generatedQuestions.length - newQuestions.length; // offset into full array
 
     // Add a separator
@@ -2970,18 +2970,6 @@ if (validateQBankBtn) {
         const reportContent = document.getElementById('validation-report-content');
         const course = courseStructure?.Course || 'Unknown';
 
-        // Split into previously-cleared and needing validation
-        const clearedOrigIdx = [];   // 0-based indices of cleared questions
-        const toValidate = [];       // {origIdx (0-based), q} for questions to actually validate
-
-        generatedQuestions.forEach((q, i) => {
-            if (q._validated_ok) clearedOrigIdx.push(i);
-            else toValidate.push({ origIdx: i, q });
-        });
-
-        const skipCount = clearedOrigIdx.length;
-        const validateCount = toValidate.length;
-
         _validationState = {
             contentType: 'qbank',
             originalItems: [...generatedQuestions],
@@ -2993,7 +2981,7 @@ if (validateQBankBtn) {
             <div style="text-align:center;padding:3rem;">
                 <div class="loading-spinner"></div>
                 <p style="color:#999;margin-top:1rem;">
-                    Running validation on ${validateCount} question(s)${skipCount ? ` — skipping ${skipCount} previously cleared` : ''}...
+                    Running validation on ${generatedQuestions.length} question(s)...
                 </p>
                 <p style="color:#999;font-size:0.9rem;">Validator &amp; Adversarial running in parallel — est. 30–60 sec</p>
             </div>
@@ -3001,56 +2989,18 @@ if (validateQBankBtn) {
         switchToValidationTab();
 
         try {
-            let report;
-            if (validateCount === 0) {
-                // All cleared — build a synthetic all-approved report
-                report = {
-                    timestamp: new Date().toISOString(), content_type: 'qbank',
-                    domain: 'medical education', course,
-                    items: [], summary: { total: 0, approved: 0, needs_revision: 0, structural_failures: 0, avg_quality_score: 9 }
-                };
-            } else {
-                const response = await fetch('/api/validate-content', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content_type: 'qbank',
-                        items: toValidate.map(x => x.q),
-                        domain: 'medical education',
-                        course
-                    })
-                });
-                if (!response.ok) throw new Error('Validation failed');
-                report = await response.json();
-
-                // Re-map item indices from batch-relative back to original positions
-                (report.items || []).forEach((item, i) => {
-                    if (toValidate[i]) item.index = toValidate[i].origIdx + 1;
-                });
-            }
-
-            // Inject pre-cleared placeholder items at their original positions
-            const preClearedItem = (origIdx) => ({
-                index: origIdx + 1,
-                _pre_cleared: true,
-                overall_assessment: {
-                    status: '✅ Approved',
-                    quality_score: 9,
-                    needs_revision: false,
-                    recommendation: 'Previously fixed and cleared (score 8+) — skipped this run'
-                },
-                validator: { overall_accuracy_score: 9, needs_revision: false, summary: 'Previously cleared — skipped' },
-                adversarial: { adversarial_score: 0, breakability_rating: 'airtight', summary: 'Previously cleared — skipped' }
+            const response = await fetch('/api/validate-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content_type: 'qbank',
+                    items: generatedQuestions,
+                    domain: 'medical education',
+                    course
+                })
             });
-
-            const allItems = [...(report.items || [])];
-            clearedOrigIdx.forEach(i => allItems.push(preClearedItem(i)));
-            allItems.sort((a, b) => a.index - b.index);
-            report.items = allItems;
-
-            // Adjust summary to include cleared questions
-            report.summary.total = generatedQuestions.length;
-            report.summary.approved = (report.summary.approved || 0) + skipCount;
+            if (!response.ok) throw new Error('Validation failed');
+            const report = await response.json();
 
             displayBatchValidationReport(report, 'qbank');
 
@@ -3076,15 +3026,17 @@ function displayBatchValidationReport(report, contentType) {
     _valFilter = { score: 'all', status: 'all', type: 'all' };
     _fixedItemIndices.clear();
 
-    const getScoreClass = (score) => {
-        if (score >= 8) return 'score-high';
-        if (score >= 6) return 'score-medium';
+    // Combined score is out of 20; individual scores out of 10
+    const getScoreClass = (score, outOf = 10) => {
+        const pct = score / outOf;
+        if (pct >= 0.8) return 'score-high';
+        if (pct >= 0.55) return 'score-medium';
         return 'score-low';
     };
 
     const statusBadge = (assessment) => {
         const s = assessment.status || '';
-        const color = s.includes('Approved') ? '#28a745' : s.includes('Conditional') ? '#ffc107' : '#dc3545';
+        const color = s.includes('All Good') ? '#28a745' : s.includes('Conditional') ? '#e67e00' : '#dc3545';
         return `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.85rem;">${s}</span>`;
     };
 
@@ -3103,7 +3055,6 @@ function displayBatchValidationReport(report, contentType) {
 
     // ---- Summary bar ----
     const structuralCount = summary.structural_failures || 0;
-    const clearedCount = items.filter(i => i._pre_cleared).length;
     const needsRevCount = summary.needs_revision || 0;
     const approvedCount = summary.approved || 0;
     const conditionalCount = (summary.total || 0) - approvedCount - needsRevCount;
@@ -3119,9 +3070,8 @@ function displayBatchValidationReport(report, contentType) {
                 <div style="color:#28a745;"><strong>✅ ${approvedCount}</strong> approved</div>
                 <div style="color:#dc3545;"><strong>❌ ${needsRevCount}</strong> needs revision</div>
                 ${conditionalCount > 0 ? `<div style="color:#856404;"><strong>⚠️ ${conditionalCount}</strong> conditional</div>` : ''}
-                ${clearedCount ? `<div style="color:#6c757d;"><strong>⏭️ ${clearedCount}</strong> previously cleared</div>` : ''}
                 ${structuralCount ? `<div style="color:#6f42c1;"><strong>🔧 ${structuralCount}</strong> structural failures</div>` : ''}
-                <div><strong>Avg:</strong> ${summary.avg_quality_score || 'N/A'}/10</div>
+                <div><strong>Avg:</strong> ${summary.avg_quality_score || 'N/A'}/20</div>
             </div>
         </div>`;
 
@@ -3138,7 +3088,7 @@ function displayBatchValidationReport(report, contentType) {
             <span class="val-filter-label" style="margin-left:0.6rem;">Status:</span>
             <div class="val-filter-group">
                 <button class="val-filter-btn vfbtn-status active" data-val="all"       onclick="setValFilter('status','all')">All</button>
-                <button class="val-filter-btn vfbtn-status"        data-val="approved"  onclick="setValFilter('status','approved')">✅ Approved</button>
+                <button class="val-filter-btn vfbtn-status"        data-val="approved"  onclick="setValFilter('status','approved')">✅ All Good</button>
                 <button class="val-filter-btn vfbtn-status"        data-val="revision"  onclick="setValFilter('status','revision')">❌ Needs Revision</button>
                 <button class="val-filter-btn vfbtn-status"        data-val="conditional" onclick="setValFilter('status','conditional')">⚠️ Conditional</button>
             </div>
@@ -3180,50 +3130,31 @@ function displayBatchValidationReport(report, contentType) {
         const a = item.adversarial || {};
         const oa = item.overall_assessment || {};
         const num = item.index || idx + 1;
-        const isPreCleared = item._pre_cleared === true;
         const isStructural = item.structural_failure === true;
+        const isParseMiss  = item.parse_miss === true;
 
         // Derive filter data attributes
-        const scoreVal = isPreCleared ? 'cleared' : (oa.quality_score >= 8 ? 'high' : oa.quality_score >= 6 ? 'medium' : 'low');
+        const scoreVal = isParseMiss ? 'medium'
+            : (oa.quality_score >= 16 ? 'high' : oa.quality_score >= 11 ? 'medium' : 'low');
         const statusStr = (oa.status || '').toLowerCase();
-        const statusVal = isPreCleared ? 'cleared'
-            : statusStr.includes('approved') ? 'approved'
+        const statusVal = statusStr.includes('all good') ? 'approved'
             : statusStr.includes('revision') ? 'revision'
             : 'conditional';
         const qObj = contentType === 'qbank' ? (generatedQuestions[num - 1] || {}) : {};
-        const isImageQ = !!(qObj.image_url || qObj.requires_image);
-        const typeVal = isPreCleared ? 'cleared' : (isImageQ ? 'image' : 'text');
+        const isImageQ = !!(qObj.image_url || qObj.requires_image || qObj.is_image_question || qObj.image_missing);
+        const typeVal = isImageQ ? 'image' : 'text';
 
         // Header title
         let headerTitle = `${itemLabel} ${num}`;
         if (contentType === 'qbank' && v.question_preview) {
             headerTitle += ` — ${v.question_preview.substring(0, 70)}${v.question_preview.length > 70 ? '...' : ''}`;
-        } else if (contentType === 'qbank' && isPreCleared) {
-            if (qObj?.question) headerTitle += ` — ${qObj.question.substring(0, 70)}...`;
         } else if (contentType === 'lesson' && v.section_title) {
             headerTitle += ` — ${v.section_title}`;
         }
 
         const accordionId = `val-item-${num}`;
-        const headerBg = isPreCleared ? '#f0f8f0' : isStructural ? '#fff0f6' : '#f8f9fa';
-        const borderColor = isPreCleared ? '#c3e6cb' : isStructural ? '#f5c6cb' : '#e0e0e0';
-
-        if (isPreCleared) {
-            return `
-        <div class="val-accordion" data-val-score="${scoreVal}" data-val-status="${statusVal}" data-val-type="${typeVal}"
-             style="border:1px solid ${borderColor};border-radius:8px;margin-bottom:0.6rem;overflow:hidden;opacity:0.6;">
-            <div style="display:flex;align-items:stretch;background:${headerBg};">
-                <div style="width:42px;display:flex;align-items:center;justify-content:center;border-right:1px solid ${borderColor};color:#6c757d;">⏭️</div>
-                <div style="flex:1;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;font-size:0.9rem;color:#6c757d;">
-                    <span style="font-weight:600;">${headerTitle}</span>
-                    <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
-                        <span style="background:#6c757d;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">⏭️ Previously Cleared</span>
-                        <span class="validation-score score-high" style="font-size:0.82rem;">9/10</span>
-                    </span>
-                </div>
-            </div>
-        </div>`;
-        }
+        const headerBg = isStructural ? '#fff0f6' : isParseMiss ? '#fffbf0' : '#f8f9fa';
+        const borderColor = isStructural ? '#f5c6cb' : isParseMiss ? '#ffc107' : '#e0e0e0';
 
         // Build changes list
         const vC = v.changes_required || [];
@@ -3262,8 +3193,8 @@ function displayBatchValidationReport(report, contentType) {
                     style="flex:1;text-align:left;padding:0.75rem 1rem;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;">
                     <span style="font-weight:600;">${headerTitle}</span>${imageTag}${valDebugBtn}
                     <span style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
-                        ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">🔧 Structural</span>' : statusBadge(oa)}
-                        <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.82rem;">${oa.quality_score ?? 'N/A'}/10</span>
+                        ${isStructural ? '<span style="background:#6f42c1;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">🔧 Structural</span>' : isParseMiss ? '<span style="background:#ffc107;color:#333;padding:2px 8px;border-radius:12px;font-size:0.78rem;">⚠️ Not Validated</span>' : statusBadge(oa)}
+                        <span class="validation-score ${getScoreClass(oa.quality_score != null ? oa.quality_score : 0, 20)}" style="font-size:0.82rem;">${oa.quality_score != null ? oa.quality_score + '/20' : 'N/A'}</span>
                         <span style="font-size:0.78rem;color:#aaa;">▼</span>
                     </span>
                 </button>
@@ -3274,9 +3205,9 @@ function displayBatchValidationReport(report, contentType) {
                     <div>✅ <strong>Validator:</strong>
                         <span class="validation-score ${getScoreClass(v.overall_accuracy_score || 0)}" style="font-size:0.78rem;">${v.overall_accuracy_score ?? 'N/A'}/10</span>
                     </div>
-                    ${contentType === 'qbank' ? `<div>Answer: <strong>${v.correct_answer_verified ? '✅ Verified' : '❌ Wrong'}</strong></div>` : ''}
+                    ${contentType === 'qbank' ? `<div>Answer: <strong>${v.correct_answer_verified === true ? '✅ Verified' : v.correct_answer_verified === false ? '❌ Wrong' : '—'}</strong></div>` : ''}
                     <div>⚔️ <strong>Adversarial:</strong>
-                        <span class="validation-score ${getScoreClass(10 - (a.adversarial_score || 0))}" style="font-size:0.78rem;">${a.adversarial_score ?? 'N/A'}/10</span>
+                        <span class="validation-score ${getScoreClass(a.adversarial_score || 0)}" style="font-size:0.78rem;">${a.adversarial_score ?? 'N/A'}/10</span>
                         <em style="font-size:0.78rem;color:#888;margin-left:4px;">${a.breakability_rating || ''}</em>
                     </div>
                     <div>Revision: <strong>${oa.needs_revision ? '❌ Yes' : '✅ No'}</strong></div>
@@ -3409,8 +3340,8 @@ function renderImageDebugPanel(debugData, title) {
             </div>`;
         } else {
             const noImageReason = gemini_error
-                ? `No image — all Google results below threshold (${threshold}/100). Gemini generation failed: ${gemini_error}`
-                : `No image — all Google results below threshold (${threshold}/100) and Gemini generation was skipped or unavailable.`;
+                ? `No image — all Google results below threshold (${threshold}/100). AI generation failed: ${gemini_error}`
+                : `No image — all Google results below threshold (${threshold}/100) and AI generation was skipped or unavailable.`;
             return `
             <div style="padding:0.5rem 1rem;border-top:1px solid #d0c4f0;background:#fff8f8;">
                 <span style="font-size:0.8rem;color:#dc3545;font-weight:600;">⚠️ ${escapeHtml(noImageReason)}</span>
@@ -3420,7 +3351,7 @@ function renderImageDebugPanel(debugData, title) {
 
     const geminiErrorBanner = gemini_error && !selected_url ? '' : (gemini_error ? `
         <div style="padding:0.45rem 1rem;border-bottom:1px solid #f5c6cb;background:#fff0f0;font-size:0.78rem;color:#721c24;">
-            ⚠️ <strong>Gemini error:</strong> ${escapeHtml(gemini_error)}
+            ⚠️ <strong>AI generation error:</strong> ${escapeHtml(gemini_error)}
         </div>` : '');
 
     const geminiSection = gemini_prompt ? `
@@ -3539,8 +3470,17 @@ async function showImageDebugPanel(qIdx, btn, context) {
 // FIX SELECTED — checkbox helpers + fix dispatch
 // ============================================================
 
+function _visibleCheckboxes() {
+    return [...document.querySelectorAll('.fix-checkbox')].filter(cb => {
+        const acc = cb.closest('.val-accordion');
+        return !acc || acc.style.display !== 'none';
+    });
+}
+
 function updateFixButtonCount() {
-    const checked = document.querySelectorAll('.fix-checkbox:checked').length;
+    const visibleCbs = _visibleCheckboxes();
+    const checked = visibleCbs.filter(cb => cb.checked).length;
+    const total   = visibleCbs.length;
     const btn = document.getElementById('fix-selected-btn');
     const selectAll = document.getElementById('select-all-fixes');
     if (!btn) return;
@@ -3550,16 +3490,14 @@ function updateFixButtonCount() {
     btn.style.cursor = checked === 0 ? 'not-allowed' : 'pointer';
     // Sync select-all state
     if (selectAll) {
-        const total = document.querySelectorAll('.fix-checkbox').length;
         selectAll.indeterminate = checked > 0 && checked < total;
         selectAll.checked = total > 0 && checked === total;
     }
-    // Update revalidate button — only counts checked items that were already fixed
+    // Revalidate button always reflects all accumulated fixed items
     const revalBtn = document.getElementById('reval-selected-btn');
-    if (revalBtn && _fixedItemIndices.size > 0) {
-        const checkedFixed = document.querySelectorAll('.fix-checkbox:checked');
-        const revalCount = [...checkedFixed].filter(cb => _fixedItemIndices.has(parseInt(cb.dataset.index))).length;
-        revalBtn.style.display = '';
+    if (revalBtn) {
+        const revalCount = _fixedItemIndices.size;
+        revalBtn.style.display = revalCount > 0 ? '' : 'none';
         revalBtn.textContent = `🔄 Revalidate Fixed (${revalCount})`;
         revalBtn.disabled = revalCount === 0;
         revalBtn.style.opacity = revalCount === 0 ? '0.45' : '1';
@@ -3568,7 +3506,7 @@ function updateFixButtonCount() {
 }
 
 function toggleSelectAllFixes(selectAllCb) {
-    document.querySelectorAll('.fix-checkbox').forEach(cb => { cb.checked = selectAllCb.checked; });
+    _visibleCheckboxes().forEach(cb => { cb.checked = selectAllCb.checked; });
     updateFixButtonCount();
 }
 
@@ -3577,7 +3515,7 @@ function selectNeedsRevision() {
     const needsRevisionIndices = new Set(
         items.filter(i => i.overall_assessment?.needs_revision).map(i => i.index)
     );
-    document.querySelectorAll('.fix-checkbox').forEach(cb => {
+    _visibleCheckboxes().forEach(cb => {
         cb.checked = needsRevisionIndices.has(parseInt(cb.dataset.index));
     });
     updateFixButtonCount();
@@ -3589,7 +3527,7 @@ function _autosaveClearedState() { /* no-op: kept as stub to avoid call-site err
 
 async function fixSelectedItems() {
     if (!_validationState) return;
-    const checkboxes = [...document.querySelectorAll('.fix-checkbox:checked')];
+    const checkboxes = _visibleCheckboxes().filter(cb => cb.checked);
     if (checkboxes.length === 0) return;
 
     const { contentType, originalItems, sectionMap, report, course } = _validationState;
@@ -3735,15 +3673,12 @@ async function fixSelectedItems() {
         const imgNote = imagesAdded > 0 ? ` (+${imagesAdded} image(s) replaced/added)` : '';
         showToast(`✅ Fixed ${result.fixed_items.length} item(s)${imgNote}`, 'success');
 
-        // Track fixed indices and re-check them for revalidation
-        result.fixed_items.forEach(({ index }) => {
-            _fixedItemIndices.add(index);
-            const cb = document.querySelector(`.fix-checkbox[data-index="${index}"]`);
-            if (cb) cb.checked = true; // keep checked so user can revalidate
-        });
-        updateFixButtonCount();
+        // Track fixed indices, then clear all checkboxes so the Fix button resets
+        // to 0. Revalidate uses _fixedItemIndices directly (not checkbox state).
+        result.fixed_items.forEach(({ index }) => _fixedItemIndices.add(index));
+        document.querySelectorAll('.fix-checkbox').forEach(cb => { cb.checked = false; });
         btn.disabled = false;
-        btn.textContent = '🔧 Fix Selected (0)';
+        updateFixButtonCount();
 
     } catch (e) {
         showToast('Fix failed: ' + e.message, 'error');
@@ -3761,13 +3696,11 @@ async function revalidateSelected() {
     const contentType = _validationState?.contentType || 'qbank';
     const course = _validationState?.course || courseStructure?.Course || 'Unknown';
 
-    // Collect checked items that were previously fixed
-    const checkedFixed = [...document.querySelectorAll('.fix-checkbox:checked')]
-        .map(cb => parseInt(cb.dataset.index))
-        .filter(idx => _fixedItemIndices.has(idx));
+    // Revalidate all accumulated fixed items (checkboxes are for Fix selection only)
+    const checkedFixed = [..._fixedItemIndices].sort((a, b) => a - b);
 
     if (checkedFixed.length === 0) {
-        showToast('No fixed items selected', 'error');
+        showToast('No fixed items to revalidate', 'error');
         return;
     }
 
@@ -3789,10 +3722,10 @@ async function revalidateSelected() {
         if (!resp.ok) throw new Error('Revalidation failed');
         const report = await resp.json();
 
-        const getScoreClass = s => s >= 8 ? 'score-high' : s >= 6 ? 'score-medium' : 'score-low';
+        const getScoreClass = s => s >= 16 ? 'score-high' : s >= 12 ? 'score-medium' : 'score-low';
         const statusBadge = (oa) => {
             const s = oa.status || '';
-            const color = s.includes('Approved') ? '#28a745' : s.includes('Conditional') ? '#ffc107' : '#dc3545';
+            const color = s.includes('All Good') ? '#28a745' : s.includes('Conditional') ? '#ffc107' : '#dc3545';
             return `<span style="background:${color};color:#fff;padding:2px 8px;border-radius:12px;font-size:0.78rem;">${s}</span>`;
         };
 
@@ -3811,17 +3744,13 @@ async function revalidateSelected() {
                 const badgeSpan = accHeader.querySelector('span[style*="margin-left"]');
                 if (badgeSpan) badgeSpan.innerHTML = `
                     ${statusBadge(oa)}
-                    <span class="validation-score ${getScoreClass(oa.quality_score||0)}" style="font-size:0.82rem;">${oa.quality_score??'N/A'}/10</span>
+                    <span class="validation-score ${getScoreClass(oa.quality_score||0)}" style="font-size:0.82rem;">${oa.quality_score??'N/A'}/20</span>
                     <span style="font-size:0.78rem;color:#aaa;">▼</span>`;
             }
 
-            // Auto-clear if now 8+
-            if (oa.quality_score >= 8 && !oa.needs_revision) {
-                if (generatedQuestions[origIdx - 1]) {
-                    generatedQuestions[origIdx - 1]._validated_ok = true;
-                    _fixedItemIndices.delete(origIdx);
-                    _autosaveClearedState();
-                }
+            // Remove from fixed-indices set if now passing
+            if (oa.quality_score >= 16 && !oa.needs_revision) {
+                _fixedItemIndices.delete(origIdx);
             }
 
             // Update _validationState report so Fix Selected gets fresh data
@@ -3861,7 +3790,7 @@ async function revalidateSelected() {
             }
 
             // Uncheck if cleared
-            if (oa.quality_score >= 8 && !oa.needs_revision) {
+            if (oa.quality_score >= 16 && !oa.needs_revision) {
                 const cb = document.querySelector(`.fix-checkbox[data-index="${origIdx}"]`);
                 if (cb) cb.checked = false;
             }
@@ -3934,6 +3863,11 @@ function applyFixes(fixedItems, contentType) {
                 generatedQuestions[index - 1] = parsed;
                 if (_validationState && _validationState.originalItems[index - 1]) {
                     _validationState.originalItems[index - 1] = parsed;
+                }
+                // Also re-render the card in the QBank tab so it shows the fixed version
+                const qbankCard = document.querySelector(`#results .question-card[data-q-index="${index}"]`);
+                if (qbankCard) {
+                    qbankCard.outerHTML = renderQuestionCard(parsed, index - 1);
                 }
             } catch (e) { /* keep original if JSON fails */ }
         }
@@ -4051,12 +3985,12 @@ async function revalidateFixed(fixedIndices, contentType, course) {
             const accordionId = `val-item-${origIdx}`;
             const body = document.getElementById(accordionId);
 
-            const getScoreClass = s => s >= 8 ? 'score-high' : s >= 6 ? 'score-medium' : 'score-low';
+            const getScoreClass = s => s >= 16 ? 'score-high' : s >= 12 ? 'score-medium' : 'score-low';
             const formatList = arr => arr && arr.length
                 ? `<ul class="validation-list">${arr.map(i => `<li>${i}</li>`).join('')}</ul>`
                 : '';
             const status = oa.status || '';
-            const badgeColor = status.includes('Approved') ? '#28a745' : status.includes('Conditional') ? '#ffc107' : '#dc3545';
+            const badgeColor = status.includes('All Good') ? '#28a745' : status.includes('Conditional') ? '#ffc107' : '#dc3545';
 
             // Update the header badge + score
             const accBtn = document.querySelector(`[onclick="toggleValAccordion('${accordionId}')"]`);
@@ -4064,13 +3998,13 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                 const badgeArea = accBtn.querySelector('span[style*="margin-left"]');
                 if (badgeArea) badgeArea.innerHTML = `
                     <span style="background:${badgeColor};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">${status}</span>
-                    <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">${oa.quality_score || 'N/A'}/10</span>
+                    <span class="validation-score ${getScoreClass(oa.quality_score || 0)}" style="font-size:0.85rem;">${oa.quality_score || 'N/A'}/20</span>
                     <span style="font-size:0.8rem;color:#999;">▼</span>`;
             }
 
             // Update accordion body with fresh results (content-type aware)
             if (body) {
-                const allClear = status.includes('Approved');
+                const allClear = status.includes('All Good');
                 const isQBank = contentType === 'qbank';
                 body.innerHTML = `
                     <div style="background:${allClear ? '#d4edda' : '#fff3cd'};border:1px solid ${allClear ? '#c3e6cb' : '#ffc107'};border-radius:6px;padding:0.75rem;margin-bottom:0.75rem;">
@@ -4122,16 +4056,9 @@ async function revalidateFixed(fixedIndices, contentType, course) {
                 body.style.display = 'block';
             }
 
-            // Mark as cleared if re-validation came back clean (score ≥ 8, no revision needed)
-            if (oa.quality_score >= 8 && !oa.needs_revision) {
-                if (generatedQuestions[origIdx - 1]) {
-                    generatedQuestions[origIdx - 1]._validated_ok = true;
-                }
-                if (_validationState?.originalItems?.[origIdx - 1]) {
-                    _validationState.originalItems[origIdx - 1]._validated_ok = true;
-                }
-                // Auto-save so the cleared state persists in session history
-                _autosaveClearedState();
+            // Remove from fixed-indices set if now passing
+            if (oa.quality_score >= 16 && !oa.needs_revision) {
+                _fixedItemIndices.delete(origIdx);
             }
 
             // Also update report in _validationState so future fix uses fresh issues
@@ -4143,7 +4070,7 @@ async function revalidateFixed(fixedIndices, contentType, course) {
             }
         });
 
-        const approved = returnedItems.filter(i => (i.overall_assessment?.status || '').includes('Approved')).length;
+        const approved = returnedItems.filter(i => (i.overall_assessment?.status || '').includes('All Good')).length;
         showToast(`Re-validation: ${approved}/${returnedItems.length} now Approved`, approved === returnedItems.length ? 'success' : 'info');
 
     } catch (e) {

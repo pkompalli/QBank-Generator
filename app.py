@@ -72,9 +72,19 @@ OR_MAIN_MODEL       = os.environ.get('OR_MAIN_MODEL',       'anthropic/claude-so
 OR_WEB_MODEL        = os.environ.get('OR_WEB_MODEL',        'anthropic/claude-sonnet-4-6')
 OR_VALIDATOR_MODEL  = os.environ.get('OR_VALIDATOR_MODEL',  'openai/gpt-5.4')
 OR_ADVERSARIAL_MODEL= os.environ.get('OR_ADVERSARIAL_MODEL','openai/gpt-5.4')
+OR_IMAGE_MODEL      = os.environ.get('OR_IMAGE_MODEL',      'gpt-image-2')
 
 logger.info(f"Models — main:{OR_MAIN_MODEL}  web:{OR_WEB_MODEL}  "
-            f"validator:{OR_VALIDATOR_MODEL}  adversarial:{OR_ADVERSARIAL_MODEL}")
+            f"validator:{OR_VALIDATOR_MODEL}  adversarial:{OR_ADVERSARIAL_MODEL}  "
+            f"image:{OR_IMAGE_MODEL}")
+
+# ── Direct OpenAI client — used ONLY for image generation (images API not on OpenRouter) ──
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+openai_image_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+if openai_image_client:
+    logger.info(f"OpenAI image client initialised (model: {OR_IMAGE_MODEL})")
+else:
+    logger.warning("OPENAI_API_KEY not set — OpenAI image generation unavailable; Gemini will be used as fallback")
 
 # ── Google Gemini — kept ONLY for image generation (not available on OpenRouter) ─
 # Uses GEMINI_API_KEY (dedicated). GOOGLE_API_KEY is reserved for Custom Search only.
@@ -119,7 +129,10 @@ def _or_call(prompt, model=None, max_tokens=8000, temperature=0.2, messages=None
         extra_headers={"X-Title": "QBank Generator"},
         timeout=timeout,
     )
-    return resp.choices[0].message.content
+    choices = resp.choices or []
+    if not choices:
+        return ''
+    return choices[0].message.content or ''
 
 # Image cache configuration
 IMAGE_CACHE_FILE = 'image_cache.json'
@@ -708,8 +721,64 @@ def get_mock_exam_specs():
 # MOCK PAPER — PARALLEL PROFESSOR MODEL
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_subject_tasks(mock_specs, course_structure, exam_format):
-    """Pure Python — no LLM. Builds one SubjectTask per subject from specs."""
+def generate_subject_profile(subject_name, course_name, hyt_topics):
+    """
+    LLM call that returns a subject-specific profile used to enrich the professor
+    prompt. Called once per subject before question generation begins.
+    """
+    topics_str = ', '.join(hyt_topics[:20]) if hyt_topics else subject_name
+    prompt = f"""You are an expert curriculum designer for {course_name} postgraduate medical entrance examinations.
+
+Generate a subject-specific examiner profile for: {subject_name}
+
+High-yield topics: {topics_str}
+
+Return ONLY a JSON object with these exact keys:
+
+{{
+  "question_style": "<2-3 sentences: how questions in THIS subject typically work — e.g. clinical vignette vs. direct recall vs. image interpretation vs. data interpretation; what makes distractors hard in this subject>",
+  "image_types": [
+    "<modality 1 specific to {subject_name} — e.g. 'PA chest X-ray' not just 'X-ray'>",
+    "<modality 2>",
+    "<modality 3>",
+    "<modality 4>",
+    "<modality 5>"
+  ],
+  "image_question_focus": "<what students must identify from images in {subject_name} exams — e.g. 'ECG rhythm diagnosis', 'histological pattern recognition', 'radiological finding localisation'>",
+  "distractor_archetypes": [
+    "<archetype 1: a category of plausible wrong answer used repeatedly in this subject — e.g. 'related drug from the same class but wrong indication'>",
+    "<archetype 2>",
+    "<archetype 3>",
+    "<archetype 4>"
+  ],
+  "bloom_guidance": "<1-2 sentences: which Bloom's levels dominate in {subject_name} and why — e.g. 'Apply and Analyse dominate because questions present novel clinical scenarios requiring diagnosis'>",
+  "special_instructions": "<2-3 subject-specific rules for this examiner — e.g. drug dose ranges, classification systems to use, eponymous findings to test, common confusables to exploit>"
+}}
+
+Be specific to {subject_name} as a distinct medical discipline. Do not give generic medical exam advice."""
+
+    try:
+        raw = _or_call(prompt, model=OR_MAIN_MODEL, max_tokens=1200, temperature=0.2)
+        raw = raw.split('```json')[-1].split('```')[0] if '```' in raw else raw
+        profile = json.loads(raw.strip())
+        if not isinstance(profile, dict):
+            raise ValueError('non-dict')
+        logger.info(f"  Subject profile generated for {subject_name}")
+        return profile
+    except Exception as e:
+        logger.warning(f"generate_subject_profile failed for {subject_name}: {e} — using defaults")
+        return {
+            'question_style': f'Clinical vignette-based questions requiring application and analysis specific to {subject_name}.',
+            'image_types': [f'{subject_name} clinical photograph', f'{subject_name} diagnostic image', 'histology slide', 'radiograph', 'diagram'],
+            'image_question_focus': f'Identifying key diagnostic findings in {subject_name}',
+            'distractor_archetypes': ['related condition with similar presentation', 'correct diagnosis wrong management', 'partial knowledge trap', 'common misconception'],
+            'bloom_guidance': 'Apply and Analyse levels dominate; recall-only questions are rare.',
+            'special_instructions': f'Use current standard guidelines. Test high-yield differentials and management decision points in {subject_name}.',
+        }
+
+
+def build_subject_tasks(mock_specs, course_structure, exam_format, course_name=''):
+    """Builds one SubjectTask per subject. Generates subject profiles in parallel via LLM."""
     total_q = mock_specs.get('total_questions', 200)
 
     # Bloom's distribution: filter L2–L5 from exam_format, renormalize
@@ -778,7 +847,21 @@ def build_subject_tasks(mock_specs, course_structure, exam_format):
             'exam_params':    exam_params,
         })
 
-    logger.info(f"build_subject_tasks: {len(tasks)} subjects, {sum(t['num_questions'] for t in tasks)} total Qs")
+    logger.info(f"build_subject_tasks: {len(tasks)} subjects — generating subject profiles in parallel…")
+
+    # Generate subject profiles in parallel (one LLM call per subject)
+    _course_name = course_name or course_structure.get('course_name', '')
+    def _gen_profile(task):
+        return task['subject'], generate_subject_profile(task['subject'], _course_name, task['hyt_topics'])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tasks), 6)) as pool:
+        for subj_name, profile in pool.map(_gen_profile, tasks):
+            for t in tasks:
+                if t['subject'] == subj_name:
+                    t['subject_profile'] = profile
+                    break
+
+    logger.info(f"build_subject_tasks: {len(tasks)} subjects, {sum(t['num_questions'] for t in tasks)} total Qs — profiles ready")
     return tasks
 
 
@@ -787,40 +870,56 @@ def professor_plan_images(subject_task, course_name):
     n = subject_task['num_image_qs']
     if n <= 0:
         return []
-    subject = subject_task['subject']
+    subject    = subject_task['subject']
     topics_str = ', '.join(subject_task.get('hyt_topics', [])[:20]) or subject
+    profile    = subject_task.get('subject_profile') or {}
+
+    # Build image-type guidance from profile (subject-specific modalities)
+    profile_image_types = profile.get('image_types', [])
+    profile_img_focus   = profile.get('image_question_focus', '')
+    img_type_guidance   = ''
+    if profile_image_types:
+        img_type_guidance = (
+            f"\nSUBJECT-SPECIFIC IMAGE MODALITIES FOR {subject.upper()}\n"
+            f"Use these modalities (in order of relevance for this subject):\n"
+            + '\n'.join(f'  • {t}' for t in profile_image_types)
+        )
+    if profile_img_focus:
+        img_type_guidance += f"\n\nIMAGE QUESTION FOCUS: {profile_img_focus}"
 
     prompt = f"""You are a Professor of {subject} setting image-based questions for the {course_name} examination.
 You must plan exactly {n} image-based questions. Each question will require a real image — the image IS the question.
 
 HIGH-YIELD TOPICS:
 {topics_str}
+{img_type_guidance}
 
 For each image slot, specify what you need. Return ONLY a JSON array of exactly {n} items:
 [
   {{
     "topic": "<specific topic being tested>",
-    "image_type": "<precise description, e.g. 'PA chest X-ray showing right upper lobe cavitation'>",
+    "image_type": "<precise description using the subject-specific modalities above — e.g. 'PA chest X-ray showing right upper lobe cavitation'>",
     "clinical_context": "<brief patient scenario for the stem — do NOT describe the image finding>",
     "diagnosis": "<what the image shows — the correct answer>",
     "source_strategy": "<openni|wikimedia|wikipedia|generate|google>",
-    "gemini_ok": <true only for schematics/ECG/diagrams — false for real clinical/histology/radiology>,
+    "gemini_ok": true,
     "query_hint": "<3-6 word search string>"
   }}
 ]
 
 SOURCE STRATEGY:
 - openni: real radiology — X-ray, CT, MRI, ultrasound
-- wikimedia: histology slides, gross specimens, clinical photographs, anatomy
+- wikimedia: histology slides, gross specimens, clinical photographs, anatomy, blood smears, Gram stains, culture plates, peripheral blood films, microscopy specimens
 - wikipedia: named instruments, named organisms, named syndromes with classic photo
-- generate: schematics, ECG tracings, flowcharts, dose-response graphs, anatomy diagrams
-- google: last resort
+- generate: ONLY purely synthetic content — ECG tracings, spirometry graphs, dose-response curves, action potential graphs, pedigree charts, flowcharts, mechanism diagrams, anatomy schematics. NEVER use generate for real specimen types (blood smear, Gram stain, histology, culture plate, peripheral blood film, clinical photograph, microscopy slide).
+- google: last resort for anything that doesn't fit above
 
 RULES:
 - Spread across different topics from the HYT list
+- Use image modalities that are authentic and high-yield for {subject} specifically
 - Be specific in image_type — not "X-ray" but "Lateral skull X-ray showing button sequestrum"
 - clinical_context must NOT reveal the diagnosis or image finding
-- gemini_ok false for all real medical images (photos, scans, histology)"""
+- gemini_ok is always true — AI image generation is used as fallback for ALL image types when search fails"""
 
     try:
         raw = _or_call(prompt, model=OR_MAIN_MODEL, max_tokens=2500, temperature=0.1)
@@ -878,26 +977,89 @@ def _download_and_cache_image(img_dict):
     return img_dict
 
 
+def _short_image_query(image_type, max_words=5):
+    """
+    Derive a short fallback search query from a verbose image_type string.
+    Finds the *earliest* describing clause and truncates there, then caps at max_words.
+
+    Examples:
+      "CTPA axial slice at the level of the main pulmonary artery…" → "CTPA axial slice"
+      "PA chest X-ray showing cardiomegaly, bilateral…"             → "PA chest X-ray"
+      "12-lead ECG showing ST-segment elevation in leads II…"       → "12-lead ECG"
+      "Peripheral blood smear (Leishman stain…) showing…"          → "Peripheral blood smear"
+      "Tabulated arterial blood gas and biochemistry panel showing…" → "arterial blood gas panel"
+    """
+    import re
+    text = image_type
+    # Strip parenthetical qualifiers first: "(Leishman stain, high power)"
+    text = re.sub(r'\s*\([^)]*\)', '', text).strip()
+    # Find the earliest split point across all stop-clause patterns
+    earliest = len(text)
+    for pattern in [r'\s+showing\s+', r'\s+demonstrating\s+', r'\s+at\s+the\s+',
+                    r'\s+of\s+the\s+', r'\s+with\s+', r',\s+']:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m and m.start() < earliest:
+            earliest = m.start()
+    text = text[:earliest].strip()
+    words = text.split()
+    # Drop generic openers like "Tabulated" that add no search value
+    skip_first = {'tabulated', 'labelled', 'labeled', 'annotated', 'schematic'}
+    if words and words[0].lower() in skip_first:
+        words = words[1:]
+    return ' '.join(words[:max_words])
+
+
 def run_image_pipeline_for_subject(image_specs, subject_task):
     """Phase B — Fetch + validate images in parallel. Returns [{spec, image}]."""
     if not image_specs:
         return []
 
     def _fetch_one(spec):
+        query_hint   = spec.get('query_hint', '')
+        image_type   = spec.get('image_type', '')
+        # Build two distinct, usable search terms:
+        # [0] query_hint  — the professor's concise 3-6 word search string (primary)
+        # [1] modality shortform — first meaningful words of image_type, no verbose description (fallback)
+        fallback_query = _short_image_query(image_type)
+        # deduplicate while preserving order
+        seen = set()
+        image_search_terms = []
+        for t in [query_hint, fallback_query]:
+            if t and t not in seen:
+                seen.add(t)
+                image_search_terms.append(t)
+
+        source_strategy = spec.get('source_strategy', IMAGE_SOURCE_GOOGLE)
         q_data = {
-            'image_type':         spec.get('image_type', ''),
+            'image_type':         image_type,
             'image_description':  spec.get('clinical_context', ''),
             'question':           spec.get('topic', ''),
-            'image_search_terms': [spec.get('query_hint', ''), spec.get('image_type', '')],
+            'image_search_terms': image_search_terms,
             '_gemini_ok':         spec.get('gemini_ok', False),
+            'key_finding':        spec.get('diagnosis', ''),  # what the image must show — drives the 40-pt scoring criterion
         }
-        img = search_and_validate_image(
+
+        # Always run the full search+validate pipeline during generation so we capture
+        # exactly what happened: query used, every candidate seen, scores, winner, Gemini prompt.
+        # return_debug=True gives us all of that. The debug button just reads this stored data.
+        img, candidates, raw_count, google_error, gemini_error = search_and_validate_image(
             q_data, subject_task['subject'],
-            source_strategy=spec.get('source_strategy', IMAGE_SOURCE_GOOGLE)
+            source_strategy=source_strategy,
+            return_debug=True,
         )
         if img:
-            _download_and_cache_image(img)  # ensure local copy for validation
-        return {'spec': spec, 'image': img}
+            _download_and_cache_image(img)
+        debug_info = {
+            'search_terms':     image_search_terms,
+            'source_strategy':  source_strategy,
+            'image_type':       image_type,
+            'candidates':       candidates or [],
+            'selected_url':     img.get('url') if img else None,
+            'google_raw_count': raw_count,
+            'google_error':     google_error,
+            'gemini_error':     gemini_error,
+        }
+        return {'spec': spec, 'image': img, '_debug': debug_info}
 
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
@@ -918,6 +1080,7 @@ def _build_professor_prompt(subject_task, course_name, confirmed_images):
     bloom       = subject_task['bloom_counts']
     hyt         = subject_task.get('hyt_topics', [])
     ep          = subject_task['exam_params']
+    profile     = subject_task.get('subject_profile') or {}
 
     hyt_str   = '\n'.join(f'  • {t}' for t in hyt[:25]) or '  (Full subject syllabus)'
     bloom_str = '\n'.join(
@@ -925,40 +1088,62 @@ def _build_professor_prompt(subject_task, course_name, confirmed_images):
         for k, v in sorted(bloom.items())
     )
 
-    # Image offset for batching (so Image N labels stay globally consistent)
-    img_offset = subject_task.get('_img_offset', 0)
+    # Build profile sections (only if profile was generated)
+    profile_section = ''
+    if profile:
+        q_style      = profile.get('question_style', '')
+        distractor_archetypes = profile.get('distractor_archetypes', [])
+        bloom_guidance        = profile.get('bloom_guidance', '')
+        special_instructions  = profile.get('special_instructions', '')
+        img_q_focus           = profile.get('image_question_focus', '')
+
+        distractor_str = '\n'.join(f'  • {d}' for d in distractor_archetypes) if distractor_archetypes else ''
+
+        profile_section = f"""
+SUBJECT PROFILE — {subject.upper()}
+{"─" * 40}"""
+        if q_style:
+            profile_section += f"\nQuestion style: {q_style}"
+        if bloom_guidance:
+            profile_section += f"\nBloom's guidance: {bloom_guidance}"
+        if distractor_str:
+            profile_section += f"\nDistractor archetypes to exploit:\n{distractor_str}"
+        if img_q_focus and num_img_q > 0:
+            profile_section += f"\nImage question focus: {img_q_focus}"
+        if special_instructions:
+            profile_section += f"\nSpecial instructions: {special_instructions}"
+        profile_section += "\n"
+
     batch_label = subject_task.get('_batch', '')
 
-    # Confirmed images section
+    # Confirmed images section — listed in order; _enrich() attaches them positionally
     img_lines = []
     for i, item in enumerate(confirmed_images, 1):
-        global_i = img_offset + i
         spec = item['spec']
         img  = item.get('image')
         if img and img.get('url'):
             img_lines.append(
-                f'  Image {global_i}: {spec["image_type"]} | '
+                f'  Slot {i}: {spec["image_type"]} | '
                 f'Shows: {spec.get("diagnosis","")} | '
                 f'Stem context: {spec.get("clinical_context","")}'
             )
         else:
             img_lines.append(
-                f'  Image {global_i}: [NOT FOUND] {spec["image_type"]} | '
+                f'  Slot {i}: [NOT FOUND] {spec["image_type"]} | '
                 f'Shows: {spec.get("diagnosis","")} — write as text-only question'
             )
 
     img_section = ''
     if img_lines:
         img_section = f"""
-CONFIRMED IMAGES FOR YOUR IMAGE-BASED QUESTIONS
-─────────────────────────────────────────────────
+CONFIRMED IMAGES FOR YOUR IMAGE-BASED QUESTIONS (in order)
+────────────────────────────────────────────────────────────
 {chr(10).join(img_lines)}
 
-For each image question:
-- Reference the image as "Image N" in the question field
-- The stem provides ONLY clinical context — never describe what the image shows in the text
+Write your {num_img_q} image question(s) in the same order as the slots above.
+- The stem provides ONLY clinical context — never describe what the image shows
 - The student must look at the image to select the correct answer
-- "Image not found" slots: write a text-only clinical question on the same topic instead
+- [NOT FOUND] slots: write a text-only clinical question on the same topic instead
 """
 
     batch_note = f' (batch {batch_label})' if batch_label else ''
@@ -981,17 +1166,54 @@ BLOOM'S TAXONOMY — YOU MUST HIT THESE COUNTS EXACTLY
 HIGH-YIELD TOPICS FROM THIS YEAR'S SYLLABUS
 ────────────────────────────────────────────
 {hyt_str}
-{img_section}
+{profile_section}{img_section}
 YOUR RESPONSIBILITIES AS EXAMINER
 ──────────────────────────────────
-- Every question must reflect authentic {course_name} standard and clinical depth
-- Question stems may be short or long — but the key discriminating information for image
-  questions must be visible only in the image, not revealed in the text
-- Wrong options must be genuinely plausible to a well-prepared candidate
-- Distractors should exploit common misconceptions or partial knowledge in your subject
+- Every question must reflect authentic {course_name} standard and clinical depth for {subject}
+- Follow the question style and distractor archetypes described in the Subject Profile above
+- Question stems may be short or long — the key discriminating information for image questions
+  must be visible only in the image, not revealed in the text
+- Wrong options must be genuinely plausible to a well-prepared {subject} candidate
+- Exploit the distractor archetypes listed above — these are the traps that distinguish
+  the well-prepared from the partially-prepared in {subject}
 - No two questions should test the same clinical fact
 - Distribute your questions across the HYT topics listed above
 - Each question must be tagged with its exact Bloom's level
+
+ANSWER INTEGRITY — MANDATORY RULES
+────────────────────────────────────
+These rules are non-negotiable. A question that violates them is invalid.
+
+1. STEM MUST NOT NAME THE DIAGNOSIS
+   The stem presents a clinical scenario. It must NOT contain the name of the disease,
+   the drug of choice, the procedure, or any term that is itself the correct answer.
+   ✗ BAD:  "A patient with inferior STEMI presents with hypotension. What do you do next?"
+   ✓ GOOD: "A 58-year-old man presents with crushing chest pain, ST elevation in II/III/aVF,
+            and BP 80/50. His JVP is elevated. What is the next step?"
+
+2. FOR IMAGE QUESTIONS — STEM MUST NOT DESCRIBE THE IMAGE FINDING
+   The stem provides patient context only. The diagnostic finding lives in the image.
+   The student must look at the image to get the key information.
+   Image references: write ONLY "(Image N)" or "shown in Image N" — NEVER add a qualifier like "— schematic diagram", "— photograph", or "— illustration" after the number.
+   ✗ BAD:  "The ECG shows ST elevation in leads II, III and aVF. What is the diagnosis?"
+   ✗ BAD:  "…peripheral blood smear (Image 1 — schematic diagram) shows…"
+   ✓ GOOD: "A 55-year-old man presents with chest pain radiating to the jaw. The ECG is shown in Image 1.
+            What is the most likely diagnosis?"
+   ✓ GOOD: "A 28-year-old man presents with fever. A peripheral blood smear is shown (Image 1).
+            What species is identified?"
+
+3. OPTIONS MUST NOT BETRAY THE ANSWER
+   - All options must be plausible — no option should be obviously absurd
+   - Options must be grammatically parallel and similar in length/detail
+   - The correct answer must NOT be the only long, detailed, or qualified option
+   - Do NOT use "All of the above" or "None of the above"
+   ✗ BAD:  A. Inferior STEMI with RV involvement   B. Pericarditis   C. Anxiety   D. GERD
+   ✓ GOOD: A. Inferior STEMI with RV involvement   B. Anterior STEMI   C. NSTEMI   D. Type 2 MI
+
+4. NO ANSWER CLUES IN STEM WORDING
+   The stem must not use phrases that implicitly point to one option:
+   ✗ "which finding is pathognomonic for X" (when X is an option)
+   ✗ "the classic triad of Y includes all EXCEPT" (when Y is the answer)
 
 Return EXACTLY {num_q} questions as a JSON array. Schema for each question:
 {{
@@ -1002,10 +1224,8 @@ Return EXACTLY {num_q} questions as a JSON array. Schema for each question:
   "topic":          "<specific topic from HYT list>",
   "bloom_level":    "<2_understand|3_apply|4_analyze|5_evaluate>",
   "is_image_question": <true|false>,
-  "image_ref":      "<'Image N' if image question, else null>",
-  "image_url":      "<url if image question, else null>",
-  "image_source":   "<source if image question, else null>",
-  "image_type":     "<type if image question, else null>"
+  "image_type":         "<modality string if image question — copied from the slot description, else null>",
+  "image_search_terms": ["<3-5 specific search terms if image question, else empty array>"]
 }}
 
 Return ONLY the JSON array. No preamble, no commentary, no markdown."""
@@ -1018,26 +1238,59 @@ def professor_generate_questions(subject_task, confirmed_images, course_name):
     subject = subject_task['subject']
     num_q   = subject_task['num_questions']
 
-    img_url_map = {f'Image {i+1}': item.get('image') for i, item in enumerate(confirmed_images)}
+    # Flat list of confirmed image data in slot order; _enrich assigns positionally
+    img_data_list = [
+        {
+            **(item.get('image') or {}),
+            'image_search_terms': [item['spec'].get('query_hint', ''), _short_image_query(item['spec'].get('image_type', ''))],
+            'image_type':         item['spec'].get('image_type', ''),
+            'image_description':  item['spec'].get('clinical_context', ''),
+            '_debug':             item.get('_debug'),   # generation-time search debug
+        }
+        for item in confirmed_images
+    ]
 
-    def _enrich(qs):
+    def _enrich(qs, batch_img_data):
+        """Attach metadata and assign images positionally to is_image_question=true questions."""
+        img_idx = 0
         for q in qs:
             q['subject'] = subject
             q['course']  = course_name
-            # Normalise field names: professor uses bloom_level, UI expects blooms_level
+            # Normalise correct answer
+            if 'correct_answer' in q and not q.get('correct_option'):
+                q['correct_option'] = q.pop('correct_answer')
+            # Normalise bloom field
             if 'bloom_level' in q and 'blooms_level' not in q:
                 q['blooms_level'] = q.pop('bloom_level')
-            # Extract numeric level for display (e.g. "3_apply" → "3")
             bl = q.get('blooms_level', '')
             q['blooms_level'] = bl[0] if bl and bl[0].isdigit() else bl
-            # Default difficulty if absent
-            if not q.get('difficulty'):
-                q['difficulty'] = 'medium'
-            ref = q.get('image_ref')
-            if ref and ref in img_url_map and img_url_map[ref]:
-                img = img_url_map[ref]
+            # Normalise difficulty to numeric (UI expects 1=Medium, 2=Hard, 3=Very Hard)
+            _diff_map = {'easy': 1, 'medium': 1, 'hard': 2, 'very hard': 3, 'very_hard': 3}
+            d = q.get('difficulty')
+            if not d:
+                q['difficulty'] = 1
+            elif isinstance(d, str):
+                q['difficulty'] = _diff_map.get(d.lower().strip(), 1)
+            # Positional image assignment
+            if q.get('is_image_question') and img_idx < len(batch_img_data):
+                img = batch_img_data[img_idx]
+                img_idx += 1
                 q['image_url']    = img.get('url')
                 q['image_source'] = img.get('source')
+                if not q.get('image_search_terms'):
+                    q['image_search_terms'] = [t for t in img.get('image_search_terms', []) if t]
+                if not q.get('image_type'):
+                    q['image_type'] = img.get('image_type', '')
+                if not q.get('image_description'):
+                    q['image_description'] = img.get('image_description', '')
+                # Store generation-time debug data so the debug button never needs to re-run
+                if img.get('_debug'):
+                    q['_image_debug'] = img['_debug']
+            elif q.get('is_image_question') and not q.get('image_url'):
+                # Image was planned but fetch failed — mark so the UI can warn the user.
+                # Do NOT alter the stem: the question is broken without its image and
+                # should surface as "Needs Revision" in validation.
+                q['image_missing'] = True
         return qs
 
     def _parse(raw):
@@ -1047,7 +1300,7 @@ def professor_generate_questions(subject_task, confirmed_images, course_name):
             raise ValueError('non-list')
         return qs
 
-    def _call_batch(batch_task, batch_imgs):
+    def _call_batch(batch_task, batch_imgs, batch_img_data):
         prompt = _build_professor_prompt(batch_task, course_name, batch_imgs)
         raw    = _or_call(prompt, model=OR_MAIN_MODEL, max_tokens=8000, temperature=0.7)
         qs     = _parse(raw)
@@ -1056,6 +1309,7 @@ def professor_generate_questions(subject_task, confirmed_images, course_name):
             qs2  = _parse(raw2)
             if len(qs2) > len(qs):
                 qs = qs2
+        _enrich(qs, batch_img_data)
         return qs
 
     # Split into batches, distributing image slots and bloom counts proportionally
@@ -1083,24 +1337,23 @@ def professor_generate_questions(subject_task, confirmed_images, course_name):
                 c = round(total_count / remaining_batches)
                 batch_bloom[level] = c
 
-        # Image slots for this batch
-        img_start = b * img_per_batch
-        batch_images = confirmed_images[img_start: img_start + img_per_batch]
-        batch_img_q  = len(batch_images)
+        # Image slots for this batch — both the spec+image pairs (for the prompt) and
+        # the resolved image data (for positional assignment in _enrich)
+        img_start      = b * img_per_batch
+        batch_images   = confirmed_images[img_start: img_start + img_per_batch]
+        batch_img_data = img_data_list[img_start: img_start + img_per_batch]
+        batch_img_q    = len(batch_images)
 
-        # Adjust image ref numbers so they stay consistent with confirmed_images global index
         batch_task = {
             **subject_task,
             'num_questions': batch_size,
             'num_image_qs':  batch_img_q,
             'bloom_counts':  batch_bloom,
             '_batch':        f'{b+1}/{num_batches}',
-            '_img_offset':   img_start,  # so prompt says "Image 7" not "Image 1" in later batches
         }
 
         try:
-            qs = _call_batch(batch_task, batch_images)
-            _enrich(qs)
+            qs = _call_batch(batch_task, batch_images, batch_img_data)
             all_questions.extend(qs)
             # Subtract from bloom_remaining
             for level in bloom_remaining:
@@ -1164,9 +1417,9 @@ def generate_mock_paper():
 
     def _stream():
         try:
-            # Step 1: build tasks
-            yield f"data: {json.dumps({'type':'status','message':'Planning subject tasks…'})}\n\n"
-            tasks    = build_subject_tasks(mock_specs, course_struct, exam_format)
+            # Step 1: build tasks + generate subject profiles
+            yield f"data: {json.dumps({'type':'status','message':'Building subject profiles…'})}\n\n"
+            tasks    = build_subject_tasks(mock_specs, course_struct, exam_format, course_name)
             total_q  = mock_specs.get('total_questions') or sum(t['num_questions'] for t in tasks)
             subjects = [t['subject'] for t in tasks]
             yield f"data: {json.dumps({'type':'tasks_ready','subjects':subjects,'total_questions':total_q,'task_count':len(tasks)})}\n\n"
@@ -1185,7 +1438,7 @@ def generate_mock_paper():
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tasks), 6)) as pool:
                 futures = {pool.submit(_run, t): t for t in tasks}
-                for fut in concurrent.futures.as_completed(futures, timeout=900):
+                for fut in concurrent.futures.as_completed(futures, timeout=3600):
                     task = futures[fut]
                     try:
                         subj, count = fut.result(timeout=15)
@@ -1524,6 +1777,7 @@ VALIDATION CRITERIA (score 0-100):
 
 3. CLINICAL QUALITY (20 points):
    - Is this a real medical image (not a diagram, flowchart, illustration, or labeled schematic)?
+   - **CRITICAL — PHOTOREALISM**: For modalities that must be real photographs or scans (X-ray, CT, MRI, ultrasound, microscopy, histopathology, blood smear, Gram stain, culture plate, ECG, fundoscopy, endoscopy, clinical photograph) — does the image look like a genuine clinical image? Plasticky textures, over-saturated colors, CGI-rendered anatomy, 3D-illustration style, or any "computer-generated" appearance counts as automatic failure for these modalities.
    - Is the image quality sufficient for diagnostic interpretation?
    - **CRITICAL**: Are there NO text labels, annotations, or arrows that reveal the answer or diagnosis?
    - **CRITICAL**: Medical images for exam questions must be UNLABELED - any visible text revealing the diagnosis should result in automatic failure (score 0-30)
@@ -1534,38 +1788,51 @@ VALIDATION CRITERIA (score 0-100):
    - Does it match board examination image standards?
 
 SCORING GUIDE:
-- 90-100: Perfect match - correct modality, diagnostic finding clearly visible, clinical quality, NO text labels
+- 90-100: Perfect match - correct modality, diagnostic finding clearly visible, photorealistic clinical quality, NO text labels
 - 80-89: Very good match - correct type, finding clearly visible, minor quality issues, NO text labels
 - 70-79: Good match - correct type, finding visible but not ideal quality, NO text labels
 - 50-69: Partial match - correct type but finding unclear or poor quality
-- 30-49: Wrong finding or very poor quality
-- 0-29: Wrong modality, diagram/illustration, or **ANY visible text revealing the diagnosis/answer**
+- 30-49: Wrong finding, very poor quality, or mildly schematic appearance
+- 0-29: Wrong modality, diagram/illustration, plasticky/CGI/schematic when realism required, or ANY visible text revealing the diagnosis/answer
 
-**AUTOMATIC DISQUALIFICATION (score 0-30)**: If the image contains ANY text, labels, annotations, or arrows that reveal or hint at the diagnosis/answer. For example:
-- "Mitochondrial inheritance" on a pedigree → score 0-20
-- "Pneumonia" labeled on chest X-ray → score 0-20
-- "STEMI" or diagnosis text on ECG → score 0-20
-- Educational diagrams with labeled pathology → score 0-20
+**AUTOMATIC DISQUALIFICATION (score 0-30)**:
+- Image contains ANY text, labels, annotations, or arrows that reveal or hint at the diagnosis/answer:
+  - "Mitochondrial inheritance" on a pedigree → score 0-20
+  - "Pneumonia" labeled on chest X-ray → score 0-20
+  - "STEMI" or diagnosis text on ECG → score 0-20
+  - Educational diagrams with labeled pathology → score 0-20
+- Image looks plasticky, CGI-rendered, illustrated, or schematic for a modality that requires a real photograph/scan:
+  - Plasticky 3D-rendered "X-ray" instead of a real radiograph → score 0-20
+  - Illustrated microscopy cartoon instead of a real blood smear photo → score 0-20
+  - CGI anatomy render instead of a real CT/MRI slice → score 0-20
+  - Schematic ECG diagram instead of a real tracing printout → score 0-20
 
 Respond with ONLY a JSON object:
-{{"score": <number 0-100>, "reason": "<specific explanation of what you see and why score was given>"}}"""
+{{"score": <number 0-100>, "reason": "<specific explanation of what you see and why score was given — explicitly call out if image is plasticky/schematic/CGI when realism was required>"}}"""
 
-        # Download image to base64
+        # Download image
         img_response = requests.get(image_url, timeout=10)
         if img_response.status_code != 200:
-            return {'score': 0, 'reason': 'Failed to download image'}
+            return {'score': 0, 'reason': f'Failed to download image (HTTP {img_response.status_code})'}
+
+        # Reject non-image responses (HTML error pages, redirects, etc.)
+        raw_ct = img_response.headers.get('content-type', '')
+        content_type = raw_ct.split(';')[0].strip()
+        if not content_type.startswith('image/'):
+            return {'score': 0, 'reason': f'URL returned non-image content ({content_type or "unknown type"}) — skipping'}
+
+        # Reject implausibly small files (< 500 bytes can't be a real image)
+        if len(img_response.content) < 500:
+            return {'score': 0, 'reason': f'Downloaded file too small ({len(img_response.content)} bytes) — not a valid image'}
 
         import base64
         img_base64 = base64.b64encode(img_response.content).decode('utf-8')
-
-        # Determine media type
-        content_type = img_response.headers.get('content-type', 'image/jpeg')
 
         # Call vision model via OpenRouter — short timeout (scoring only, not generation)
         response_text = _or_call(
             None,
             max_tokens=500,
-            timeout=30,
+            timeout=45,
             messages=[{
                 "role": "user",
                 "content": [
@@ -1581,13 +1848,19 @@ Respond with ONLY a JSON object:
             }]
         )
 
+        # Guard against empty / None response from the API
+        if not response_text:
+            return {'score': 0, 'reason': 'Vision model returned empty response — image may be unprocessable'}
+
         # Parse response
         result = json.loads(response_text)
+        if not isinstance(result, dict):
+            return {'score': 0, 'reason': f'Unexpected API response type: {type(result).__name__}'}
         return result
 
     except Exception as e:
         logger.error(f"Validation error: {e}")
-        return {'score': 0, 'reason': str(e)}
+        return {'score': 0, 'reason': str(e)[:200]}
 
 
 _TERM_BLOCKLIST = re.compile(
@@ -1665,6 +1938,8 @@ def collect_candidate_images(image_search_terms, image_type, max_candidates=8):
                     link = item.get('link', '')
                     if not link or link.lower().endswith('.svg'):
                         continue
+                    if not link.startswith(('http://', 'https://')):
+                        continue  # skip x-raw-image:// and other non-http URLs
                     mime = item.get('mime', '')
                     if mime and not mime.startswith('image/'):
                         continue
@@ -1858,6 +2133,10 @@ def build_gemini_prompt(question_data):
 
     kf_line = f"\n\nKEY FINDING — must be unmistakably visible and visually dominant: {key_finding}" if key_finding else ""
 
+    # Appended to imaging/specimen branches only — demands a real photograph, not a schematic
+    realism_note = """
+- PHOTOREALISTIC — must look exactly like a genuine clinical image captured in real life: natural grain, authentic optical artifacts, real tissue colors and textures; do NOT produce a plasticky, CGI-rendered, over-saturated, or illustrated look; a viewer must be unable to distinguish it from an actual photograph or scan"""
+
     # Appended to every branch — universal quality gate
     universal_quality = f"""
 
@@ -1882,7 +2161,7 @@ ACCURACY REQUIREMENTS:
 - Magnification appropriate to the organism/finding (typically 400x–1000x oil immersion)
 - Background field populated realistically (RBCs, WBCs, debris as appropriate)
 - Depth of field, slight optical blur at edges — looks like a real microscope image
-- Colony/cell arrangement (clusters, chains, pairs, singly) exactly as described{universal_quality}"""
+- Colony/cell arrangement (clusters, chains, pairs, singly) exactly as described{realism_note}{universal_quality}"""
 
     if 'histopathology' in image_type.lower() or 'h&e' in image_type.lower() or 'biopsy' in image_type.lower():
         return f"""Create a realistic histopathology microscopy image for a medical board examination question.
@@ -1895,7 +2174,7 @@ ACCURACY REQUIREMENTS:
 - Tissue architecture preserved: glandular, stromal, vascular structures correctly arranged
 - Pathognomonic cellular features prominently represented (e.g., Reed-Sternberg cells, granulomas, dysplasia, necrosis)
 - Magnification appropriate to show both tissue architecture and cellular detail
-- Looks like a real glass slide scanned on a digital pathology system{universal_quality}"""
+- Looks like a real glass slide scanned on a digital pathology system{realism_note}{universal_quality}"""
 
     if 'culture' in image_type.lower() or 'agar' in image_type.lower():
         return f"""Create a realistic photograph of a microbiology culture plate for a medical board examination question.
@@ -1907,7 +2186,7 @@ ACCURACY REQUIREMENTS:
 - Colony morphology exactly as described: size, color, texture, surface characteristics, hemolysis pattern (alpha/beta/gamma on blood agar)
 - Correct agar color for the medium specified (blood agar: dark red; MacConkey: pink; chocolate agar: brown)
 - Realistic colony density and distribution
-- Petri dish edge, lid reflection, and agar surface texture visible for realism{universal_quality}"""
+- Petri dish edge, lid reflection, and agar surface texture visible for realism{realism_note}{universal_quality}"""
 
     if 'ecg' in image_type.lower() or 'ekg' in image_type.lower():
         return f"""Create a realistic 12-lead ECG tracing for a medical board examination question.
@@ -1921,7 +2200,7 @@ ACCURACY REQUIREMENTS:
 - Waveform morphology precisely matching the described abnormality in the correct leads
   (e.g., ST elevation in inferior leads for inferior MI; delta waves in WPW; p-wave absence in AF)
 - Rhythm strip (lead II or V1) at the bottom
-- No diagnosis text — only standard lead labels (I, II, aVR, V1, etc.) are permitted{universal_quality}"""
+- No diagnosis text — only standard lead labels (I, II, aVR, V1, etc.) are permitted{realism_note}{universal_quality}"""
 
     if 'x-ray' in image_type.lower() or 'radiograph' in image_type.lower():
         return f"""Create a realistic medical X-ray radiograph for a medical board examination question.
@@ -1935,7 +2214,7 @@ ACCURACY REQUIREMENTS:
 - The pathologic finding rendered with accurate radiographic density and location
   (e.g., consolidation opacifies lung field; pneumothorax shows sharp pleural line with absent lung markings;
    fracture shows cortical break; air under diaphragm is crescentic lucency)
-- Film grain/noise appropriate to a real diagnostic radiograph{universal_quality}"""
+- Film grain/noise appropriate to a real diagnostic radiograph{realism_note}{universal_quality}"""
 
     if re.search(r'\bct\b', image_type.lower()) or 'computed tomography' in image_type.lower() or 'ct scan' in image_type.lower():
         return f"""Create a realistic CT scan image for a medical board examination question.
@@ -1949,7 +2228,7 @@ ACCURACY REQUIREMENTS:
 - Anatomical structures correctly positioned and shaped for the level of the scan
 - Pathology rendered at correct HU density and location
   (e.g., acute hemorrhage bright white; ischemic stroke dark hypoattenuation; PE: filling defect in pulmonary artery)
-- Scan window/level appearance appropriate to the region (brain window vs. lung window vs. soft tissue window){universal_quality}"""
+- Scan window/level appearance appropriate to the region (brain window vs. lung window vs. soft tissue window){realism_note}{universal_quality}"""
 
     if 'mri' in image_type.lower():
         return f"""Create a realistic MRI scan image for a medical board examination question.
@@ -1965,7 +2244,7 @@ ACCURACY REQUIREMENTS:
 - Black background with correct signal intensities for every tissue type
 - Correct slice plane and anatomical level
 - Pathologic finding renders with the signal characteristics appropriate to the sequence and diagnosis
-- MRI appearance: smooth gradient, no film grain (unlike X-ray){universal_quality}"""
+- MRI appearance: smooth gradient, no film grain (unlike X-ray){realism_note}{universal_quality}"""
 
     if 'ultrasound' in image_type.lower() or 'sonography' in image_type.lower():
         return f"""Create a realistic ultrasound/sonography image for a medical board examination question.
@@ -1980,7 +2259,7 @@ ACCURACY REQUIREMENTS:
   Bone/gas: bright white with posterior shadowing
 - Speckle artifact and slight graininess typical of real ultrasound
 - Anatomical structures correctly positioned in the scan plane
-- Pathologic finding rendered with correct echogenicity and location{universal_quality}"""
+- Pathologic finding rendered with correct echogenicity and location{realism_note}{universal_quality}"""
 
     # Clinical photograph modalities — realistic photo is the RIGHT format
     _photo_keywords = ('dermatology', 'skin', 'rash', 'lesion', 'wound', 'fundoscopy', 'fundus',
@@ -1999,7 +2278,7 @@ ACCURACY REQUIREMENTS:
 - Surrounding context (skin, mucosa, background tissue) anatomically accurate
 - Skin lesions: accurate color, border, surface texture for the described condition
 - Fundoscopy: correct optic disc, vessel, and retinal appearance
-- Endoscopy: correct mucosal color and luminal appearance{universal_quality}"""
+- Endoscopy: correct mucosal color and luminal appearance{realism_note}{universal_quality}"""
 
     # Everything else — use medical illustration style (Netter/Gray's quality)
     # Covers: anatomy, cross-sections, nerve/vessel courses, pedigrees,
@@ -2076,8 +2355,59 @@ def generate_image_with_gemini(question_data):
 
         return None, 'Gemini returned no image parts in response'
     except Exception as e:
-        msg = str(e).split('\n')[0][:200]  # first line only, truncated
+        raw = str(e)
+        if '<html' in raw.lower() or '<!doctype' in raw.lower():
+            msg = 'Gemini API returned an HTML error page (auth/quota issue)'
+        else:
+            msg = raw.split('\n')[0][:200]
         logger.error(f"Generation error: {e}")
+        return None, msg
+
+
+def generate_image_with_openrouter(question_data):
+    """Generate image via direct OpenAI API using OR_IMAGE_MODEL (default: gpt-image-2).
+    Requires OPENAI_API_KEY — OpenRouter does not expose the /v1/images/generations endpoint.
+    Returns (result_dict, error_str). On success error_str is None; on failure result_dict is None."""
+    if not openai_image_client:
+        return None, 'OPENAI_API_KEY not set — direct OpenAI image generation unavailable'
+    if not OR_IMAGE_MODEL:
+        return None, 'OR_IMAGE_MODEL not configured'
+    try:
+        import base64 as _b64
+        image_type = question_data.get('image_type', '')
+        prompt = build_gemini_prompt(question_data)
+
+        logger.info(f"  [openai-img] Generating with {OR_IMAGE_MODEL}: {image_type}")
+        response = openai_image_client.images.generate(
+            model=OR_IMAGE_MODEL,
+            prompt=prompt,
+            n=1,
+            size='1024x1024',
+            response_format='b64_json',
+        )
+        b64_data = (response.data or [{}])[0].b64_json if response.data else None
+        if not b64_data:
+            return None, f'{OR_IMAGE_MODEL} returned empty image data'
+
+        img_bytes = _b64.b64decode(b64_data)
+        if len(img_bytes) < 1000:
+            return None, f'{OR_IMAGE_MODEL} returned near-empty image ({len(img_bytes)} bytes)'
+
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='static') as f:
+            f.write(img_bytes)
+            img_path = f.name
+
+        logger.info(f"  [openai-img] Image saved: {os.path.basename(img_path)}")
+        return {
+            'url':    f"/static/{os.path.basename(img_path)}",
+            'source': f'AI Generated ({OR_IMAGE_MODEL})',
+            'title':  f'Generated: {image_type}',
+        }, None
+
+    except Exception as e:
+        msg = str(e).split('\n')[0][:200]
+        logger.error(f"OpenRouter image generation error: {e}")
         return None, msg
 
 
@@ -2320,7 +2650,7 @@ def _collect_candidates_for_strategy(source_strategy, image_search_terms, image_
         return collect_candidate_images(image_search_terms, image_type, max_candidates=max_candidates)
 
 
-def search_and_validate_image(question_data, subject, return_debug=False, source_strategy=None):
+def search_and_validate_image(question_data, subject, return_debug=False, source_strategy=None, skip_ai_fallback=False):
     """
     STEP 1: Sanitize search terms
     STEP 2: Collect candidates from the planned source (Wikimedia / OpenI / Wikipedia / Google)
@@ -2337,12 +2667,15 @@ def search_and_validate_image(question_data, subject, return_debug=False, source
     if not image_search_terms:
         return (None, []) if return_debug else None
 
-    # For 'generate' strategy: skip search entirely, go straight to Gemini
+    # For 'generate' strategy: skip search entirely, go straight to AI generation
     if effective_strategy == IMAGE_SOURCE_GENERATE:
         if not return_debug:
             cached = get_cached_image(image_search_terms, image_type)
             if cached:
                 return cached
+        # In fix flow (skip_ai_fallback=True) return None so the caller can use OpenRouter instead
+        if skip_ai_fallback:
+            return (None, [], 0, None, None) if return_debug else None
         print(f"\n🎨 Generating image (planned): {image_type}")
         gen_result, gemini_error = generate_image_with_gemini(question_data) if gemini_client else (None, 'Gemini not configured')
         if gen_result:
@@ -2380,7 +2713,7 @@ def search_and_validate_image(question_data, subject, return_debug=False, source
             if google_raw_count else f'{effective_strategy} returned 0 results'
         )
         gemini_error = None
-        if gemini_ok and gemini_client:
+        if not skip_ai_fallback and gemini_client:
             print(f"  → No candidates found ({reason_msg}), generating with Nano Banana Pro...")
             result, gemini_error = generate_image_with_gemini(question_data)
             if result:
@@ -2392,7 +2725,7 @@ def search_and_validate_image(question_data, subject, return_debug=False, source
                                       'selected': True}]
                 return (result, debug_candidates, google_raw_count, google_error, gemini_error) if return_debug else result
         else:
-            print(f"  → No candidates found ({reason_msg}) and Gemini not appropriate — skipping")
+            print(f"  → No candidates found ({reason_msg}) and AI fallback not appropriate — skipping")
         return (None, [], google_raw_count, google_error, gemini_error) if return_debug else None
 
     source_label = candidates[0].get('source', effective_strategy) if candidates else effective_strategy
@@ -2481,21 +2814,9 @@ def search_and_validate_image(question_data, subject, return_debug=False, source
         return result
     else:
         gemini_error = None
-        if not gemini_ok:
-            # Gemini would produce fake-looking results for this image type (e.g. real clinical photos)
-            # Use the best internet image anyway rather than a synthetic one
-            print(f"  → Best score {best_candidate['score']}/100 (below 80) but Gemini not appropriate — using best available")
-            result = {'url': best_candidate['url'], 'source': best_candidate['source'],
-                      'title': best_candidate['title']}
-            cache_image(image_search_terms, image_type, result)
-            result = _add_markers(result, question_data)
-            for c in scored_candidates_sorted:
-                c['selected'] = (c['url'] == best_candidate['url'])
-            if return_debug:
-                return result, scored_candidates_sorted, google_raw_count, google_error, None
-            return result
-        print(f"  → Best score only {best_candidate['score']}/100, generating with Nano Banana Pro...")
-        if gemini_client:
+        ai_label = OR_IMAGE_MODEL if skip_ai_fallback else 'Nano Banana Pro'
+        print(f"  → Best score only {best_candidate['score']}/100, generating with {ai_label}...")
+        if not skip_ai_fallback and gemini_client:
             gen_result, gemini_error = generate_image_with_gemini(question_data)
             if gen_result:
                 gen_result = _add_markers(gen_result, question_data)
@@ -3117,7 +3438,8 @@ For the {img_count} IMAGE-BASED questions, add these fields:
 - "key_finding": Single sentence — the specific visual finding the student must identify
 
 For image-based question stems:
-• Name the modality explicitly: "A chest X-ray is shown", "The ECG tracing above", "This H&E slide"
+• Reference the image as "(Image N)" or "shown in Image N" — NEVER add a qualifier after the number such as "— schematic diagram", "— photograph", "— illustration", or any other descriptor
+• Name the modality in natural prose: "A peripheral blood smear is shown (Image 1)", "The ECG tracing (Image 1) demonstrates…", "This H&E slide (Image 1) is from…"
 • Do NOT describe the finding in the stem — the finding must be read FROM the image
 • The stem should present clinical context; the IMAGE provides the diagnostic finding"""
         else:
@@ -3148,7 +3470,8 @@ For the {img_count} IMAGE-BASED questions, add these fields:
 - "key_finding": Single sentence — the specific visual finding the student must identify to answer correctly
 
 For image-based question stems:
-• Name the modality explicitly: "A chest X-ray is shown", "The ECG tracing above", "This H&E slide"
+• Reference the image as "(Image N)" or "shown in Image N" — NEVER add a qualifier after the number such as "— schematic diagram", "— photograph", "— illustration", or any other descriptor
+• Name the modality in natural prose: "A peripheral blood smear is shown (Image 1)", "The ECG tracing (Image 1) demonstrates…", "This H&E slide (Image 1) is from…"
 • Do NOT describe the finding in the stem — the finding must be read FROM the image
 • The stem should present the clinical context; the IMAGE provides the diagnostic finding
 • Do NOT say "based on the image shown" generically — specify the modality"""
@@ -5469,58 +5792,54 @@ Return a JSON ARRAY — one object per section:
 Output ONLY the JSON array. No preamble, no trailing text."""
 
     elif content_type == 'qbank':
-        return f"""You are a senior {domain} exam item validator. Your job is to catch genuine errors — not to rewrite questions that are already correct.
+        return f"""You are a senior {domain} exam item validator.
+
+YOUR ROLE — accuracy and relevance: Is everything in this question factually correct? Is the content relevant to what the question is testing?
+You are NOT here to improve, expand, or polish. Only flag what is wrong or irrelevant.
 
 You will receive multiple questions numbered Q1, Q2, etc.
 
-For EACH question verify:
-1. The marked correct answer is truly correct — if it is, do NOT flag it
-2. All distractors are clearly wrong — minor technicalities that do not affect the answer are NOT issues
-3. The explanation correctly justifies the answer
-4. The vignette gives enough information to reach the answer
-5. No factual inaccuracies in the clinical content
-6. IMAGE VALIDATION:
-   a. If no image is attached but the question says "based on the image shown" → flag as missing image.
-   b. If an image IS attached, the STEM is the source of truth. Assess whether the image matches what the stem describes:
-      - If the image does not match the stem (wrong modality, wrong anatomy, wrong pathology, or irrelevant)
-        → recommend REPLACING THE IMAGE to match the stem. Never recommend changing the stem to match the image.
-      - Only flag as clean if the image clearly and directly illustrates the clinical scenario in the stem.
+For EACH question ask only:
+1. Is the marked correct answer factually correct? If yes, score it high and move on.
+2. Are the distractors factually wrong? Minor edge cases that don't change the answer are NOT issues.
+3. Is the explanation factually accurate and does it correctly justify the answer?
+4. Does the vignette contain the minimum data needed to reach the correct answer?
+5. Is the clinical content free of factual inaccuracies?
+6. IMAGE — relevance only:
+   a. Image absent but the stem explicitly references it (e.g. "shown below", "image 1", "radiograph shown") → score ≤ 4 and set needs_revision true. The question is UNUSABLE without its image regardless of how good the text is.
+   b. Image present but wrong modality or clearly irrelevant → flag and suggest replacement.
+   c. Image that is imperfect but clinically appropriate → do NOT flag.
 
-needs_revision = true for: wrong answer, factual error, missing required image, or image that does not
-match the stem.
+Scoring (10 = nothing to fix, 1 = unacceptable):
+• 9–10 → factually correct and relevant — do not change
+• 7–8 → minor imprecision, correct answer not in doubt
+• 5–6 → genuine factual or relevance issue worth fixing
+• 1–4  → wrong answer, dangerous error, broken question, OR image explicitly referenced but absent
 
-Scoring:
-• 9–10 → correct, unambiguous, well-written
-• 7–8 → minor fix needed (e.g. stem modality label), correct answer not in doubt
-• 5–6 → genuine ambiguity or factual imprecision
-• ≤4  → wrong answer or dangerous inaccuracy
-
-Each issue must be ONE specific sentence stating exactly what is wrong AND the preferred fix.
+Each issue must be ONE specific sentence: what is wrong AND the preferred fix. No vague commentary.
+If nothing is wrong, leave all issue arrays empty and score 9–10.
 
 Return a JSON ARRAY — one object per question:
 [
   {{
     "question_number": 1,
     "question_preview": "<first 80 chars of stem>",
-    "overall_accuracy_score": <0-10>,
+    "overall_accuracy_score": <1-10>,
     "correct_answer_verified": <boolean>,
-    "needs_revision": <boolean>,
+    "needs_revision": <boolean — true if score ≤ 5 OR if image is explicitly referenced but absent>,
     "factual_errors": [<confirmed wrong clinical facts only — empty if none>],
     "distractor_issues": [<only if a distractor is genuinely defensible as correct — empty if none>],
     "vignette_issues": [<only if key data is missing to reach the answer — empty if none>],
     "explanation_issues": [<only if explanation contradicts or fails to justify the answer — empty if none>],
-    "asset_issues": [<image mismatch — e.g. "Image is an MRI but stem describes CT findings — replace image with CT" OR "Image shows wrong anatomy — replace image" — empty if none>],
-    "missing_images": [<image absent but required — empty if none>],
+    "asset_issues": [<image mismatch — replace image only — empty if none>],
+    "missing_images": [<image absent but explicitly required — empty if none>],
     "recommendations": [<empty if none>],
-    "changes_required": [<NUMBERED list of ALL concrete changes needed to bring score above 8.
-      Each entry is a complete, self-contained instruction a fixer can execute directly.
-      The STEM is the source of truth — when image and stem conflict, always replace the image.
+    "changes_required": [<NUMBERED list of concrete changes needed. Empty if score > 7.
+      Each entry is a complete, self-contained instruction.
       Examples:
-        "1. Replace attached image with a CT abdomen showing appendiceal wall thickening — stem describes a CT finding",
-        "2. Fix correct answer from B (metoprolol) to A (adenosine) — adenosine is first-line for SVT",
-        "3. Replace explanation sentence 'Metoprolol terminates SVT' with 'Adenosine terminates SVT by blocking AV node'",
-        "4. Replace attached image with: ECG strip showing delta waves and short PR interval consistent with WPW syndrome"
-      Empty array if score already > 8 and no changes needed.>],
+        "1. Replace attached image with a CT abdomen showing appendiceal wall thickening",
+        "2. Fix correct answer from B to A — adenosine is first-line for SVT not metoprolol"
+      Empty array if no real changes needed.>],
     "summary": "<1 sentence: what is wrong, or 'No issues found' if clean>"
   }},
   ...
@@ -5553,12 +5872,12 @@ For EACH section, report ONLY genuine defects:
 Do NOT flag: brevity, style choices, tangential omissions, or content that is accurate but could theoretically be more detailed.
 Do NOT manufacture ambiguity where the content is clear and correct.
 
-Scoring (relative to format):
-0–2 = no real defects for this format
-3–4 = minor inaccuracy, no safety risk
-5–6 = notable inaccuracy or potentially misleading
-7–8 = significant error or dangerous gap
-9–10 = seriously misleading or unsafe
+Scoring (10 = no defects at all, 1 = seriously misleading or unsafe):
+• 9–10 → no real defects for this format
+• 7–8 → very minor inaccuracy, no safety risk
+• 5–6 → notable inaccuracy or potentially misleading
+• 1–4  → significant error, dangerous gap, or unsafe content
+If no genuine defects exist, score 9–10 and leave all issue arrays empty.
 
 Each item in any list must be ONE specific sentence. No vague filler.
 
@@ -5585,54 +5904,51 @@ Return a JSON ARRAY — one object per section:
 Output ONLY the JSON array. No preamble, no trailing text."""
 
     elif content_type == 'qbank':
-        return f"""You are an adversarial {domain} exam item reviewer. Find real defects — not hypothetical edge cases or stylistic preferences.
+        return f"""You are an adversarial {domain} exam item reviewer.
+
+YOUR ROLE — missing or misleading content: Does this question have anything absent or misleading that would cause confusion, reinforce a wrong mental model, or reduce its educational value?
+You are NOT a fact-checker (the validator handles accuracy). Your lens is: could a student come away from this question more confused or with a worse understanding than before?
 
 You will receive multiple questions numbered Q1, Q2, etc.
 
-For EACH question, test for GENUINE defects only:
-1. A clearly defensible alternative correct answer (not just tangentially related)
-2. Vignette data that is factually inconsistent with the stated diagnosis
-3. A distractor that is actually correct or equally correct as the stated answer
-4. Explanation that contradicts or fails to justify the stated correct answer
-5. A triviality clue that gives away the answer without clinical reasoning
-6. IMAGE ISSUES:
-   - If question says "based on the image" but no image is attached → flag as missing image.
-   - If an image IS attached, the STEM is the source of truth:
-     • If the image does not match what the stem describes (wrong modality, wrong anatomy, wrong pathology)
-       → flag and recommend REPLACING THE IMAGE to match the stem.
-     • Never recommend changing the stem to match the image.
+Flag only if one of these is true:
+1. Something critical is missing from the vignette or explanation such that a student can't build the right clinical reasoning — not just "could be more complete"
+2. The question is misleading in a way that would teach a wrong mental model (e.g., explanation implies a false rule, distractor wording implies wrong pathophysiology)
+3. An alternative answer is so defensible that a well-prepared student would reasonably choose it — not a far-fetched edge case
+4. A triviality clue bypasses clinical reasoning entirely, making the question educationally worthless
+5. IMAGE: actively misleading (wrong pathology/anatomy shown) OR absent when the stem explicitly references it — a question that says "shown below" or "Image 1" with no image present is educationally broken and scores ≤ 4
 
-Do NOT flag: questions where the answer is clear and correct, minor phrasing imperfections that don't
-affect meaning, or image improvements that are nice-to-have rather than necessary.
-If the answer is unambiguous and correct, report no alternative answers and give a low score.
+Do NOT flag:
+• Omissions that don't affect clinical reasoning for this question
+• Style, phrasing, or formatting preferences
+• Content a student could reasonably infer
+• Wanting the question to cover more ground than it needs to
 
-Scoring:
-0 = airtight
-2–3 = minor image mismatch (image close but not exact), question otherwise sound
-5–6 = genuine ambiguity or factual issue
-7–10 = wrong answer or clearly broken question
+Scoring (10 = high educational value, no confusion risk; 1 = misleading or educationally harmful):
+• 9–10 → clear, sound, good learning value — no changes needed
+• 7–8 → trivial gap or very minor risk of confusion
+• 5–6 → genuine concern — something missing or misleading that affects learning
+• 1–4  → seriously misleading, reinforces wrong reasoning, educationally counterproductive, OR image explicitly referenced in stem but absent
 
-Each item must be ONE specific sentence stating the problem AND the preferred fix path. No vague commentary.
+If nothing meets the bar above, score 9–10, leave all arrays empty, and say "No significant defects found."
+
+Each issue must be ONE specific sentence: what is missing/misleading AND what would fix it.
 
 Return a JSON ARRAY — one object per question:
 [
   {{
     "question_number": 1,
-    "adversarial_score": <0-10>,
+    "adversarial_score": <1-10>,
     "breakability_rating": "<airtight|minor flaws|moderate flaws|easily broken>",
     "alternative_answers": [<only if genuinely defensible — empty if answer is clear>],
-    "ambiguities": [<genuine confusion points only — empty if none>],
+    "ambiguities": [<genuine confusion that would lead most candidates astray — empty if none>],
     "distractor_defenses": [<only if a distractor is actually defensible as correct — empty if none>],
-    "explanation_contradictions": [<only if explanation fails to justify the answer — empty if none>],
+    "explanation_contradictions": [<only if explanation logically fails to justify the answer — empty if none>],
     "triviality_clues": [<only if answer is obvious without clinical reasoning — empty if none>],
-    "asset_issues": [<mismatch — e.g. "Stem describes CT findings but image is MRI — replace image with CT" OR "Image unrelated to clinical scenario — replace image" — empty if none>],
-    "missing_images": [<image absent but the question explicitly requires one — empty if none>],
+    "asset_issues": [<clear mismatch only — empty if image is appropriate even if imperfect>],
+    "missing_images": [<image explicitly required but absent — empty if none>],
     "recommendations": [<empty if none>],
-    "changes_required": [<NUMBERED list of additional changes the validator may have missed.
-      Only include issues NOT already captured by the validator — no duplicates.
-      Each entry is a complete, self-contained fixer instruction.
-      Example: "1. Remove triviality clue: 'a common cause' in option A telegraphs the answer without reasoning"
-      Empty array if no additional issues found.>],
+    "changes_required": [<NUMBERED list of changes NOT already captured by the validator. Empty if none.>],
     "summary": "<1 sentence: what is genuinely wrong, or 'No significant defects found'>"
   }},
   ...
@@ -5735,6 +6051,40 @@ _IMAGE_REF_RE = re.compile(
     r'|(?:chest|abdominal|pelvic|brain|head)\s+(?:x-?ray|ct|mri)\s+shown',
     re.IGNORECASE
 )
+
+
+def _make_parse_miss(index):
+    """Return a result for a question whose batch slot came back empty (model returned fewer items than sent)."""
+    return {
+        "index": index,
+        "parse_miss": True,
+        "validator": {
+            "question_number": index,
+            "overall_accuracy_score": None,
+            "correct_answer_verified": None,
+            "needs_revision": False,
+            "factual_errors": [], "distractor_issues": [], "vignette_issues": [],
+            "explanation_issues": [], "recommendations": [],
+            "summary": "Could not validate — model did not return a result for this question."
+        },
+        "adversarial": {
+            "question_number": index,
+            "adversarial_score": None,
+            "breakability_rating": "N/A",
+            "alternative_answers": [], "ambiguities": [], "distractor_defenses": [],
+            "explanation_contradictions": [], "triviality_clues": [],
+            "recommendations": [],
+            "summary": "Could not validate — model did not return a result for this question."
+        },
+        "overall_assessment": {
+            "status": "⚠️ Not Validated",
+            "quality_score": None,
+            "validator_score": None,
+            "adversarial_score": None,
+            "needs_revision": False,
+            "recommendation": "Validation model did not return a result for this question. Re-run validation."
+        }
+    }
 
 
 def _make_structural_failure(index, question_text, reason):
@@ -5908,15 +6258,16 @@ Tags: {', '.join(q_obj.get('tags', []))}
     a_result = a_arr[0] if a_arr else {}
 
     # Inline _enforce_needs_revision logic (same as in validate_content)
+    _v_score = v_result.get('overall_accuracy_score', 10)
     hard_failure = (
         bool(v_result.get('factual_errors')) or
         v_result.get('correct_answer_verified') is False or
         bool(v_result.get('asset_issues')) or
         bool(v_result.get('missing_images')) or
-        bool(a_result.get('asset_issues')) or
+        (bool(a_result.get('asset_issues')) and _v_score < 8) or
         bool(a_result.get('alternative_answers')) or
         bool(a_result.get('explanation_contradictions')) or
-        v_result.get('overall_accuracy_score', 10) <= 4
+        _v_score <= 4
     )
     if hard_failure:
         v_result['needs_revision'] = True
@@ -6152,14 +6503,33 @@ Return ONLY valid JSON. No preamble, no markdown fences."""
                     q_obj.pop('image_source', None)
                     q_obj.pop('image_title', None)
                     logger.info(f"  [fix] Fetching image for Q{idx}: {q_obj.get('image_description','')}")
-                    img_result, img_candidates, img_raw, img_err, img_gemini_err = search_and_validate_image(q_obj, search_subject, return_debug=True)
+                    # skip_ai_fallback=True so Gemini is bypassed; OpenRouter is tried explicitly below
+                    img_result, img_candidates, img_raw, img_err, img_gemini_err = search_and_validate_image(
+                        q_obj, search_subject, return_debug=True, skip_ai_fallback=bool(openai_image_client))
+
+                    # If search/validation couldn't find a good image, try OpenRouter image generation
+                    or_img_err = None
+                    if not img_result and OR_IMAGE_MODEL:
+                        logger.info(f"  [fix] Search returned nothing — trying {OR_IMAGE_MODEL} for Q{idx}")
+                        img_result, or_img_err = generate_image_with_openrouter(q_obj)
+                        if img_result:
+                            best_score = max((c.get('score', 0) for c in (img_candidates or [])), default=0)
+                            img_candidates = (img_candidates or []) + [{
+                                'url':      img_result.get('url', ''),
+                                'source':   img_result.get('source', ''),
+                                'title':    'AI-generated image',
+                                'score':    100,
+                                'reason':   f'Best search result scored {best_score}/100 (threshold: 80). Generated by {OR_IMAGE_MODEL} instead.',
+                                'selected': True,
+                            }]
+
                     if img_result:
                         q_obj['image_url']    = img_result['url']
                         q_obj['image_source'] = img_result.get('source', '')
                         q_obj['image_title']  = img_result.get('title', '')
-                        logger.info(f"  [fix] Image found for Q{idx}")
+                        logger.info(f"  [fix] Image found for Q{idx} via {img_result.get('source','')}")
                     else:
-                        logger.warning(f"  [fix] No image found for Q{idx}")
+                        logger.warning(f"  [fix] No image found for Q{idx} (search err={img_err}, or_img_err={or_img_err})")
                     sanitized_terms = _sanitize_search_terms(q_obj.get('image_search_terms', []))
                     image_debug = {
                         'used_query': sanitized_terms[0] if sanitized_terms else '',
@@ -6168,7 +6538,8 @@ Return ONLY valid JSON. No preamble, no markdown fences."""
                         'candidates': img_candidates,
                         'google_raw_count': img_raw,
                         'google_error': img_err,
-                        'gemini_error': img_gemini_err,
+                        'gemini_error': (f'OpenAI ({OR_IMAGE_MODEL}): {or_img_err}' if or_img_err
+                                        else (f'Gemini: {img_gemini_err}' if img_gemini_err else None)),
                         'selected_url': img_result['url'] if img_result else None,
                         'threshold': 80,
                         'gemini_prompt': build_gemini_prompt(q_obj),
@@ -6207,15 +6578,48 @@ def image_search_debug():
         question_data = data.get('question_data', {})
         subject = data.get('subject', '')
 
+        # If generation stored debug data, return it directly — no re-run needed
+        stored = question_data.get('_image_debug')
+        if stored:
+            image_type = question_data.get('image_type', '')
+            gemini_prompt_text = build_gemini_prompt(question_data) if question_data else ''
+            return jsonify({
+                'used_query':       (stored.get('search_terms') or [''])[0],
+                'search_terms':     stored.get('search_terms', []),
+                'source_strategy':  stored.get('source_strategy', ''),
+                'image_type':       stored.get('image_type', image_type),
+                'google_raw_count': stored.get('google_raw_count'),
+                'google_error':     stored.get('google_error'),
+                'gemini_error':     stored.get('gemini_error'),
+                'candidates':       stored.get('candidates', []),
+                'selected_url':     stored.get('selected_url'),
+                'threshold':        80,
+                'gemini_prompt':    gemini_prompt_text,
+            })
+
         image_search_terms = question_data.get('image_search_terms', [])
         image_type = question_data.get('image_type', '')
 
         if not image_search_terms:
-            return jsonify({
-                'search_terms': [], 'image_type': image_type,
-                'candidates': [], 'selected_url': None, 'threshold': 80,
-                'message': 'No image_search_terms on this question'
-            })
+            # Reconstruct fallback terms from whatever is available on the question
+            parts = []
+            if image_type:
+                parts.append(image_type)
+            desc = question_data.get('image_description', '')
+            if desc:
+                parts.append(desc[:60])
+            if subject:
+                parts.append(subject)
+            if parts:
+                image_search_terms = parts
+                question_data = {**question_data, 'image_search_terms': image_search_terms}
+                logger.info(f"image_search_debug: reconstructed terms from metadata: {image_search_terms}")
+            else:
+                return jsonify({
+                    'search_terms': [], 'image_type': image_type,
+                    'candidates': [], 'selected_url': None, 'threshold': 80,
+                    'message': 'No image_search_terms on this question and no metadata to reconstruct from'
+                })
 
         result, candidates, google_raw_count, google_error, gemini_error = search_and_validate_image(question_data, subject, return_debug=True)
 
@@ -6258,6 +6662,17 @@ def validate_content():
         if not items:
             return jsonify({'error': 'No items provided'}), 400
 
+        # Normalise field names for questions generated by the professor pipeline
+        if content_type == 'qbank':
+            for q in items:
+                if 'correct_answer' in q and not q.get('correct_option'):
+                    q['correct_option'] = q.pop('correct_answer')
+                if 'bloom_level' in q and not q.get('blooms_level'):
+                    q['blooms_level'] = q.pop('bloom_level')
+                bl = q.get('blooms_level', '')
+                if bl and bl[0].isdigit() and len(bl) > 1:
+                    q['blooms_level'] = bl[0]
+
         logger.info(f"🔍 Council of Models batch validation: {len(items)} {content_type}(s)")
         logger.info(f"   Domain: {domain}, Course: {course}")
 
@@ -6270,11 +6685,19 @@ def validate_content():
         if content_type == 'qbank':
             valid_indices = []
             for i, q in enumerate(items):
-                question_text = q.get('question', '')
+                question_text = q.get('question', '').strip()
                 image_url = q.get('image_url', '')
                 needs_image = bool(image_url) or bool(_IMAGE_REF_RE.search(question_text))
 
-                if needs_image and image_url and not _image_available(image_url):
+                if not question_text:
+                    reason = "Question text is empty — cannot validate"
+                    pre_scored[i] = _make_structural_failure(i + 1, '', reason)
+                    logger.info(f"   ⚠️  Q{i+1}: structural failure — {reason}")
+                elif not q.get('correct_option') and not q.get('correct_answer'):
+                    reason = "No correct answer specified — cannot validate"
+                    pre_scored[i] = _make_structural_failure(i + 1, question_text, reason)
+                    logger.info(f"   ⚠️  Q{i+1}: structural failure — {reason}")
+                elif needs_image and image_url and not _image_available(image_url):
                     reason = "Image file referenced in question is missing or unavailable"
                     pre_scored[i] = _make_structural_failure(i + 1, question_text, reason)
                     logger.info(f"   ⚠️  Q{i+1}: structural failure — {reason}")
@@ -6401,8 +6824,12 @@ Tags: {', '.join(q.get('tags', []))}
 
         # Lessons: batch 4 — enough context for the model to calibrate scores across sections,
         # still fast because all batches run in parallel.
-        # QBank: batch 10 — small items, plenty of context.
-        BATCH_SIZE = 4 if content_type == 'lesson' else 10
+        # Lesson: 4 sections/batch. QBank: 1 question/call — guarantees exactly 1 result per call,
+        # eliminating all "model returned fewer items" batch-alignment bugs.
+        BATCH_SIZE = 4 if content_type == 'lesson' else 1
+
+        validator_results   = []
+        adversarial_results = []
 
         if valid_items:
             # Helper to build user message content (string or list)
@@ -6458,103 +6885,109 @@ Tags: {', '.join(q.get('tags', []))}
             adversarial_prompt = get_batch_adversarial_prompt(content_type, domain)
 
             # Pre-compute all batch specs
+            # Re-number questions Q1..N within each batch so the model always uses
+            # 1-based question_number regardless of global position.
             batch_specs = []
             for b_start in range(0, len(valid_items), BATCH_SIZE):
                 b_end = min(b_start + BATCH_SIZE, len(valid_items))
                 batch_count = b_end - b_start
                 first_block = section_block_ranges[b_start][0]
                 last_block  = section_block_ranges[b_end - 1][1]
-                batch_payload = content_payload[first_block:last_block]
-                batch_specs.append((b_start, b_end, batch_count, batch_payload))
+                raw_payload = content_payload[first_block:last_block]
+                # Re-number text blocks: replace "--- Q{global} ---" with "--- Q{local} ---"
+                renumbered = []
+                local_q = 0
+                for block in raw_payload:
+                    if block.get('type') == 'text' and block['text'].lstrip().startswith('--- Q'):
+                        local_q += 1
+                        renumbered.append({**block, 'text': block['text'].replace(
+                            f'--- Q{b_start + local_q} ---', f'--- Q{local_q} ---', 1)})
+                    else:
+                        renumbered.append(block)
+                batch_specs.append((b_start, b_end, batch_count, renumbered))
 
             num_batches = len(batch_specs)
-            logger.info(f"   🚀 Running {num_batches} validator + {num_batches} adversarial batches in parallel "
-                        f"({len(valid_items)} item(s), batch size {BATCH_SIZE})...")
+            MAX_CONCURRENT = 8 if content_type == 'qbank' else 3
+            logger.info(f"   🔍 Phase 1 — Validator: {len(valid_items)} item(s), {num_batches} call(s), {MAX_CONCURRENT} concurrent...")
 
             from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            # Slot results by position so order is preserved regardless of completion order
             v_slots = [None] * len(valid_items)
             a_slots = [None] * len(valid_items)
 
-            def _run_validator_batch(b_start, b_end, batch_count, payload):
+            def _run_one_validator_batch(b_start, b_end, batch_count, payload):
                 batch_num = b_start // BATCH_SIZE + 1
-                logger.info(f"      [V{batch_num}] Validator (OpenAI GPT-4o) sections {b_start+1}–{b_end}...")
+                logger.info(f"      [V{batch_num}] items {b_start+1}–{b_end}...")
                 text = _call_validator(validator_prompt, payload, 0.3)
                 results = _extract_json_array(text, batch_count)[:batch_count]
-                logger.info(f"      [V{batch_num}] → Parsed {len(results)}/{batch_count}")
-                return 'validator', b_start, b_end, results
+                if len(results) < batch_count:
+                    logger.warning(f"      [V{batch_num}] short ({len(results)}/{batch_count}), retrying...")
+                    text2 = _call_validator(validator_prompt, payload, 0.1)
+                    results2 = _extract_json_array(text2, batch_count)[:batch_count]
+                    if len(results2) > len(results):
+                        results = results2
+                logger.info(f"      [V{batch_num}] → {len(results)}/{batch_count}")
+                return b_start, b_end, results
 
-            def _run_adversarial_batch(b_start, b_end, batch_count, payload):
+            def _run_one_adversarial_batch(b_start, b_end, batch_count, payload):
                 batch_num = b_start // BATCH_SIZE + 1
-                logger.info(f"      [A{batch_num}] Adversarial (Gemini 2.0 Flash) sections {b_start+1}–{b_end}...")
+                logger.info(f"      [A{batch_num}] items {b_start+1}–{b_end}...")
                 text = _call_adversarial(adversarial_prompt, payload, 0.5)
                 results = _extract_json_array(text, batch_count)[:batch_count]
-                logger.info(f"      [A{batch_num}] → Parsed {len(results)}/{batch_count}")
-                return 'adversarial', b_start, b_end, results
+                if len(results) < batch_count:
+                    logger.warning(f"      [A{batch_num}] short ({len(results)}/{batch_count}), retrying...")
+                    text2 = _call_adversarial(adversarial_prompt, payload, 0.3)
+                    results2 = _extract_json_array(text2, batch_count)[:batch_count]
+                    if len(results2) > len(results):
+                        results = results2
+                logger.info(f"      [A{batch_num}] → {len(results)}/{batch_count}")
+                return b_start, b_end, results
 
-            with ThreadPoolExecutor(max_workers=num_batches * 2) as executor:
-                futures = []
-                for b_start, b_end, batch_count, payload in batch_specs:
-                    futures.append(executor.submit(_run_validator_batch,   b_start, b_end, batch_count, payload))
-                    futures.append(executor.submit(_run_adversarial_batch, b_start, b_end, batch_count, payload))
+            def _fill_slots(slots, b_start, batch_count, results):
+                """Fill result slots using question_number/section_number from response (1-based within batch)."""
+                for j, r in enumerate(results):
+                    if not isinstance(r, dict):
+                        continue
+                    q_num = r.get('question_number') or r.get('section_number')
+                    if isinstance(q_num, int) and 1 <= q_num <= batch_count:
+                        slot = b_start + q_num - 1
+                    else:
+                        slot = b_start + j  # fallback: positional
+                    if 0 <= slot < len(slots):
+                        slots[slot] = r
 
+            # Phase 1: all validator batches (max MAX_CONCURRENT concurrent)
+            with ThreadPoolExecutor(max_workers=min(num_batches, MAX_CONCURRENT)) as executor:
+                futures = [executor.submit(_run_one_validator_batch, *spec) for spec in batch_specs]
                 for future in as_completed(futures):
                     try:
-                        role, b_start, b_end, results = future.result()
-                        slots = v_slots if role == 'validator' else a_slots
-                        for j, r in enumerate(results):
-                            if b_start + j < len(slots):
-                                slots[b_start + j] = r if isinstance(r, dict) else {}
+                        b_start, b_end, results = future.result()
+                        _fill_slots(v_slots, b_start, b_end - b_start, results)
                     except Exception as e:
-                        logger.error(f"Batch future error: {e}")
+                        logger.error(f"Validator batch error: {e}")
 
-            validator_results  = [r or {} for r in v_slots]
-            adversarial_results = [r or {} for r in a_slots]
-            logger.info(f"   ✓ All batches done: {len(validator_results)} validator, {len(adversarial_results)} adversarial")
+            logger.info(f"   ✓ Validator complete — {sum(1 for r in v_slots if r is not None)}/{len(v_slots)} results")
+            logger.info(f"   ⚔️  Phase 2 — Adversarial: {num_batches} batch(es)...")
+
+            # Phase 2: all adversarial batches (max 3 concurrent)
+            with ThreadPoolExecutor(max_workers=min(num_batches, MAX_CONCURRENT)) as executor:
+                futures = [executor.submit(_run_one_adversarial_batch, *spec) for spec in batch_specs]
+                for future in as_completed(futures):
+                    try:
+                        b_start, b_end, results = future.result()
+                        _fill_slots(a_slots, b_start, b_end - b_start, results)
+                    except Exception as e:
+                        logger.error(f"Adversarial batch error: {e}")
+
+            validator_results   = v_slots
+            adversarial_results = a_slots
+            logger.info(f"   ✓ Adversarial complete — {sum(1 for r in a_slots if r is not None)}/{len(a_slots)} results")
 
         def _enforce_needs_revision(v, a, ctype):
-            """
-            Server-side gate: needs_revision may only be true when there are confirmed hard failures.
-            This prevents model over-flagging from propagating into the overall assessment.
-            """
-            if ctype == 'qbank':
-                # Hard failures for QBank:
-                #   - wrong answer
-                #   - confirmed factual error
-                #   - wrong/missing image (asset_issues or missing_images are hard failures for image-based Qs)
-                #   - adversarial found a genuinely defensible alternative answer
-                #   - explanation contradicts the answer
-                #   - score so low it's broken
-                hard_failure = (
-                    bool(v.get('factual_errors')) or
-                    v.get('correct_answer_verified') is False or
-                    bool(v.get('asset_issues')) or           # wrong image modality / mismatched image
-                    bool(v.get('missing_images')) or         # image required but absent
-                    bool(a.get('asset_issues')) or           # adversarial also flagged image issue
-                    bool(a.get('alternative_answers')) or    # genuinely defensible alt answer
-                    bool(a.get('explanation_contradictions')) or
-                    v.get('overall_accuracy_score', 10) <= 4
-                )
-                if not hard_failure:
-                    v['needs_revision'] = False
-                    a.pop('needs_revision', None)
-                else:
-                    v['needs_revision'] = True
-            elif ctype == 'lesson':
-                # Hard failures for lessons: confirmed factual error, safety concern, or very low score
-                hard_failure = (
-                    bool(v.get('factual_errors')) or
-                    bool(v.get('safety_concerns')) or
-                    bool(v.get('missing_critical_info')) or
-                    bool(v.get('asset_issues')) or           # wrong image in lesson
-                    v.get('overall_accuracy_score', 10) <= 4
-                )
-                if not hard_failure:
-                    v['needs_revision'] = False
-                    a.pop('needs_revision', None)
-                else:
-                    v['needs_revision'] = True
+            # needs_revision is now driven purely by combined score in generate_overall_assessment.
+            # Clear any model-set boolean flags so they don't interfere.
+            v.pop('needs_revision', None)
+            a.pop('needs_revision', None)
             return v, a
 
         # ---- Merge results back in original order ----
@@ -6564,20 +6997,22 @@ Tags: {', '.join(q.get('tags', []))}
             if i in pre_scored:
                 merged_items.append(pre_scored[i])
             else:
-                v = validator_results[valid_pos] if valid_pos < len(validator_results) else {}
-                a = adversarial_results[valid_pos] if valid_pos < len(adversarial_results) else {}
-                # Guard: ensure v and a are dicts (model may occasionally return strings)
-                if not isinstance(v, dict): v = {}
-                if not isinstance(a, dict): a = {}
-                # Enforce conservative needs_revision before computing overall assessment
-                v, a = _enforce_needs_revision(v, a, content_type)
-                assessment = generate_overall_assessment(v, a, content_type)
-                merged_items.append({
-                    "index": i + 1,
-                    "validator": v,
-                    "adversarial": a,
-                    "overall_assessment": assessment
-                })
+                v = validator_results[valid_pos] if valid_pos < len(validator_results) else None
+                a = adversarial_results[valid_pos] if valid_pos < len(adversarial_results) else None
+                # If the batch slot came back empty, record as parse miss (not "Needs Revision")
+                if not v and not a:
+                    merged_items.append(_make_parse_miss(i + 1))
+                else:
+                    if not isinstance(v, dict): v = {}
+                    if not isinstance(a, dict): a = {}
+                    v, a = _enforce_needs_revision(v, a, content_type)
+                    assessment = generate_overall_assessment(v, a, content_type)
+                    merged_items.append({
+                        "index": i + 1,
+                        "validator": v,
+                        "adversarial": a,
+                        "overall_assessment": assessment
+                    })
                 valid_pos += 1
 
         # ---- Summary ----
@@ -6586,7 +7021,7 @@ Tags: {', '.join(q.get('tags', []))}
         structural_count = sum(1 for item in merged_items if item.get("structural_failure"))
         approved_count = total - needs_revision_count
         avg_quality = round(
-            sum(item["overall_assessment"].get("quality_score", 0) for item in merged_items) / total, 2
+            sum(item["overall_assessment"].get("quality_score") or 0 for item in merged_items) / total, 2
         ) if total > 0 else 0
 
         report = {
@@ -6615,39 +7050,39 @@ Tags: {', '.join(q.get('tags', []))}
 
 
 def generate_overall_assessment(validator_result, adversarial_result, content_type):
-    """Generate a combined assessment from both agents."""
+    """
+    Combined score = validator (1-10) + adversarial (1-10) = max 20.
+    Both models rate 10 as best (nothing to fix), 1 as unacceptable.
+    Thresholds:
+      ≤ 10 : Needs Revision
+      11–15: Conditional — worth a look
+      ≥ 16 : All Good
+    """
+    validator_score   = validator_result.get('overall_accuracy_score')
+    adversarial_score = adversarial_result.get('adversarial_score')
 
-    validator_score   = validator_result.get('overall_accuracy_score', 0)
-    adversarial_score = adversarial_result.get('adversarial_score', 0)
+    # If either score is missing (parse miss or structural failure), fall back to 5 per model
+    if validator_score is None:   validator_score   = 5
+    if adversarial_score is None: adversarial_score = 5
 
-    # needs_revision is only true if server-side enforcement allowed it (hard failures only)
-    needs_revision = (
-        validator_result.get('needs_revision', False) or
-        adversarial_result.get('needs_revision', False)
-    )
+    combined = validator_score + adversarial_score  # 2–20
 
-    # Quality score: validator weighted 70%, adversarial (inverted) weighted 30%
-    # Higher validator weight since _enforce_needs_revision already gates hard failures
-    quality_score = (validator_score * 0.7) + ((10 - adversarial_score) * 0.3)
-
-    # Cap quality score so it is always consistent with the revision status.
-    # A "Needs Revision" item must never show a score that looks like "Approved".
-    if needs_revision:
-        quality_score = min(quality_score, 6.0)
-
-    if needs_revision:
-        status = "❌ Needs Revision"
-        recommendation = "Confirmed error: wrong answer, factual mistake, dangerous content, or image issue."
-    elif quality_score >= 6.5:
-        status = "✅ Approved"
-        recommendation = "Content is accurate and appropriate for use."
+    if combined <= 10:
+        status        = "❌ Needs Revision"
+        needs_revision = True
+        recommendation = "Genuine errors detected — review changes required."
+    elif combined <= 15:
+        status        = "⚠️ Conditional"
+        needs_revision = False
+        recommendation = "No critical errors, but reviewers flagged areas worth a quick look."
     else:
-        status = "⚠️ Conditional"
-        recommendation = "No confirmed errors, but reviewers noted areas worth a quick look."
+        status        = "✅ All Good"
+        needs_revision = False
+        recommendation = "Both reviewers found no significant issues."
 
     return {
         "status": status,
-        "quality_score": round(quality_score, 2),
+        "quality_score": combined,
         "validator_score": validator_score,
         "adversarial_score": adversarial_score,
         "needs_revision": needs_revision,
